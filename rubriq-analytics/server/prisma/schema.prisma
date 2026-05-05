@@ -1,0 +1,549 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(50)
+  description String?  @db.VarChar(255)
+  createdAt   DateTime @default(now())
+  users       User[]
+
+  @@map("roles")
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  email        String    @unique @db.VarChar(255)
+  passwordHash String    @db.VarChar(255)
+  firstName    String    @db.VarChar(100)
+  lastName     String    @db.VarChar(100)
+  roleId       Int
+  role         Role      @relation(fields: [roleId], references: [id])
+  isActive     Boolean   @default(true)
+  lastLogin    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  auditLogs         AuditLog[]
+  marksUploadBatches MarksUploadBatch[]
+  evidenceArchives  EvidenceArchive[]
+
+  @@map("users")
+}
+
+model Institution {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(255)
+  code        String   @unique @db.VarChar(50)
+  address     String?  @db.Text
+  website     String?  @db.VarChar(255)
+  logoUrl     String?  @db.VarChar(255)
+  accredBody  String?  @db.VarChar(100)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  departments Department[]
+
+  @@map("institutions")
+}
+
+model Department {
+  id            Int         @id @default(autoincrement())
+  institutionId Int
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  name          String      @db.VarChar(255)
+  code          String      @db.VarChar(50)
+  hodName       String?     @db.VarChar(255)
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  programs Program[]
+
+  @@unique([institutionId, code])
+  @@map("departments")
+}
+
+model Program {
+  id           Int        @id @default(autoincrement())
+  departmentId Int
+  department   Department @relation(fields: [departmentId], references: [id])
+  name         String     @db.VarChar(255)
+  code         String     @db.VarChar(50)
+  duration     Int        @default(2)
+  level        String     @db.VarChar(50)
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  courses              Course[]
+  programOutcomes      ProgramOutcome[]
+  programSpecificOutcomes ProgramSpecificOutcome[]
+  students             Student[]
+
+  @@unique([departmentId, code])
+  @@map("programs")
+}
+
+model Course {
+  id          Int      @id @default(autoincrement())
+  programId   Int
+  program     Program  @relation(fields: [programId], references: [id])
+  name        String   @db.VarChar(255)
+  code        String   @db.VarChar(50)
+  credits     Int      @default(3)
+  semester    Int?
+  description String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assessments     Assessment[]
+  courseOutcomes  CourseOutcome[]
+  learningOutcomes LearningOutcome[]
+
+  @@unique([programId, code])
+  @@map("courses")
+}
+
+model AcademicYear {
+  id        Int      @id @default(autoincrement())
+  label     String   @unique @db.VarChar(20)
+  startYear Int
+  endYear   Int
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  semesters Semester[]
+
+  @@map("academic_years")
+}
+
+model Semester {
+  id             Int          @id @default(autoincrement())
+  academicYearId Int
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
+  number         Int
+  label          String       @db.VarChar(50)
+  startDate      DateTime?
+  endDate        DateTime?
+  isActive       Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  evaluationCycles EvaluationCycle[]
+  divisions        Division[]
+
+  @@unique([academicYearId, number])
+  @@map("semesters")
+}
+
+model Division {
+  id         Int      @id @default(autoincrement())
+  semesterId Int
+  semester   Semester @relation(fields: [semesterId], references: [id])
+  name       String   @db.VarChar(50)
+  capacity   Int      @default(60)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  students    Student[]
+  assessments Assessment[]
+
+  @@unique([semesterId, name])
+  @@map("divisions")
+}
+
+model EvaluationCycle {
+  id          Int      @id @default(autoincrement())
+  semesterId  Int
+  semester    Semester @relation(fields: [semesterId], references: [id])
+  number      Int
+  label       String   @db.VarChar(100)
+  startDate   DateTime?
+  endDate     DateTime?
+  isActive    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  assessments Assessment[]
+
+  @@unique([semesterId, number])
+  @@map("evaluation_cycles")
+}
+
+model Assessment {
+  id                 Int             @id @default(autoincrement())
+  courseId           Int
+  course             Course          @relation(fields: [courseId], references: [id])
+  evaluationCycleId  Int
+  evaluationCycle    EvaluationCycle @relation(fields: [evaluationCycleId], references: [id])
+  divisionId         Int?
+  division           Division?       @relation(fields: [divisionId], references: [id])
+  title              String          @db.VarChar(255)
+  type               String          @db.VarChar(100)
+  description        String?         @db.Text
+  totalMarks         Int             @default(30)
+  passingMarks       Int             @default(12)
+  submissionDeadline DateTime?
+  isActive           Boolean         @default(true)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  rubric           Rubric?
+  submissions      StudentSubmission[]
+  uploadBatches    MarksUploadBatch[]
+
+  @@map("assessments")
+}
+
+model Rubric {
+  id           Int        @id @default(autoincrement())
+  assessmentId Int        @unique
+  assessment   Assessment @relation(fields: [assessmentId], references: [id])
+  title        String     @db.VarChar(255)
+  description  String?    @db.Text
+  totalMarks   Int        @default(30)
+  isPublished  Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  criteria RubricCriterion[]
+
+  @@map("rubrics")
+}
+
+model RubricCriterion {
+  id          Int    @id @default(autoincrement())
+  rubricId    Int
+  rubric      Rubric @relation(fields: [rubricId], references: [id])
+  orderIndex  Int    @default(0)
+  title       String @db.VarChar(255)
+  description String? @db.Text
+  maxMarks    Int
+  bloomLevel  String? @db.VarChar(50)
+  weightage   Float  @default(1.0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  levels            RubricLevel[]
+  outcomeMappings   CriterionOutcomeMapping[]
+  evaluationScores  TeacherEvaluationScore[]
+
+  @@map("rubric_criteria")
+}
+
+model RubricLevel {
+  id          Int             @id @default(autoincrement())
+  criterionId Int
+  criterion   RubricCriterion @relation(fields: [criterionId], references: [id])
+  label       String          @db.VarChar(50)
+  minMarks    Float
+  maxMarks    Float
+  descriptor  String?         @db.Text
+  colorCode   String?         @db.VarChar(20)
+  createdAt   DateTime        @default(now())
+
+  @@map("rubric_levels")
+}
+
+model LearningOutcome {
+  id          Int      @id @default(autoincrement())
+  courseId    Int
+  course      Course   @relation(fields: [courseId], references: [id])
+  code        String   @db.VarChar(20)
+  description String   @db.Text
+  bloomLevel  String?  @db.VarChar(50)
+  createdAt   DateTime @default(now())
+
+  outcomeMappings CriterionOutcomeMapping[]
+
+  @@map("learning_outcomes")
+}
+
+model CourseOutcome {
+  id          Int      @id @default(autoincrement())
+  courseId    Int
+  course      Course   @relation(fields: [courseId], references: [id])
+  code        String   @db.VarChar(20)
+  description String   @db.Text
+  bloomLevel  String?  @db.VarChar(50)
+  createdAt   DateTime @default(now())
+
+  outcomeMappings CriterionOutcomeMapping[]
+  coPOMappings    COPOMapping[]
+
+  @@map("course_outcomes")
+}
+
+model ProgramOutcome {
+  id          Int      @id @default(autoincrement())
+  programId   Int
+  program     Program  @relation(fields: [programId], references: [id])
+  code        String   @db.VarChar(20)
+  description String   @db.Text
+  createdAt   DateTime @default(now())
+
+  coPOMappings COPOMapping[]
+
+  @@map("program_outcomes")
+}
+
+model ProgramSpecificOutcome {
+  id          Int      @id @default(autoincrement())
+  programId   Int
+  program     Program  @relation(fields: [programId], references: [id])
+  code        String   @db.VarChar(20)
+  description String   @db.Text
+  createdAt   DateTime @default(now())
+
+  coPOMappings COPOMapping[]
+
+  @@map("program_specific_outcomes")
+}
+
+model CriterionOutcomeMapping {
+  id           Int             @id @default(autoincrement())
+  criterionId  Int
+  criterion    RubricCriterion @relation(fields: [criterionId], references: [id])
+  outcomeType  String          @db.VarChar(10)
+  loId         Int?
+  lo           LearningOutcome? @relation(fields: [loId], references: [id])
+  coId         Int?
+  co           CourseOutcome?  @relation(fields: [coId], references: [id])
+  strength     Int             @default(3)
+  createdAt    DateTime        @default(now())
+
+  @@map("criterion_outcome_mappings")
+}
+
+model COPOMapping {
+  id    Int           @id @default(autoincrement())
+  coId  Int
+  co    CourseOutcome @relation(fields: [coId], references: [id])
+  poId  Int?
+  po    ProgramOutcome? @relation(fields: [poId], references: [id])
+  psoId Int?
+  pso   ProgramSpecificOutcome? @relation(fields: [psoId], references: [id])
+  strength Int @default(3)
+  createdAt DateTime @default(now())
+
+  @@map("co_po_mappings")
+}
+
+model Student {
+  id         Int      @id @default(autoincrement())
+  programId  Int
+  program    Program  @relation(fields: [programId], references: [id])
+  divisionId Int?
+  division   Division? @relation(fields: [divisionId], references: [id])
+  rollNumber String   @unique @db.VarChar(50)
+  firstName  String   @db.VarChar(100)
+  lastName   String   @db.VarChar(100)
+  email      String?  @unique @db.VarChar(255)
+  phone      String?  @db.VarChar(20)
+  batch      String?  @db.VarChar(20)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  submissions      StudentSubmission[]
+  evaluations      TeacherEvaluation[]
+
+  @@map("students")
+}
+
+model StudentSubmission {
+  id              Int        @id @default(autoincrement())
+  studentId       Int
+  student         Student    @relation(fields: [studentId], references: [id])
+  assessmentId    Int
+  assessment      Assessment @relation(fields: [assessmentId], references: [id])
+  status          String     @default("PENDING") @db.VarChar(30)
+  submittedAt     DateTime?
+  isLate          Boolean    @default(false)
+  remarks         String?    @db.Text
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  files           SubmissionFile[]
+  evaluation      TeacherEvaluation?
+
+  @@unique([studentId, assessmentId])
+  @@map("student_submissions")
+}
+
+model SubmissionFile {
+  id              Int               @id @default(autoincrement())
+  submissionId    Int
+  submission      StudentSubmission @relation(fields: [submissionId], references: [id])
+  originalName    String            @db.VarChar(255)
+  storedName      String            @db.VarChar(255)
+  filePath        String            @db.VarChar(500)
+  mimeType        String            @db.VarChar(100)
+  fileSize        Int
+  uploadedAt      DateTime          @default(now())
+
+  @@map("submission_files")
+}
+
+model TeacherEvaluation {
+  id           Int               @id @default(autoincrement())
+  submissionId Int               @unique
+  submission   StudentSubmission @relation(fields: [submissionId], references: [id])
+  studentId    Int
+  student      Student           @relation(fields: [studentId], references: [id])
+  totalMarks   Float?
+  grade        String?           @db.VarChar(20)
+  feedback     String?           @db.Text
+  status       String            @default("PENDING") @db.VarChar(30)
+  evaluatedAt  DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  scores TeacherEvaluationScore[]
+
+  @@map("teacher_evaluations")
+}
+
+model TeacherEvaluationScore {
+  id           Int                @id @default(autoincrement())
+  evaluationId Int
+  evaluation   TeacherEvaluation  @relation(fields: [evaluationId], references: [id])
+  criterionId  Int
+  criterion    RubricCriterion    @relation(fields: [criterionId], references: [id])
+  marksAwarded Float
+  levelLabel   String?            @db.VarChar(50)
+  remarks      String?            @db.Text
+  createdAt    DateTime           @default(now())
+
+  @@unique([evaluationId, criterionId])
+  @@map("teacher_evaluation_scores")
+}
+
+model MarksUploadBatch {
+  id           Int        @id @default(autoincrement())
+  assessmentId Int
+  assessment   Assessment @relation(fields: [assessmentId], references: [id])
+  uploadedById Int
+  uploadedBy   User       @relation(fields: [uploadedById], references: [id])
+  fileName     String     @db.VarChar(255)
+  filePath     String     @db.VarChar(500)
+  status       String     @default("UPLOADED") @db.VarChar(30)
+  totalRows    Int        @default(0)
+  validRows    Int        @default(0)
+  errorRows    Int        @default(0)
+  importedRows Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  columnMappings  ColumnMapping[]
+  validationErrors ValidationError[]
+
+  @@map("marks_upload_batches")
+}
+
+model ColumnMapping {
+  id          Int              @id @default(autoincrement())
+  batchId     Int
+  batch       MarksUploadBatch @relation(fields: [batchId], references: [id])
+  excelColumn String           @db.VarChar(100)
+  sampleValues String?         @db.Text
+  mappedTo    String?          @db.VarChar(100)
+  confidence  Float            @default(0)
+  isConfirmed Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+
+  @@map("column_mappings")
+}
+
+model ValidationError {
+  id        Int              @id @default(autoincrement())
+  batchId   Int
+  batch     MarksUploadBatch @relation(fields: [batchId], references: [id])
+  rowNumber Int
+  field     String           @db.VarChar(100)
+  errorType String           @db.VarChar(100)
+  message   String           @db.Text
+  rawValue  String?          @db.VarChar(255)
+  resolved  Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@map("validation_errors")
+}
+
+model Report {
+  id         Int      @id @default(autoincrement())
+  type       String   @db.VarChar(100)
+  title      String   @db.VarChar(255)
+  parameters Json?
+  filePath   String?  @db.VarChar(500)
+  status     String   @default("PENDING") @db.VarChar(30)
+  generatedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  @@map("reports")
+}
+
+model EvidenceArchive {
+  id           Int      @id @default(autoincrement())
+  title        String   @db.VarChar(255)
+  description  String?  @db.Text
+  archiveType  String   @db.VarChar(100)
+  filePath     String?  @db.VarChar(500)
+  components   Json?
+  generatedById Int?
+  generatedBy  User?    @relation(fields: [generatedById], references: [id])
+  status       String   @default("DRAFT") @db.VarChar(30)
+  createdAt    DateTime @default(now())
+
+  @@map("evidence_archives")
+}
+
+model ContinuousImprovementAction {
+  id           Int      @id @default(autoincrement())
+  weakArea     String   @db.VarChar(255)
+  evidence     String?  @db.VarChar(255)
+  proposedAction String @db.Text
+  responsibility String? @db.VarChar(255)
+  timelineStart DateTime?
+  timelineEnd  DateTime?
+  status       String   @default("PLANNED") @db.VarChar(30)
+  outcomeNote  String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("continuous_improvement_actions")
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String   @db.VarChar(100)
+  entity     String   @db.VarChar(100)
+  entityId   Int?
+  details    Json?
+  ipAddress  String?  @db.VarChar(45)
+  userAgent  String?  @db.VarChar(500)
+  createdAt  DateTime @default(now())
+
+  @@map("audit_logs")
+}
+
+model Setting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique @db.VarChar(100)
+  value     String   @db.Text
+  group     String   @db.VarChar(50)
+  label     String   @db.VarChar(255)
+  type      String   @default("string") @db.VarChar(20)
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}

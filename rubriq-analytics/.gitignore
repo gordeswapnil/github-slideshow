@@ -1,0 +1,21 @@
+# Dependencies
+server/node_modules/
+client/node_modules/
+
+# Build
+client/dist/
+
+# Environment
+server/.env
+client/.env.local
+client/.env.production
+
+# Uploads (private files)
+server/uploads/*
+!server/uploads/.gitkeep
+
+# Prisma
+server/prisma/migrations/
+
+# Logs
+*.log
