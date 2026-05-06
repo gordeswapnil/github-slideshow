@@ -12,7 +12,7 @@ const transporter = nodemailer.createTransport({
 
 async function sendWelcomeEmail({ firstName, lastName, email, password, role }) {
   const roleLabel = { FACULTY: 'Faculty', HOD: 'Head of Department', STUDENT: 'Student', REVIEWER: 'External Reviewer' }[role] || role;
-  const loginUrl = process.env.CLIENT_URL || 'https://rubriq.swapnilgorde.com';
+  const loginUrl = process.env.CLIENT_URL || 'https://www.rubriq.swapnilgorde.com';
 
   await transporter.sendMail({
     from: `"RubriQ Analytics" <${process.env.SMTP_USER}>`,
