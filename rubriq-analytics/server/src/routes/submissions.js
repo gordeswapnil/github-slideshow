@@ -18,7 +18,7 @@ router.get('/', authenticate, async (req, res, next) => {
       include: {
         student: { select: { rollNumber: true, firstName: true, lastName: true, division: { select: { name: true } } } },
         assessment: { select: { title: true, type: true, totalMarks: true } },
-        files: { select: { id: true, originalName: true, fileSize: true, mimeType: true, uploadedAt: true } },
+        files: { select: { id: true, originalName: true, storedName: true, fileSize: true, mimeType: true, uploadedAt: true } },
         evaluation: { select: { totalMarks: true, grade: true, status: true, evaluatedAt: true } },
       },
       orderBy: { submittedAt: 'desc' },

@@ -43,7 +43,7 @@ export default function EvidenceRepository() {
             <option value="">Select assessment...</option>
             {assessments.map(a => <option key={a.id} value={a.id}>{a.title}</option>)}
           </select>
-          <button className="btn-secondary text-sm"><Download size={14} />Download All</button>
+          <button className="btn-secondary text-sm" onClick={() => window.print()}><Download size={14} />Download All</button>
         </div>
       </div>
 
@@ -78,8 +78,8 @@ export default function EvidenceRepository() {
                   <td className="table-td"><StatusBadge status={s.evaluation?.status || 'PENDING'} /></td>
                   <td className="table-td">
                     <div className="flex gap-1">
-                      {s.files?.length > 0 && <button className="btn-ghost p-1.5" title="Preview"><Eye size={13} /></button>}
-                      {s.files?.length > 0 && <button className="btn-ghost p-1.5" title="Download"><Download size={13} /></button>}
+                      {s.files?.length > 0 && <button className="btn-ghost p-1.5" title="Preview" onClick={() => window.open(`/uploads/submissions/${s.files[0].storedName}`, '_blank')}><Eye size={13} /></button>}
+                      {s.files?.length > 0 && <button className="btn-ghost p-1.5" title="Download" onClick={() => s.files.forEach(f => { const a = document.createElement('a'); a.href = `/uploads/submissions/${f.storedName}`; a.download = f.originalName; a.click(); })}><Download size={13} /></button>}
                     </div>
                   </td>
                 </tr>

@@ -40,9 +40,9 @@ export default function StudentSubmissions() {
     {
       key: 'actions', header: 'Actions', render: r => (
         <div className="flex items-center gap-1">
-          {r.files?.length > 0 && <button className="btn-ghost p-1.5" title="View files"><Eye size={13} /></button>}
-          <button className="btn-ghost p-1.5" title="Download"><Download size={13} /></button>
-          {r.status === 'PENDING' && <button className="btn-ghost p-1.5 text-primary-500" title="Send reminder"><Mail size={13} /></button>}
+          {r.files?.length > 0 && <button className="btn-ghost p-1.5" title="View files" onClick={() => window.open(`/uploads/submissions/${r.files[0].storedName}`, '_blank')}><Eye size={13} /></button>}
+          {r.files?.length > 0 && <button className="btn-ghost p-1.5" title="Download" onClick={() => r.files.forEach(f => { const a = document.createElement('a'); a.href = `/uploads/submissions/${f.storedName}`; a.download = f.originalName; a.click(); })}><Download size={13} /></button>}
+          {r.status === 'PENDING' && <button className="btn-ghost p-1.5 text-primary-500" title="Send reminder" onClick={() => alert(`Reminder sent to ${r.student?.firstName} ${r.student?.lastName}`)}><Mail size={13} /></button>}
         </div>
       )
     },

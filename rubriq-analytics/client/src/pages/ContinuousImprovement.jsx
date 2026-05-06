@@ -4,7 +4,7 @@ import Modal from '../components/shared/Modal';
 import StatusBadge from '../components/shared/StatusBadge';
 import FormSection, { FormGrid, FormField } from '../components/shared/FormSection';
 import { PageLoader } from '../components/shared/LoadingSpinner';
-import { Plus, Edit2, Trash2, RefreshCw, Download, ChevronRight, Check, AlertTriangle, Wrench, Eye } from 'lucide-react';
+import { Plus, Edit2, Trash2, RefreshCw, Download, Check, AlertTriangle, Wrench, Eye } from 'lucide-react';
 
 const STATUS_OPTIONS = ['PLANNED', 'IN_PROGRESS', 'COMPLETED', 'REVIEWED'];
 
@@ -131,7 +131,6 @@ export default function ContinuousImprovement() {
         <div className="lg:col-span-2 card overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <h3 className="font-semibold text-gray-800">Improvement Action Plan</h3>
-            <button className="text-gray-400 hover:text-gray-600"><ChevronRight size={16} /></button>
           </div>
 
           {actions.length === 0 ? (
