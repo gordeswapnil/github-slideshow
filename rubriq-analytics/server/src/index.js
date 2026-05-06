@@ -30,6 +30,7 @@ const ciRoutes = require('./routes/continuousImprovement');
 const auditLogRoutes = require('./routes/auditLogs');
 const settingsRoutes = require('./routes/settings');
 const userRoutes = require('./routes/users');
+const aiImportRoutes = require('./routes/aiImport');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -82,6 +83,7 @@ app.use('/api/accreditation', accreditationRoutes);
 app.use('/api/continuous-improvement', ciRoutes);
 app.use('/api/audit-logs', auditLogRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/ai-import', aiImportRoutes);
 app.use('/api/users', userRoutes);
 
 app.use(errorHandler);

@@ -130,6 +130,7 @@ model Course {
   courseOutcomes       CourseOutcome[]
   learningOutcomes     LearningOutcome[]
   facultyAssignments   FacultyCourseAssignment[]
+  rubrics              Rubric[]
 
   @@unique([programId, code])
   @@map("courses")
@@ -228,8 +229,10 @@ model Assessment {
 
 model Rubric {
   id           Int        @id @default(autoincrement())
-  assessmentId Int        @unique
-  assessment   Assessment @relation(fields: [assessmentId], references: [id])
+  courseId     Int?
+  course       Course?    @relation(fields: [courseId], references: [id])
+  assessmentId Int?       @unique
+  assessment   Assessment? @relation(fields: [assessmentId], references: [id])
   title        String     @db.VarChar(255)
   description  String?    @db.Text
   totalMarks   Int        @default(30)

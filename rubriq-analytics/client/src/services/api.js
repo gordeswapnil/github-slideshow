@@ -115,7 +115,7 @@ export const assessmentsAPI = {
 };
 
 export const rubricsAPI = {
-  list: () => api.get('/rubrics'),
+  list: (params) => api.get('/rubrics', { params }),
   get: (id) => api.get(`/rubrics/${id}`),
   create: (data) => api.post('/rubrics', data),
   update: (id, data) => api.put(`/rubrics/${id}`, data),
@@ -188,4 +188,9 @@ export const usersAPI = {
   update: (id, data) => api.put(`/users/${id}`, data),
   resetPassword: (id) => api.post(`/users/${id}/reset-password`),
   getRoles: () => api.get('/users/roles'),
+};
+
+export const aiImportAPI = {
+  extract: (formData) => api.post('/ai-import/extract', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000 }),
+  confirm: (extracted) => api.post('/ai-import/confirm', { extracted }),
 };

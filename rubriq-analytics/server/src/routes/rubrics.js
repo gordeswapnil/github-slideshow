@@ -6,8 +6,12 @@ const prisma = new PrismaClient();
 
 router.get('/', authenticate, async (req, res, next) => {
   try {
+    const { courseId } = req.query;
+    const where = courseId ? { courseId: parseInt(courseId) } : {};
     const rubrics = await prisma.rubric.findMany({
+      where,
       include: {
+        course: { select: { name: true, code: true } },
         assessment: { select: { title: true, course: { select: { name: true, code: true } } } },
         _count: { select: { criteria: true } },
       },
@@ -36,9 +40,12 @@ router.get('/:id', authenticate, async (req, res, next) => {
 
 router.post('/', authenticate, requireAdmin, async (req, res, next) => {
   try {
-    const { assessmentId, title, description, totalMarks } = req.body;
-    if (!assessmentId || !title) return res.status(400).json({ error: 'assessmentId and title are required' });
-    const rubric = await prisma.rubric.create({ data: { assessmentId: parseInt(assessmentId), title, description, totalMarks: parseInt(totalMarks) || 30 } });
+    const { assessmentId, courseId, title, description, totalMarks } = req.body;
+    if (!title) return res.status(400).json({ error: 'title is required' });
+    const data = { title, description, totalMarks: parseInt(totalMarks) || 30 };
+    if (assessmentId) data.assessmentId = parseInt(assessmentId);
+    if (courseId) data.courseId = parseInt(courseId);
+    const rubric = await prisma.rubric.create({ data });
     await logAudit({ userId: req.user.id, action: 'CREATE', entity: 'Rubric', entityId: rubric.id, req });
     res.status(201).json(rubric);
   } catch (err) { next(err); }
