@@ -42,8 +42,18 @@ router.post('/login', async (req, res, next) => {
 });
 
 router.get('/me', authenticate, (req, res) => {
-  const { passwordHash, ...user } = req.user;
-  res.json({ user });
+  const u = req.user;
+  res.json({
+    user: {
+      id: u.id,
+      email: u.email,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      role: u.role?.name,
+      isActive: u.isActive,
+      lastLogin: u.lastLogin,
+    },
+  });
 });
 
 router.post('/logout', authenticate, async (req, res, next) => {
