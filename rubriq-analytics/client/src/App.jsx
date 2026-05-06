@@ -25,10 +25,18 @@ import Settings from './pages/Settings';
 import UserManagement from './pages/UserManagement';
 import { PageLoader } from './components/shared/LoadingSpinner';
 
-function ProtectedRoute({ children }) {
+const ADMIN_ONLY = ['/academic-setup', '/programs-courses', '/evaluation-plan', '/audit-logs', '/settings', '/user-management'];
+const STUDENT_BLOCKED = ['/academic-setup', '/programs-courses', '/evaluation-plan', '/teacher-evaluation', '/bulk-marks-upload', '/mapping-validation', '/audit-logs', '/settings', '/user-management', '/accreditation', '/continuous-improvement', '/students'];
+const REVIEWER_ALLOWED = ['/dashboard', '/reports', '/analysis-dashboard', '/accreditation', '/evidence-repository'];
+
+function ProtectedRoute({ children, path }) {
   const { user, loading } = useAuth();
   if (loading) return <PageLoader />;
   if (!user) return <Navigate to="/login" replace />;
+  const role = user.role;
+  if (role === 'STUDENT' && STUDENT_BLOCKED.includes(path)) return <Navigate to="/dashboard" replace />;
+  if (role === 'REVIEWER' && path && !REVIEWER_ALLOWED.includes(path)) return <Navigate to="/dashboard" replace />;
+  if (!['ADMIN'].includes(role) && ADMIN_ONLY.includes(path)) return <Navigate to="/dashboard" replace />;
   return <Layout>{children}</Layout>;
 }
 
@@ -40,26 +48,26 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/academic-setup" element={<ProtectedRoute><AcademicSetup /></ProtectedRoute>} />
-      <Route path="/programs-courses" element={<ProtectedRoute><ProgramsCourses /></ProtectedRoute>} />
-      <Route path="/evaluation-plan" element={<ProtectedRoute><EvaluationPlan /></ProtectedRoute>} />
-      <Route path="/assessments" element={<ProtectedRoute><Assessments /></ProtectedRoute>} />
-      <Route path="/rubric-matrix" element={<ProtectedRoute><RubricMatrix /></ProtectedRoute>} />
-      <Route path="/students" element={<ProtectedRoute><Students /></ProtectedRoute>} />
-      <Route path="/student-submissions" element={<ProtectedRoute><StudentSubmissions /></ProtectedRoute>} />
-      <Route path="/teacher-evaluation" element={<ProtectedRoute><TeacherEvaluation /></ProtectedRoute>} />
-      <Route path="/bulk-marks-upload" element={<ProtectedRoute><BulkMarksUpload /></ProtectedRoute>} />
-      <Route path="/mapping-validation" element={<ProtectedRoute><MappingValidation /></ProtectedRoute>} />
-      <Route path="/analysis-dashboard" element={<ProtectedRoute><AnalysisDashboard /></ProtectedRoute>} />
-      <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-      <Route path="/student-progress" element={<ProtectedRoute><StudentProgress /></ProtectedRoute>} />
-      <Route path="/evidence-repository" element={<ProtectedRoute><EvidenceRepository /></ProtectedRoute>} />
-      <Route path="/accreditation" element={<ProtectedRoute><Accreditation /></ProtectedRoute>} />
-      <Route path="/continuous-improvement" element={<ProtectedRoute><ContinuousImprovement /></ProtectedRoute>} />
-      <Route path="/audit-logs" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
-      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-      <Route path="/user-management" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
+      <Route path="/dashboard" element={<ProtectedRoute path="/dashboard"><Dashboard /></ProtectedRoute>} />
+      <Route path="/academic-setup" element={<ProtectedRoute path="/academic-setup"><AcademicSetup /></ProtectedRoute>} />
+      <Route path="/programs-courses" element={<ProtectedRoute path="/programs-courses"><ProgramsCourses /></ProtectedRoute>} />
+      <Route path="/evaluation-plan" element={<ProtectedRoute path="/evaluation-plan"><EvaluationPlan /></ProtectedRoute>} />
+      <Route path="/assessments" element={<ProtectedRoute path="/assessments"><Assessments /></ProtectedRoute>} />
+      <Route path="/rubric-matrix" element={<ProtectedRoute path="/rubric-matrix"><RubricMatrix /></ProtectedRoute>} />
+      <Route path="/students" element={<ProtectedRoute path="/students"><Students /></ProtectedRoute>} />
+      <Route path="/student-submissions" element={<ProtectedRoute path="/student-submissions"><StudentSubmissions /></ProtectedRoute>} />
+      <Route path="/teacher-evaluation" element={<ProtectedRoute path="/teacher-evaluation"><TeacherEvaluation /></ProtectedRoute>} />
+      <Route path="/bulk-marks-upload" element={<ProtectedRoute path="/bulk-marks-upload"><BulkMarksUpload /></ProtectedRoute>} />
+      <Route path="/mapping-validation" element={<ProtectedRoute path="/mapping-validation"><MappingValidation /></ProtectedRoute>} />
+      <Route path="/analysis-dashboard" element={<ProtectedRoute path="/analysis-dashboard"><AnalysisDashboard /></ProtectedRoute>} />
+      <Route path="/reports" element={<ProtectedRoute path="/reports"><Reports /></ProtectedRoute>} />
+      <Route path="/student-progress" element={<ProtectedRoute path="/student-progress"><StudentProgress /></ProtectedRoute>} />
+      <Route path="/evidence-repository" element={<ProtectedRoute path="/evidence-repository"><EvidenceRepository /></ProtectedRoute>} />
+      <Route path="/accreditation" element={<ProtectedRoute path="/accreditation"><Accreditation /></ProtectedRoute>} />
+      <Route path="/continuous-improvement" element={<ProtectedRoute path="/continuous-improvement"><ContinuousImprovement /></ProtectedRoute>} />
+      <Route path="/audit-logs" element={<ProtectedRoute path="/audit-logs"><AuditLogs /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute path="/settings"><Settings /></ProtectedRoute>} />
+      <Route path="/user-management" element={<ProtectedRoute path="/user-management"><UserManagement /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );

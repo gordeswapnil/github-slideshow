@@ -171,5 +171,6 @@ export const usersAPI = {
   list: () => api.get('/users'),
   create: (data) => api.post('/users', data),
   update: (id, data) => api.put(`/users/${id}`, data),
+  resetPassword: (id) => api.post(`/users/${id}/reset-password`),
   getRoles: () => api.get('/users/roles'),
 };

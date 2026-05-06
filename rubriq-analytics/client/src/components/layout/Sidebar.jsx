@@ -2,42 +2,93 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
   LayoutDashboard, Settings2, BookOpen, Calendar, ClipboardList, Grid3X3,
-  Users, FileText, GraduationCap, Upload, GitMerge, BarChart3, FileBarChart,
+  FileText, GraduationCap, Upload, GitMerge, BarChart3, FileBarChart,
   TrendingUp, Archive, Shield, RefreshCw, ClipboardCheck, Settings, UserCog,
-  LogOut, ChevronRight, Zap,
+  LogOut, Zap,
 } from 'lucide-react';
 
-const navItems = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/academic-setup', icon: Settings2, label: 'Academic Setup' },
-  { to: '/programs-courses', icon: BookOpen, label: 'Programs & Courses' },
-  { to: '/evaluation-plan', icon: Calendar, label: 'Evaluation Plan' },
-  { to: '/assessments', icon: ClipboardList, label: 'Assessments' },
-  { to: '/rubric-matrix', icon: Grid3X3, label: 'Rubric Matrix' },
-  { divider: true, label: 'Students' },
-  { to: '/students', icon: GraduationCap, label: 'Students' },
-  { to: '/student-submissions', icon: FileText, label: 'Student Submissions' },
-  { to: '/teacher-evaluation', icon: ClipboardCheck, label: 'Teacher Evaluation' },
-  { divider: true, label: 'Data & Upload' },
-  { to: '/bulk-marks-upload', icon: Upload, label: 'Bulk Marks Upload' },
-  { to: '/mapping-validation', icon: GitMerge, label: 'Mapping & Validation' },
-  { divider: true, label: 'Analytics' },
-  { to: '/analysis-dashboard', icon: BarChart3, label: 'Analysis Dashboard' },
-  { to: '/reports', icon: FileBarChart, label: 'Reports' },
-  { to: '/student-progress', icon: TrendingUp, label: 'Student Progress' },
-  { to: '/evidence-repository', icon: Archive, label: 'Evidence Repository' },
-  { divider: true, label: 'Compliance' },
-  { to: '/accreditation', icon: Shield, label: 'Accreditation' },
-  { to: '/continuous-improvement', icon: RefreshCw, label: 'Continuous Improvement' },
-  { divider: true, label: 'Admin' },
-  { to: '/audit-logs', icon: ClipboardCheck, label: 'Audit Logs' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
-  { to: '/user-management', icon: UserCog, label: 'User Management' },
-];
+const NAV_BY_ROLE = {
+  ADMIN: [
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/academic-setup', icon: Settings2, label: 'Academic Setup' },
+    { to: '/programs-courses', icon: BookOpen, label: 'Programs & Courses' },
+    { to: '/evaluation-plan', icon: Calendar, label: 'Evaluation Plan' },
+    { to: '/assessments', icon: ClipboardList, label: 'Assessments' },
+    { to: '/rubric-matrix', icon: Grid3X3, label: 'Rubric Matrix' },
+    { divider: true, label: 'Students' },
+    { to: '/students', icon: GraduationCap, label: 'Students' },
+    { to: '/student-submissions', icon: FileText, label: 'Student Submissions' },
+    { to: '/teacher-evaluation', icon: ClipboardCheck, label: 'Teacher Evaluation' },
+    { divider: true, label: 'Data & Upload' },
+    { to: '/bulk-marks-upload', icon: Upload, label: 'Bulk Marks Upload' },
+    { to: '/mapping-validation', icon: GitMerge, label: 'Mapping & Validation' },
+    { divider: true, label: 'Analytics' },
+    { to: '/analysis-dashboard', icon: BarChart3, label: 'Analysis Dashboard' },
+    { to: '/reports', icon: FileBarChart, label: 'Reports' },
+    { to: '/student-progress', icon: TrendingUp, label: 'Student Progress' },
+    { to: '/evidence-repository', icon: Archive, label: 'Evidence Repository' },
+    { divider: true, label: 'Compliance' },
+    { to: '/accreditation', icon: Shield, label: 'Accreditation' },
+    { to: '/continuous-improvement', icon: RefreshCw, label: 'Continuous Improvement' },
+    { divider: true, label: 'Admin' },
+    { to: '/audit-logs', icon: ClipboardCheck, label: 'Audit Logs' },
+    { to: '/settings', icon: Settings, label: 'Settings' },
+    { to: '/user-management', icon: UserCog, label: 'User Management' },
+  ],
+  FACULTY: [
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/assessments', icon: ClipboardList, label: 'Assessments' },
+    { to: '/rubric-matrix', icon: Grid3X3, label: 'Rubric Matrix' },
+    { divider: true, label: 'Students' },
+    { to: '/students', icon: GraduationCap, label: 'Students' },
+    { to: '/student-submissions', icon: FileText, label: 'Student Submissions' },
+    { to: '/teacher-evaluation', icon: ClipboardCheck, label: 'Teacher Evaluation' },
+    { divider: true, label: 'Data & Upload' },
+    { to: '/bulk-marks-upload', icon: Upload, label: 'Bulk Marks Upload' },
+    { divider: true, label: 'Analytics' },
+    { to: '/analysis-dashboard', icon: BarChart3, label: 'Analysis Dashboard' },
+    { to: '/reports', icon: FileBarChart, label: 'Reports' },
+    { to: '/student-progress', icon: TrendingUp, label: 'Student Progress' },
+    { to: '/evidence-repository', icon: Archive, label: 'Evidence Repository' },
+  ],
+  HOD: [
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/assessments', icon: ClipboardList, label: 'Assessments' },
+    { to: '/rubric-matrix', icon: Grid3X3, label: 'Rubric Matrix' },
+    { divider: true, label: 'Students' },
+    { to: '/students', icon: GraduationCap, label: 'Students' },
+    { to: '/student-submissions', icon: FileText, label: 'Student Submissions' },
+    { to: '/teacher-evaluation', icon: ClipboardCheck, label: 'Teacher Evaluation' },
+    { divider: true, label: 'Analytics' },
+    { to: '/analysis-dashboard', icon: BarChart3, label: 'Analysis Dashboard' },
+    { to: '/reports', icon: FileBarChart, label: 'Reports' },
+    { to: '/student-progress', icon: TrendingUp, label: 'Student Progress' },
+    { to: '/evidence-repository', icon: Archive, label: 'Evidence Repository' },
+    { divider: true, label: 'Compliance' },
+    { to: '/accreditation', icon: Shield, label: 'Accreditation' },
+    { to: '/continuous-improvement', icon: RefreshCw, label: 'Continuous Improvement' },
+  ],
+  STUDENT: [
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/assessments', icon: ClipboardList, label: 'Assessments' },
+    { to: '/student-submissions', icon: FileText, label: 'My Submissions' },
+    { to: '/student-progress', icon: TrendingUp, label: 'My Progress' },
+    { to: '/evidence-repository', icon: Archive, label: 'Evidence' },
+  ],
+  REVIEWER: [
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/reports', icon: FileBarChart, label: 'Reports' },
+    { to: '/analysis-dashboard', icon: BarChart3, label: 'Analysis Dashboard' },
+    { to: '/accreditation', icon: Shield, label: 'Accreditation' },
+    { to: '/evidence-repository', icon: Archive, label: 'Evidence Repository' },
+  ],
+};
 
 export default function Sidebar({ collapsed }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  const navItems = NAV_BY_ROLE[user?.role] || NAV_BY_ROLE.ADMIN;
 
   const handleLogout = async () => {
     await logout();
@@ -61,19 +112,6 @@ export default function Sidebar({ collapsed }) {
         )}
       </div>
 
-      {/* Quick Upload */}
-      {!collapsed && (
-        <div className="px-3 py-3 border-b border-white/10">
-          <button
-            onClick={() => navigate('/bulk-marks-upload')}
-            className="w-full flex items-center justify-center gap-2 py-2 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-lg transition-colors"
-          >
-            <Upload size={14} />
-            Quick Upload
-          </button>
-        </div>
-      )}
-
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
         {navItems.map((item, i) => {
@@ -86,12 +124,9 @@ export default function Sidebar({ collapsed }) {
           }
           const Icon = item.icon;
           return (
-            <NavLink
-              key={item.to}
-              to={item.to}
+            <NavLink key={item.to} to={item.to}
               className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''} ${collapsed ? 'justify-center px-2' : ''}`}
-              title={collapsed ? item.label : undefined}
-            >
+              title={collapsed ? item.label : undefined}>
               <Icon size={16} className="shrink-0" />
               {!collapsed && <span className="truncate">{item.label}</span>}
             </NavLink>
