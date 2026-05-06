@@ -1,0 +1,11 @@
+{
+  "name": "rubriq-analytics-app",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "cd rubriq-analytics/server && npm install && npx prisma generate && cd ../client && npm install && npm run build",
+    "start": "node rubriq-analytics/server/src/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
