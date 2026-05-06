@@ -55,7 +55,7 @@ export default function AnalysisDashboard() {
             <option value="">Select assessment...</option>
             {assessments.map(a => <option key={a.id} value={a.id}>{a.title}</option>)}
           </select>
-          <button className="btn-secondary text-sm"><Download size={14} />Export</button>
+          <button className="btn-secondary text-sm" onClick={() => window.print()}><Download size={14} />Export</button>
         </div>
       </div>
 

@@ -65,7 +65,7 @@ export default function ContinuousImprovement() {
           <p className="text-sm text-gray-500 mt-0.5">Closing the loop for NBA/NAAC compliance in MBA Finance</p>
         </div>
         <div className="flex gap-2">
-          <button className="btn-secondary text-sm"><Download size={14} />Export CQI Report</button>
+          <button className="btn-secondary text-sm" onClick={() => window.print()}><Download size={14} />Export CQI Report</button>
           <button className="btn-primary text-sm" onClick={() => openModal()}>
             <Plus size={14} />Add Improvement Action
           </button>

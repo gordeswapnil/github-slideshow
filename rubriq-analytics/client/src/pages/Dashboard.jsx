@@ -53,7 +53,7 @@ export default function Dashboard() {
             <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
             {kpis.activeEvalCycle}
           </span>
-          <button className="btn-secondary text-xs">
+          <button className="btn-secondary text-xs" onClick={() => window.print()}>
             <Download size={13} />
             Export Report
           </button>

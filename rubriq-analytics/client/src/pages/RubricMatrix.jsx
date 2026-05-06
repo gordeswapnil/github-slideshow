@@ -74,7 +74,7 @@ export default function RubricMatrix() {
           <p className="text-sm text-gray-500 mt-0.5">Design and manage assessment rubrics with performance level descriptors</p>
         </div>
         <div className="flex gap-2">
-          <button className="btn-secondary text-sm"><Download size={14} />Export Rubric</button>
+          <button className="btn-secondary text-sm" onClick={() => window.print()}><Download size={14} />Export Rubric</button>
         </div>
       </div>
 

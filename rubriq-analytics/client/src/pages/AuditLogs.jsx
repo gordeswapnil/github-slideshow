@@ -49,7 +49,7 @@ export default function AuditLogs() {
           <p className="text-sm text-gray-500 mt-0.5">{total} total log entries — complete activity trail</p>
         </div>
         <div className="flex gap-2">
-          <button className="btn-secondary text-sm"><Download size={14} />Export Logs</button>
+          <button className="btn-secondary text-sm" onClick={() => window.print()}><Download size={14} />Export Logs</button>
         </div>
       </div>
 
