@@ -35,6 +35,13 @@ router.post('/generate', authenticate, requireAdmin, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+router.delete('/archives/:id', authenticate, requireAdmin, async (req, res, next) => {
+  try {
+    await prisma.evidenceArchive.delete({ where: { id: parseInt(req.params.id) } });
+    res.json({ message: 'Archive deleted' });
+  } catch (err) { next(err); }
+});
+
 router.get('/checklist', authenticate, async (req, res, next) => {
   try {
     const [rubrics, submissions, evaluations, students] = await Promise.all([

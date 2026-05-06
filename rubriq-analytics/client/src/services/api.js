@@ -149,6 +149,7 @@ export const accreditationAPI = {
   getArchives: () => api.get('/accreditation/archives'),
   generate: (data) => api.post('/accreditation/generate', data),
   getChecklist: () => api.get('/accreditation/checklist'),
+  deleteArchive: (id) => api.delete(`/accreditation/archives/${id}`),
 };
 
 export const ciAPI = {
