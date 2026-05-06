@@ -30,9 +30,10 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  auditLogs         AuditLog[]
-  marksUploadBatches MarksUploadBatch[]
-  evidenceArchives  EvidenceArchive[]
+  auditLogs              AuditLog[]
+  marksUploadBatches     MarksUploadBatch[]
+  evidenceArchives       EvidenceArchive[]
+  facultyAssignments     FacultyCourseAssignment[]
 
   @@map("users")
 }
@@ -50,14 +51,34 @@ model Institution {
   updatedAt   DateTime @updatedAt
 
   departments Department[]
+  colleges    College[]
 
   @@map("institutions")
+}
+
+model College {
+  id            Int         @id @default(autoincrement())
+  institutionId Int
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  name          String      @db.VarChar(255)
+  code          String      @db.VarChar(50)
+  principalName String?     @db.VarChar(255)
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  departments Department[]
+
+  @@unique([institutionId, code])
+  @@map("colleges")
 }
 
 model Department {
   id            Int         @id @default(autoincrement())
   institutionId Int
   institution   Institution @relation(fields: [institutionId], references: [id])
+  collegeId     Int?
+  college       College?    @relation(fields: [collegeId], references: [id])
   name          String      @db.VarChar(255)
   code          String      @db.VarChar(50)
   hodName       String?     @db.VarChar(255)
@@ -105,9 +126,10 @@ model Course {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  assessments     Assessment[]
-  courseOutcomes  CourseOutcome[]
-  learningOutcomes LearningOutcome[]
+  assessments          Assessment[]
+  courseOutcomes       CourseOutcome[]
+  learningOutcomes     LearningOutcome[]
+  facultyAssignments   FacultyCourseAssignment[]
 
   @@unique([programId, code])
   @@map("courses")
@@ -121,7 +143,8 @@ model AcademicYear {
   isActive  Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  semesters Semester[]
+  semesters          Semester[]
+  facultyAssignments FacultyCourseAssignment[]
 
   @@map("academic_years")
 }
@@ -137,8 +160,9 @@ model Semester {
   isActive       Boolean      @default(false)
   createdAt      DateTime     @default(now())
 
-  evaluationCycles EvaluationCycle[]
-  divisions        Division[]
+  evaluationCycles   EvaluationCycle[]
+  divisions          Division[]
+  facultyAssignments FacultyCourseAssignment[]
 
   @@unique([academicYearId, number])
   @@map("semesters")
@@ -519,6 +543,23 @@ model ContinuousImprovementAction {
   updatedAt    DateTime @updatedAt
 
   @@map("continuous_improvement_actions")
+}
+
+model FacultyCourseAssignment {
+  id             Int      @id @default(autoincrement())
+  facultyId      Int
+  faculty        User     @relation(fields: [facultyId], references: [id])
+  courseId       Int
+  course         Course   @relation(fields: [courseId], references: [id])
+  semesterId     Int
+  semester       Semester @relation(fields: [semesterId], references: [id])
+  academicYearId Int
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  @@unique([facultyId, courseId, semesterId])
+  @@map("faculty_course_assignments")
 }
 
 model AuditLog {

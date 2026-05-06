@@ -45,10 +45,23 @@ export const institutionsAPI = {
   delete: (id) => api.delete(`/institutions/${id}`),
 };
 
+export const collegesAPI = {
+  list: (params) => api.get('/colleges', { params }),
+  create: (data) => api.post('/colleges', data),
+  update: (id, data) => api.put(`/colleges/${id}`, data),
+};
+
 export const departmentsAPI = {
   list: (params) => api.get('/departments', { params }),
   create: (data) => api.post('/departments', data),
   update: (id, data) => api.put(`/departments/${id}`, data),
+};
+
+export const facultyAssignmentsAPI = {
+  list: (params) => api.get('/faculty-assignments', { params }),
+  myCourses: () => api.get('/faculty-assignments/my-courses'),
+  create: (data) => api.post('/faculty-assignments', data),
+  remove: (id) => api.delete(`/faculty-assignments/${id}`),
 };
 
 export const programsAPI = {

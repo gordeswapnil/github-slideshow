@@ -4,12 +4,14 @@ import {
   LayoutDashboard, Settings2, BookOpen, Calendar, ClipboardList, Grid3X3,
   FileText, GraduationCap, Upload, GitMerge, BarChart3, FileBarChart,
   TrendingUp, Archive, Shield, RefreshCw, ClipboardCheck, Settings, UserCog,
-  LogOut, Zap,
+  LogOut, Zap, Sparkles,
 } from 'lucide-react';
 
 const NAV_BY_ROLE = {
   ADMIN: [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { divider: true, label: 'Setup' },
+    { to: '/ai-import', icon: Sparkles, label: 'AI Import', badge: 'NEW' },
     { to: '/academic-setup', icon: Settings2, label: 'Academic Setup' },
     { to: '/programs-courses', icon: BookOpen, label: 'Programs & Courses' },
     { to: '/evaluation-plan', icon: Calendar, label: 'Evaluation Plan' },
@@ -37,6 +39,8 @@ const NAV_BY_ROLE = {
   ],
   FACULTY: [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { divider: true, label: 'Setup' },
+    { to: '/ai-import', icon: Sparkles, label: 'AI Import', badge: 'NEW' },
     { to: '/assessments', icon: ClipboardList, label: 'Assessments' },
     { to: '/rubric-matrix', icon: Grid3X3, label: 'Rubric Matrix' },
     { divider: true, label: 'Students' },
@@ -53,6 +57,8 @@ const NAV_BY_ROLE = {
   ],
   HOD: [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { divider: true, label: 'Setup' },
+    { to: '/ai-import', icon: Sparkles, label: 'AI Import', badge: 'NEW' },
     { to: '/assessments', icon: ClipboardList, label: 'Assessments' },
     { to: '/rubric-matrix', icon: Grid3X3, label: 'Rubric Matrix' },
     { divider: true, label: 'Students' },
@@ -128,7 +134,8 @@ export default function Sidebar({ collapsed }) {
               className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''} ${collapsed ? 'justify-center px-2' : ''}`}
               title={collapsed ? item.label : undefined}>
               <Icon size={16} className="shrink-0" />
-              {!collapsed && <span className="truncate">{item.label}</span>}
+              {!collapsed && <span className="truncate flex-1">{item.label}</span>}
+              {!collapsed && item.badge && <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-amber-400 text-amber-900 leading-none">{item.badge}</span>}
             </NavLink>
           );
         })}

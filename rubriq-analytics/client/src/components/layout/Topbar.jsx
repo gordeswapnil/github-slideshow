@@ -1,12 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bell, ChevronDown } from 'lucide-react';
+import { Bell } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useFilters } from '../../context/FilterContext';
 import { auditLogsAPI } from '../../services/api';
-
-const ACADEMIC_YEARS = ['2026-27', '2025-26', '2024-25'];
-const SEMESTERS = [{ value: '', label: 'All Semesters' }, { value: '1', label: 'Semester 1' }, { value: '2', label: 'Semester 2' }];
-const EVAL_CYCLES = [{ value: '', label: 'All Cycles' }, { value: '1', label: 'Evaluation 1' }, { value: '2', label: 'Evaluation 2' }, { value: '3', label: 'Evaluation 3' }, { value: '4', label: 'Evaluation 4' }];
 
 const ACTION_COLORS = {
   LOGIN: 'bg-green-100 text-green-700',
@@ -54,7 +50,6 @@ function NotificationBell() {
           <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full text-white text-[9px] flex items-center justify-center font-bold">{unread}</span>
         )}
       </button>
-
       {open && (
         <div className="absolute right-0 top-9 w-80 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
@@ -81,19 +76,45 @@ function NotificationBell() {
   );
 }
 
-export default function Topbar({ onMenuToggle }) {
+function FilterSelect({ value, onChange, options, placeholder, label }) {
+  return (
+    <div className="flex items-center gap-1 shrink-0">
+      <span className="text-[10px] font-bold text-gray-400 tracking-wide">{label}</span>
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="text-xs border-0 bg-transparent text-gray-700 font-medium focus:outline-none cursor-pointer py-0.5 max-w-[120px]"
+      >
+        <option value="">{placeholder}</option>
+        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </div>
+  );
+}
+
+export default function Topbar() {
   const { user } = useAuth();
-  const { filters, updateFilter } = useFilters();
+  const { filters, updateFilter, academicYears, semesters, evalCycles, programs, courses, divisions } = useFilters();
+
+  const ayOptions = academicYears.map(y => ({ value: y.id.toString(), label: y.label }));
+  const semOptions = semesters.map(s => ({ value: s.id.toString(), label: s.label }));
+  const cycleOptions = evalCycles.map(c => ({ value: c.id.toString(), label: c.label }));
+  const programOptions = programs.map(p => ({ value: p.id.toString(), label: p.code || p.name }));
+  const courseOptions = courses.map(c => ({ value: c.id.toString(), label: c.code || c.name }));
+  const divOptions = divisions.map(d => ({ value: d.id.toString(), label: d.name }));
+  const sep = <span className="text-gray-200 select-none">|</span>;
 
   return (
-    <header className="fixed top-0 right-0 left-56 h-12 bg-white border-b border-gray-100 flex items-center px-4 gap-3 z-20 print:hidden">
-      <div className="flex items-center gap-2 flex-1 overflow-x-auto">
-        <FilterSelect value={filters.academicYear} onChange={v => updateFilter('academicYear', v)} options={ACADEMIC_YEARS.map(y => ({ value: y, label: y }))} label="AY" />
-        <FilterSelect value={filters.semester} onChange={v => updateFilter('semester', v)} options={SEMESTERS} label="SEM" />
-        <FilterSelect value={filters.evalCycle} onChange={v => updateFilter('evalCycle', v)} options={EVAL_CYCLES} label="CYCLE" />
-        <FilterPill label="MBA Finance" active />
-        <FilterPill label="AI in Finance" active />
-        <FilterPill label="Div A" />
+    <header className="fixed top-0 right-0 left-56 h-12 bg-white border-b border-gray-100 flex items-center px-4 gap-2 z-20 print:hidden">
+      <div className="flex items-center gap-2 flex-1 overflow-x-auto min-w-0">
+        <FilterSelect label="AY" value={filters.academicYearId} onChange={v => updateFilter('academicYearId', v)} options={ayOptions} placeholder="Year" />
+        {sep}
+        <FilterSelect label="SEM" value={filters.semesterId} onChange={v => updateFilter('semesterId', v)} options={semOptions} placeholder="Semester" />
+        {sep}
+        <FilterSelect label="CYCLE" value={filters.evalCycleId} onChange={v => updateFilter('evalCycleId', v)} options={cycleOptions} placeholder="Cycle" />
+        {programOptions.length > 0 && <>{sep}<FilterSelect label="PROG" value={filters.programId} onChange={v => updateFilter('programId', v)} options={programOptions} placeholder="Program" /></>}
+        {courseOptions.length > 0 && <>{sep}<FilterSelect label="COURSE" value={filters.courseId} onChange={v => updateFilter('courseId', v)} options={courseOptions} placeholder="Course" /></>}
+        {divOptions.length > 0 && <>{sep}<FilterSelect label="DIV" value={filters.divisionId} onChange={v => updateFilter('divisionId', v)} options={divOptions} placeholder="Division" /></>}
       </div>
       <div className="flex items-center gap-2 shrink-0">
         <NotificationBell />
@@ -104,24 +125,5 @@ export default function Topbar({ onMenuToggle }) {
         </div>
       </div>
     </header>
-  );
-}
-
-function FilterSelect({ value, onChange, options, label }) {
-  return (
-    <div className="flex items-center gap-1 shrink-0">
-      <span className="text-xs font-semibold text-gray-400">{label}</span>
-      <select value={value} onChange={e => onChange(e.target.value)} className="text-xs border-0 bg-transparent text-gray-700 font-medium focus:outline-none cursor-pointer py-0.5">
-        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
-    </div>
-  );
-}
-
-function FilterPill({ label, active }) {
-  return (
-    <span className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-medium cursor-pointer transition-colors ${active ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-      {label}
-    </span>
   );
 }

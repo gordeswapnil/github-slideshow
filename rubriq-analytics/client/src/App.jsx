@@ -22,6 +22,7 @@ import Accreditation from './pages/Accreditation';
 import ContinuousImprovement from './pages/ContinuousImprovement';
 import AuditLogs from './pages/AuditLogs';
 import Settings from './pages/Settings';
+import AIImport from './pages/AIImport';
 import UserManagement from './pages/UserManagement';
 import { PageLoader } from './components/shared/LoadingSpinner';
 
@@ -68,6 +69,7 @@ function AppRoutes() {
       <Route path="/audit-logs" element={<ProtectedRoute path="/audit-logs"><AuditLogs /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute path="/settings"><Settings /></ProtectedRoute>} />
       <Route path="/user-management" element={<ProtectedRoute path="/user-management"><UserManagement /></ProtectedRoute>} />
+      <Route path="/ai-import" element={<ProtectedRoute path="/ai-import"><AIImport /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
