@@ -38,7 +38,7 @@ const allowedOrigins = process.env.CLIENT_URL
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({
-  origin: (origin, callback) => {
+  origin: process.env.NODE_ENV === 'production' ? true : (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
     callback(new Error('Not allowed by CORS'));
   },
