@@ -3,6 +3,17 @@ const { PrismaClient } = require('@prisma/client');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const prisma = new PrismaClient();
 
+router.get('/notifications', authenticate, async (req, res, next) => {
+  try {
+    const logs = await prisma.auditLog.findMany({
+      include: { user: { select: { firstName: true, lastName: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 8,
+    });
+    res.json(logs);
+  } catch (err) { next(err); }
+});
+
 router.get('/', authenticate, requireAdmin, async (req, res, next) => {
   try {
     const { page = 1, limit = 50, action, entity, userId } = req.query;

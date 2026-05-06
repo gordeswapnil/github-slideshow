@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { reportsAPI, assessmentsAPI } from '../services/api';
-import ChartCard from '../components/shared/ChartCard';
 import StatusBadge from '../components/shared/StatusBadge';
 import { PageLoader } from '../components/shared/LoadingSpinner';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Download, FileBarChart } from 'lucide-react';
 
 export default function Reports() {
@@ -29,6 +27,8 @@ export default function Reports() {
     { key: 'compliance', label: 'Submission Compliance' },
   ];
 
+  const handleExport = () => window.print();
+
   return (
     <div className="space-y-6">
       <div className="page-header">
@@ -38,7 +38,7 @@ export default function Reports() {
             <option value="">Select assessment...</option>
             {assessments.map(a => <option key={a.id} value={a.id}>{a.title}</option>)}
           </select>
-          <button className="btn-secondary text-sm"><Download size={14} />Export PDF</button>
+          <button className="btn-secondary text-sm print:hidden" onClick={handleExport} disabled={!data}><Download size={14} />Export PDF</button>
         </div>
       </div>
 

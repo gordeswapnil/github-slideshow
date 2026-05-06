@@ -160,6 +160,7 @@ export const ciAPI = {
 
 export const auditLogsAPI = {
   list: (params) => api.get('/audit-logs', { params }),
+  notifications: () => api.get('/audit-logs/notifications'),
 };
 
 export const settingsAPI = {
