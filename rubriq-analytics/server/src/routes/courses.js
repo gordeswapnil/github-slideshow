@@ -31,7 +31,17 @@ router.post('/', authenticate, requireAdmin, async (req, res, next) => {
   try {
     const { programId, name, code, credits, semester, description } = req.body;
     if (!programId || !name || !code) return res.status(400).json({ error: 'programId, name and code are required' });
-    const course = await prisma.course.create({ data: { programId: parseInt(programId), name, code: code.toUpperCase(), credits: parseInt(credits) || 3, semester: semester ? parseInt(semester) : null, description } });
+    const pid = parseInt(programId);
+    const upperCode = code.toUpperCase().trim();
+    const trimName = name.trim();
+    const existing = await prisma.course.findFirst({
+      where: { programId: pid, OR: [{ code: upperCode }, { name: { equals: trimName, mode: 'insensitive' } }] },
+    });
+    if (existing) {
+      const clash = existing.code === upperCode ? `code "${upperCode}"` : `name "${trimName}"`;
+      return res.status(409).json({ error: `A course with the same ${clash} already exists in this program.` });
+    }
+    const course = await prisma.course.create({ data: { programId: pid, name: trimName, code: upperCode, credits: parseInt(credits) || 3, semester: semester ? parseInt(semester) : null, description } });
     await logAudit({ userId: req.user.id, action: 'CREATE', entity: 'Course', entityId: course.id, req });
     res.status(201).json(course);
   } catch (err) { next(err); }
@@ -39,8 +49,23 @@ router.post('/', authenticate, requireAdmin, async (req, res, next) => {
 
 router.put('/:id', authenticate, requireAdmin, async (req, res, next) => {
   try {
+    const id = parseInt(req.params.id);
     const { name, code, credits, semester, description, isActive } = req.body;
-    const course = await prisma.course.update({ where: { id: parseInt(req.params.id) }, data: { name, code, credits, semester, description, isActive } });
+    if (name || code) {
+      const current = await prisma.course.findUnique({ where: { id } });
+      if (current) {
+        const upperCode = code ? code.toUpperCase().trim() : current.code;
+        const trimName = name ? name.trim() : current.name;
+        const conflict = await prisma.course.findFirst({
+          where: { programId: current.programId, id: { not: id }, OR: [{ code: upperCode }, { name: { equals: trimName, mode: 'insensitive' } }] },
+        });
+        if (conflict) {
+          const clash = conflict.code === upperCode ? `code "${upperCode}"` : `name "${trimName}"`;
+          return res.status(409).json({ error: `Another course with the same ${clash} already exists in this program.` });
+        }
+      }
+    }
+    const course = await prisma.course.update({ where: { id }, data: { name, code: code?.toUpperCase().trim(), credits, semester, description, isActive } });
     res.json(course);
   } catch (err) { next(err); }
 });
