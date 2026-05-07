@@ -1,39 +1,12 @@
-const https = require('https');
+const Anthropic = require('@anthropic-ai/sdk');
 
-function glmRequest(payload) {
-  if (!process.env.GLM_API_KEY) {
-    const err = new Error('GLM_API_KEY is not configured. Add it to your environment variables.');
+function getClient() {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    const err = new Error('ANTHROPIC_API_KEY is not configured in environment variables.');
     err.status = 503;
     throw err;
   }
-  return new Promise((resolve, reject) => {
-    const body = JSON.stringify(payload);
-    const options = {
-      hostname: 'open.bigmodel.cn',
-      path: '/api/paas/v4/chat/completions',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.GLM_API_KEY}`,
-        'Content-Length': Buffer.byteLength(body),
-      },
-    };
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', chunk => { data += chunk; });
-      res.on('end', () => {
-        try {
-          const parsed = JSON.parse(data);
-          if (parsed.error) return reject(new Error(parsed.error.message || 'GLM API error'));
-          resolve(parsed);
-        } catch (e) { reject(new Error('Invalid JSON from GLM API')); }
-      });
-    });
-    req.on('error', reject);
-    req.setTimeout(120000, () => { req.destroy(); reject(new Error('GLM API timeout')); });
-    req.write(body);
-    req.end();
-  });
+  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 }
 
 const EXTRACTION_PROMPT = `You are an expert academic data extractor. Analyze the provided course syllabus document and extract all structured academic data.
@@ -105,32 +78,34 @@ Rules:
 - Return ONLY the JSON, no explanation text`;
 
 async function extractFromText(text) {
-  const response = await glmRequest({
-    model: 'glm-4-flash',
-    messages: [{ role: 'user', content: `${EXTRACTION_PROMPT}\n\nDocument content:\n\n${text.slice(0, 15000)}` }],
+  const client = getClient();
+  const message = await client.messages.create({
+    model: 'claude-sonnet-4-6',
     max_tokens: 4096,
+    messages: [{ role: 'user', content: `${EXTRACTION_PROMPT}\n\nDocument content:\n\n${text.slice(0, 15000)}` }],
   });
-  const raw = response.choices[0].message.content.trim();
+  const raw = message.content[0].text.trim();
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('GLM did not return valid JSON');
+  if (!jsonMatch) throw new Error('AI did not return valid JSON');
   return JSON.parse(jsonMatch[0]);
 }
 
 async function extractFromImage(base64, mediaType) {
-  const response = await glmRequest({
-    model: 'glm-4v-flash',
+  const client = getClient();
+  const message = await client.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 4096,
     messages: [{
       role: 'user',
       content: [
-        { type: 'image_url', image_url: { url: `data:${mediaType};base64,${base64}` } },
+        { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
         { type: 'text', text: EXTRACTION_PROMPT },
       ],
     }],
-    max_tokens: 4096,
   });
-  const raw = response.choices[0].message.content.trim();
+  const raw = message.content[0].text.trim();
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('GLM did not return valid JSON');
+  if (!jsonMatch) throw new Error('AI did not return valid JSON');
   return JSON.parse(jsonMatch[0]);
 }
 
