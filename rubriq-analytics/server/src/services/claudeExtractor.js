@@ -1,14 +1,38 @@
-const OpenAI = require('openai');
+const https = require('https');
 
-function getClient() {
+function glmRequest(payload) {
   if (!process.env.GLM_API_KEY) {
     const err = new Error('GLM_API_KEY is not configured. Add it to your environment variables.');
     err.status = 503;
     throw err;
   }
-  return new OpenAI({
-    apiKey: process.env.GLM_API_KEY,
-    baseURL: 'https://open.bigmodel.cn/api/paas/v4/',
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify(payload);
+    const options = {
+      hostname: 'open.bigmodel.cn',
+      path: '/api/paas/v4/chat/completions',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.GLM_API_KEY}`,
+        'Content-Length': Buffer.byteLength(body),
+      },
+    };
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => { data += chunk; });
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.error) return reject(new Error(parsed.error.message || 'GLM API error'));
+          resolve(parsed);
+        } catch (e) { reject(new Error('Invalid JSON from GLM API')); }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(120000, () => { req.destroy(); reject(new Error('GLM API timeout')); });
+    req.write(body);
+    req.end();
   });
 }
 
@@ -81,16 +105,11 @@ Rules:
 - Return ONLY the JSON, no explanation text`;
 
 async function extractFromText(text) {
-  const client = getClient();
-  const response = await client.chat.completions.create({
+  const response = await glmRequest({
     model: 'glm-4-flash',
-    messages: [{
-      role: 'user',
-      content: `${EXTRACTION_PROMPT}\n\nDocument content:\n\n${text.slice(0, 15000)}`,
-    }],
+    messages: [{ role: 'user', content: `${EXTRACTION_PROMPT}\n\nDocument content:\n\n${text.slice(0, 15000)}` }],
     max_tokens: 4096,
   });
-
   const raw = response.choices[0].message.content.trim();
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('GLM did not return valid JSON');
@@ -98,8 +117,7 @@ async function extractFromText(text) {
 }
 
 async function extractFromImage(base64, mediaType) {
-  const client = getClient();
-  const response = await client.chat.completions.create({
+  const response = await glmRequest({
     model: 'glm-4v-flash',
     messages: [{
       role: 'user',
@@ -110,7 +128,6 @@ async function extractFromImage(base64, mediaType) {
     }],
     max_tokens: 4096,
   });
-
   const raw = response.choices[0].message.content.trim();
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('GLM did not return valid JSON');
