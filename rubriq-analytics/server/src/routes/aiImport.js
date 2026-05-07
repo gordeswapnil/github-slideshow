@@ -5,8 +5,6 @@ const { logAudit } = require('../utils/audit');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { parseDocument } = require('../services/documentParser');
-const { extractFromDocument } = require('../services/claudeExtractor');
 const prisma = new PrismaClient();
 
 const uploadDir = path.join(__dirname, '../../uploads/ai-import/');
@@ -21,6 +19,8 @@ const upload = multer({
 router.post('/extract', authenticate, requireAdmin, upload.single('file'), async (req, res, next) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   try {
+    const { parseDocument } = require('../services/documentParser');
+    const { extractFromDocument } = require('../services/claudeExtractor');
     const parsed = await parseDocument(req.file.path, req.file.mimetype);
     const extracted = await extractFromDocument(parsed);
     // Clean up temp file
