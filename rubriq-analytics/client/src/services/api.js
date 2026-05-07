@@ -206,6 +206,8 @@ export const externalExamAPI = {
   uploadMarks: (id, formData) => api.post(`/external-exams/${id}/upload`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   getMarks: (id) => api.get(`/external-exams/${id}/marks`),
   getTemplate: (id) => api.get(`/external-exams/${id}/template`, { responseType: 'blob' }),
+  smartParse: (formData) => api.post('/external-exams/smart-parse', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000 }),
+  smartConfirm: (data) => api.post('/external-exams/smart-confirm', data, { timeout: 60000 }),
 };
 
 export const coAttainmentAPI = {

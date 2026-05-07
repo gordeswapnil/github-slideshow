@@ -228,4 +228,194 @@ router.get('/:id/template', authenticate, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ─── SMART IMPORT ────────────────────────────────────────────────────────────
+
+const { v4: uuidv4 } = require('uuid');
+const jobStore = new Map(); // in-memory: jobId → { rows, headers }
+
+// POST /api/external-exams/smart-parse
+// Step 1: upload any Excel/CSV, Claude detects structure, returns mapping for review
+router.post('/smart-parse', authenticate, requireAdmin, upload.single('file'), async (req, res, next) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  try {
+    const ExcelJS = require('exceljs');
+    const workbook = new ExcelJS.Workbook();
+
+    // Support both xlsx and csv
+    if (req.file.originalname?.endsWith('.csv') || req.file.mimetype === 'text/csv') {
+      await workbook.csv.readFile(req.file.path);
+    } else {
+      await workbook.xlsx.readFile(req.file.path);
+    }
+
+    const sheet = workbook.worksheets[0];
+    const allRows = [];
+    sheet.eachRow((row, idx) => {
+      allRows.push(row.values.slice(1)); // remove leading undefined at index 0
+    });
+
+    fs.unlink(req.file.path, () => {});
+    if (allRows.length < 2) return res.status(400).json({ error: 'File is empty or has only a header row' });
+
+    const headers = allRows[0].map(h => String(h ?? '').trim());
+    const sampleRows = allRows.slice(1, 6).map(r => r.map(v => String(v ?? '').trim()));
+    const dataRows = allRows.slice(1); // all data, store for later import
+
+    // Claude AI detection
+    const Anthropic = require('@anthropic-ai/sdk');
+    if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'ANTHROPIC_API_KEY not configured' });
+
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const prompt = `You are analyzing an examination marks spreadsheet from an Indian university.
+The file has these column headers (index starting at 0):
+${headers.map((h, i) => `  [${i}] "${h}"`).join('\n')}
+
+Sample data rows (first ${sampleRows.length}):
+${sampleRows.map((r, ri) => `  Row ${ri + 1}: ${r.map((v, i) => `[${i}]="${v}"`).join(', ')}`).join('\n')}
+
+Analyze and return ONLY a valid JSON object:
+{
+  "rollCol": 0,
+  "nameCol": 1,
+  "suggestedTitle": "End Semester Examination",
+  "totalMarks": 100,
+  "questions": [
+    {
+      "colIndex": 2,
+      "questionNo": 1,
+      "coCode": "CO1",
+      "maxMarks": 8,
+      "label": "Q1"
+    }
+  ],
+  "skipCols": [5],
+  "notes": "brief explanation"
+}
+
+Rules:
+- rollCol: column index with roll number / enrollment / PRN / student ID
+- nameCol: column index with student name (or null if absent)
+- questions: only question/marks columns — each has colIndex, questionNo, coCode (extract from header like "CO1","CO-1","C.O.1" etc), maxMarks (look for numbers like "8M","(8)","Max:8","/8" in header or infer from data max value)
+- skipCols: indices of total/grand total/sum columns to ignore
+- suggestedTitle: a suitable exam title from context clues
+- Return ONLY the JSON, no explanation`;
+
+    const message = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2048,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const raw = message.content[0].text.trim();
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return res.status(422).json({ error: 'AI could not parse the file structure. Please check file format.' });
+    const detected = JSON.parse(jsonMatch[0]);
+
+    // Store rows for confirmation step
+    const jobId = uuidv4();
+    jobStore.set(jobId, { dataRows, headers });
+    setTimeout(() => jobStore.delete(jobId), 30 * 60 * 1000); // expire in 30 min
+
+    res.json({ jobId, detected, headers, sampleRows });
+  } catch (err) {
+    fs.unlink(req.file?.path, () => {});
+    next(err);
+  }
+});
+
+// POST /api/external-exams/smart-confirm
+// Step 2: confirm mapping and import all rows
+router.post('/smart-confirm', authenticate, requireAdmin, async (req, res, next) => {
+  try {
+    const { jobId, courseId, evaluationCycleId, divisionId, title, mapping } = req.body;
+    // mapping = { rollCol, nameCol, questions: [{colIndex, questionNo, coCode, maxMarks}] }
+
+    if (!jobStore.has(jobId)) return res.status(400).json({ error: 'Session expired. Please re-upload the file.' });
+    const { dataRows } = jobStore.get(jobId);
+
+    if (!courseId || !evaluationCycleId) return res.status(400).json({ error: 'courseId and evaluationCycleId required' });
+    const cid = parseInt(courseId);
+    const ecid = parseInt(evaluationCycleId);
+
+    // Resolve CO codes to IDs
+    const courseOutcomes = await prisma.courseOutcome.findMany({ where: { courseId: cid } });
+    const coByCode = {};
+    for (const co of courseOutcomes) coByCode[co.code.toUpperCase().replace(/[-.\s]/g, '')] = co.id;
+
+    const resolveCoId = (code) => {
+      if (!code) return null;
+      const key = String(code).toUpperCase().replace(/[-.\s]/g, '');
+      return coByCode[key] || null;
+    };
+
+    // Create the exam assessment + questions in one transaction
+    let examId;
+    await prisma.$transaction(async (tx) => {
+      const assessment = await tx.assessment.create({
+        data: {
+          courseId: cid,
+          evaluationCycleId: ecid,
+          divisionId: divisionId ? parseInt(divisionId) : null,
+          title: title || 'External Examination',
+          type: 'EXTERNAL_EXAM',
+          totalMarks: mapping.questions.reduce((s, q) => s + (parseFloat(q.maxMarks) || 0), 0) || 100,
+          passingMarks: Math.round((mapping.questions.reduce((s, q) => s + (parseFloat(q.maxMarks) || 0), 0) || 100) * 0.4),
+        },
+      });
+      examId = assessment.id;
+
+      for (const q of mapping.questions) {
+        await tx.examQuestion.create({
+          data: {
+            assessmentId: assessment.id,
+            courseId: cid,
+            number: parseInt(q.questionNo),
+            text: q.label || null,
+            coId: resolveCoId(q.coCode),
+            maxMarks: parseFloat(q.maxMarks) || 0,
+          },
+        });
+      }
+    });
+
+    // Load created questions
+    const questions = await prisma.examQuestion.findMany({ where: { assessmentId: examId }, orderBy: { number: 'asc' } });
+
+    // Import student marks row by row
+    let imported = 0;
+    const errors = [];
+
+    for (const row of dataRows) {
+      const rollRaw = String(row[mapping.rollCol] ?? '').trim();
+      if (!rollRaw || rollRaw.toLowerCase() === 'total' || rollRaw === '') continue;
+
+      const student = await prisma.student.findFirst({ where: { rollNumber: { contains: rollRaw } } })
+        || await prisma.student.findFirst({ where: { rollNumber: rollRaw } });
+
+      if (!student) { errors.push(`Roll No "${rollRaw}" not found in system`); continue; }
+
+      for (let qi = 0; qi < mapping.questions.length; qi++) {
+        const qMapping = mapping.questions[qi];
+        const question = questions.find(q => q.number === parseInt(qMapping.questionNo));
+        if (!question) continue;
+
+        const marksRaw = row[qMapping.colIndex];
+        const marks = parseFloat(marksRaw) || 0;
+
+        await prisma.externalExamMark.upsert({
+          where: { questionId_studentId: { questionId: question.id, studentId: student.id } },
+          create: { questionId: question.id, studentId: student.id, marks },
+          update: { marks },
+        });
+      }
+      imported++;
+    }
+
+    jobStore.delete(jobId);
+    await logAudit({ userId: req.user.id, action: 'CREATE', entity: 'ExternalExamSmartImport', entityId: examId, details: { imported, errors: errors.length, title }, req });
+
+    res.json({ success: true, examId, imported, errors, total: dataRows.length });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;
