@@ -24,6 +24,9 @@ import AuditLogs from './pages/AuditLogs';
 import Settings from './pages/Settings';
 import AIImport from './pages/AIImport';
 import UserManagement from './pages/UserManagement';
+import ExternalExam from './pages/ExternalExam';
+import COAttainment from './pages/COAttainment';
+import PODashboard from './pages/PODashboard';
 import { PageLoader } from './components/shared/LoadingSpinner';
 
 const ADMIN_ONLY = ['/academic-setup', '/programs-courses', '/evaluation-plan', '/audit-logs', '/settings', '/user-management'];
@@ -70,6 +73,9 @@ function AppRoutes() {
       <Route path="/settings" element={<ProtectedRoute path="/settings"><Settings /></ProtectedRoute>} />
       <Route path="/user-management" element={<ProtectedRoute path="/user-management"><UserManagement /></ProtectedRoute>} />
       <Route path="/ai-import" element={<ProtectedRoute path="/ai-import"><AIImport /></ProtectedRoute>} />
+      <Route path="/external-exam" element={<ProtectedRoute path="/external-exam"><ExternalExam /></ProtectedRoute>} />
+      <Route path="/co-attainment" element={<ProtectedRoute path="/co-attainment"><COAttainment /></ProtectedRoute>} />
+      <Route path="/po-dashboard" element={<ProtectedRoute path="/po-dashboard"><PODashboard /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );

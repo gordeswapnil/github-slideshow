@@ -31,6 +31,9 @@ const auditLogRoutes = require('./routes/auditLogs');
 const settingsRoutes = require('./routes/settings');
 const userRoutes = require('./routes/users');
 const aiImportRoutes = require('./routes/aiImport');
+const externalExamRoutes = require('./routes/externalExam');
+const coAttainmentRoutes = require('./routes/coAttainment');
+const poDashboardRoutes = require('./routes/poDashboard');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -85,6 +88,9 @@ app.use('/api/audit-logs', auditLogRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/ai-import', aiImportRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/external-exams', externalExamRoutes);
+app.use('/api/co-attainment', coAttainmentRoutes);
+app.use('/api/po-dashboard', poDashboardRoutes);
 
 app.use(errorHandler);
 

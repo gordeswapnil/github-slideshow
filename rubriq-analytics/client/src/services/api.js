@@ -194,3 +194,24 @@ export const aiImportAPI = {
   extract: (formData) => api.post('/ai-import/extract', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000 }),
   confirm: (extracted) => api.post('/ai-import/confirm', { extracted }),
 };
+
+
+export const externalExamAPI = {
+  list: (params) => api.get('/external-exams', { params }),
+  get: (id) => api.get(`/external-exams/${id}`),
+  create: (data) => api.post('/external-exams', data),
+  addQuestion: (id, data) => api.post(`/external-exams/${id}/questions`, data),
+  updateQuestion: (id, qid, data) => api.put(`/external-exams/${id}/questions/${qid}`, data),
+  deleteQuestion: (id, qid) => api.delete(`/external-exams/${id}/questions/${qid}`),
+  uploadMarks: (id, formData) => api.post(`/external-exams/${id}/upload`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  getMarks: (id) => api.get(`/external-exams/${id}/marks`),
+  getTemplate: (id) => api.get(`/external-exams/${id}/template`, { responseType: 'blob' }),
+};
+
+export const coAttainmentAPI = {
+  get: (params) => api.get('/co-attainment', { params }),
+};
+
+export const poDashboardAPI = {
+  get: (params) => api.get('/po-dashboard', { params }),
+};

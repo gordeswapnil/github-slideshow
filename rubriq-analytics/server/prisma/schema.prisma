@@ -132,6 +132,7 @@ model Course {
   learningOutcomes     LearningOutcome[]
   facultyAssignments   FacultyCourseAssignment[]
   rubrics              Rubric[]
+  examQuestions        ExamQuestion[]
 
   @@unique([programId, code])
   @@map("courses")
@@ -224,6 +225,7 @@ model Assessment {
   rubric           Rubric?
   submissions      StudentSubmission[]
   uploadBatches    MarksUploadBatch[]
+  examQuestions    ExamQuestion[]
 
   @@map("assessments")
 }
@@ -305,6 +307,7 @@ model CourseOutcome {
 
   outcomeMappings CriterionOutcomeMapping[]
   coPOMappings    COPOMapping[]
+  examQuestions   ExamQuestion[]
 
   @@map("course_outcomes")
 }
@@ -382,6 +385,7 @@ model Student {
 
   submissions      StudentSubmission[]
   evaluations      TeacherEvaluation[]
+  examMarks        ExternalExamMark[]
 
   @@map("students")
 }
@@ -591,4 +595,36 @@ model Setting {
   updatedAt DateTime @updatedAt
 
   @@map("settings")
+}
+
+model ExamQuestion {
+  id           Int        @id @default(autoincrement())
+  assessmentId Int
+  assessment   Assessment @relation(fields: [assessmentId], references: [id])
+  courseId     Int
+  course       Course     @relation(fields: [courseId], references: [id])
+  number       Int
+  text         String?    @db.VarChar(255)
+  coId         Int?
+  co           CourseOutcome? @relation(fields: [coId], references: [id])
+  maxMarks     Float
+  createdAt    DateTime   @default(now())
+
+  examMarks ExternalExamMark[]
+
+  @@unique([assessmentId, number])
+  @@map("exam_questions")
+}
+
+model ExternalExamMark {
+  id         Int          @id @default(autoincrement())
+  questionId Int
+  question   ExamQuestion @relation(fields: [questionId], references: [id])
+  studentId  Int
+  student    Student      @relation(fields: [studentId], references: [id])
+  marks      Float        @default(0)
+  createdAt  DateTime     @default(now())
+
+  @@unique([questionId, studentId])
+  @@map("external_exam_marks")
 }
