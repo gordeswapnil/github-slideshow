@@ -26,8 +26,11 @@ router.post('/', authenticate, requireAdmin, async (req, res, next) => {
 
 router.put('/:id/activate', authenticate, requireAdmin, async (req, res, next) => {
   try {
-    await prisma.evaluationCycle.updateMany({ data: { isActive: false } });
-    const cycle = await prisma.evaluationCycle.update({ where: { id: parseInt(req.params.id) }, data: { isActive: true } });
+    const id = parseInt(req.params.id);
+    const target = await prisma.evaluationCycle.findUnique({ where: { id } });
+    if (!target) return res.status(404).json({ error: 'Cycle not found' });
+    // Toggle: if already active, deactivate; otherwise activate (multiple cycles can be active across programs)
+    const cycle = await prisma.evaluationCycle.update({ where: { id }, data: { isActive: !target.isActive } });
     res.json(cycle);
   } catch (err) { next(err); }
 });

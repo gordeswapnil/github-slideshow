@@ -82,7 +82,7 @@ export default function EvaluationPlan() {
     { key: 'end', header: 'End', render: r => r.endDate ? new Date(r.endDate).toLocaleDateString() : '—' },
     { key: 'assessments', header: 'Assessments', render: r => r._count?.assessments || 0 },
     { key: 'active', header: 'Status', render: r => <StatusBadge status={r.isActive ? 'ACTIVE' : 'INACTIVE'} /> },
-    { key: 'actions', header: '', render: r => <div className="flex gap-1"><button className="btn-ghost text-xs py-1" onClick={() => openModal('cycle', r)}><Edit2 size={12} />Edit</button>{!r.isActive && <button className="btn-ghost text-xs py-1 text-green-600" onClick={() => activate('cycle', r.id)}><Zap size={12} />Activate</button>}</div> },
+    { key: 'actions', header: '', render: r => <div className="flex gap-1"><button className="btn-ghost text-xs py-1" onClick={() => openModal('cycle', r)}><Edit2 size={12} />Edit</button><button className={`btn-ghost text-xs py-1 ${r.isActive ? 'text-red-500' : 'text-green-600'}`} onClick={() => activate('cycle', r.id)}><Zap size={12} />{r.isActive ? 'Deactivate' : 'Activate'}</button></div> },
   ];
 
   const dataMap = { years: [yearCols, years], semesters: [semCols, semesters], divisions: [divCols, divisions], cycles: [cycleCols, cycles] };

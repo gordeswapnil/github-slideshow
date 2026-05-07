@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { rubricsAPI, coursesAPI } from '../services/api';
+import { useFilters } from '../context/FilterContext';
 import Modal from '../components/shared/Modal';
 import FormSection, { FormGrid, FormField } from '../components/shared/FormSection';
 import { PageLoader } from '../components/shared/LoadingSpinner';
@@ -9,6 +10,7 @@ const BLOOM_LEVELS = ['Remember', 'Understand', 'Apply', 'Analyze', 'Evaluate', 
 const LEVEL_COLORS = { Excellent: '#16a34a', Good: '#2563eb', Satisfactory: '#f59e0b', 'Needs Improvement': '#ef4444' };
 
 export default function RubricMatrix() {
+  const { filters } = useFilters();
   const [courses, setCourses] = useState([]);
   const [selectedCourseId, setSelectedCourseId] = useState('');
   const [rubrics, setRubrics] = useState([]);
@@ -26,6 +28,11 @@ export default function RubricMatrix() {
       setLoading(false);
     });
   }, []);
+
+  // Sync course selection from header filter
+  useEffect(() => {
+    if (filters.courseId) setSelectedCourseId(filters.courseId);
+  }, [filters.courseId]);
 
   useEffect(() => {
     if (!selectedCourseId) { setRubrics([]); setSelectedRubric(null); return; }
