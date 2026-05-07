@@ -1,6 +1,13 @@
 const Anthropic = require('@anthropic-ai/sdk');
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+function getClient() {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    const err = new Error('ANTHROPIC_API_KEY is not configured on this server. Add it to your environment variables.');
+    err.status = 503;
+    throw err;
+  }
+  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+}
 
 const EXTRACTION_PROMPT = `You are an expert academic data extractor. Analyze the provided course syllabus document and extract all structured academic data.
 
@@ -71,6 +78,7 @@ Rules:
 - Return ONLY the JSON, no explanation text`;
 
 async function extractFromText(text) {
+  const client = getClient();
   const message = await client.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 4096,
@@ -87,6 +95,7 @@ async function extractFromText(text) {
 }
 
 async function extractFromImage(base64, mediaType) {
+  const client = getClient();
   const message = await client.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 4096,
@@ -106,9 +115,7 @@ async function extractFromImage(base64, mediaType) {
 }
 
 async function extractFromDocument(parsed) {
-  if (parsed.type === 'image') {
-    return extractFromImage(parsed.base64, parsed.mediaType);
-  }
+  if (parsed.type === 'image') return extractFromImage(parsed.base64, parsed.mediaType);
   return extractFromText(parsed.text);
 }
 
