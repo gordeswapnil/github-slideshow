@@ -1,12 +1,15 @@
-const Anthropic = require('@anthropic-ai/sdk');
+const OpenAI = require('openai');
 
 function getClient() {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    const err = new Error('ANTHROPIC_API_KEY is not configured on this server. Add it to your environment variables.');
+  if (!process.env.GLM_API_KEY) {
+    const err = new Error('GLM_API_KEY is not configured. Add it to your environment variables.');
     err.status = 503;
     throw err;
   }
-  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return new OpenAI({
+    apiKey: process.env.GLM_API_KEY,
+    baseURL: 'https://open.bigmodel.cn/api/paas/v4/',
+  });
 }
 
 const EXTRACTION_PROMPT = `You are an expert academic data extractor. Analyze the provided course syllabus document and extract all structured academic data.
@@ -79,38 +82,38 @@ Rules:
 
 async function extractFromText(text) {
   const client = getClient();
-  const message = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 4096,
+  const response = await client.chat.completions.create({
+    model: 'glm-4-flash',
     messages: [{
       role: 'user',
       content: `${EXTRACTION_PROMPT}\n\nDocument content:\n\n${text.slice(0, 15000)}`,
     }],
+    max_tokens: 4096,
   });
 
-  const raw = message.content[0].text.trim();
+  const raw = response.choices[0].message.content.trim();
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('Claude did not return valid JSON');
+  if (!jsonMatch) throw new Error('GLM did not return valid JSON');
   return JSON.parse(jsonMatch[0]);
 }
 
 async function extractFromImage(base64, mediaType) {
   const client = getClient();
-  const message = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 4096,
+  const response = await client.chat.completions.create({
+    model: 'glm-4v-flash',
     messages: [{
       role: 'user',
       content: [
-        { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+        { type: 'image_url', image_url: { url: `data:${mediaType};base64,${base64}` } },
         { type: 'text', text: EXTRACTION_PROMPT },
       ],
     }],
+    max_tokens: 4096,
   });
 
-  const raw = message.content[0].text.trim();
+  const raw = response.choices[0].message.content.trim();
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('Claude did not return valid JSON');
+  if (!jsonMatch) throw new Error('GLM did not return valid JSON');
   return JSON.parse(jsonMatch[0]);
 }
 
