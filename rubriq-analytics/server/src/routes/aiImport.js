@@ -83,8 +83,10 @@ router.post('/confirm', authenticate, requireAdmin, async (req, res, next) => {
         const existing = await tx.program.findFirst({ where: { departmentId: department.id, code: progCode } });
         if (existing) { program = existing; results.skipped.program = existing.name; }
         else {
+          const rawDuration = String(extracted.program.duration || '2');
+          const duration = parseInt(rawDuration.replace(/\D/g, ''), 10) || 2;
           program = await tx.program.create({
-            data: { departmentId: department.id, name: extracted.program.name, code: progCode, level: extracted.program.level || 'PG', duration: extracted.program.duration || 2 },
+            data: { departmentId: department.id, name: extracted.program.name, code: progCode, level: extracted.program.level || 'PG', duration },
           });
           results.created.program = program.name;
         }
@@ -97,8 +99,10 @@ router.post('/confirm', authenticate, requireAdmin, async (req, res, next) => {
         const existing = await tx.course.findFirst({ where: { programId: program.id, code: courseCode } });
         if (existing) { course = existing; results.skipped.course = existing.name; }
         else {
+          const credits = parseInt(String(extracted.course.credits || '3').replace(/\D/g, ''), 10) || 3;
+          const semester = extracted.course.semester ? parseInt(String(extracted.course.semester).replace(/\D/g, ''), 10) || null : null;
           course = await tx.course.create({
-            data: { programId: program.id, name: extracted.course.name, code: courseCode, credits: extracted.course.credits || 3, semester: extracted.course.semester, description: extracted.course.description },
+            data: { programId: program.id, name: extracted.course.name, code: courseCode, credits, semester, description: extracted.course.description },
           });
           results.created.course = course.name;
         }
@@ -158,7 +162,7 @@ router.post('/confirm', authenticate, requireAdmin, async (req, res, next) => {
           if (!coId || !poId) continue;
           const existing = await tx.cOPOMapping.findFirst({ where: { coId, poId } });
           if (!existing) {
-            await tx.cOPOMapping.create({ data: { coId, poId, strength: m.strength || 3 } });
+            await tx.cOPOMapping.create({ data: { coId, poId, strength: parseInt(m.strength, 10) || 3 } });
             mappingCount++;
           }
         }
@@ -172,7 +176,7 @@ router.post('/confirm', authenticate, requireAdmin, async (req, res, next) => {
           const psoId = psoMap[m.pso];
           if (!coId || !psoId) continue;
           const existing = await tx.cOPOMapping.findFirst({ where: { coId, psoId } });
-          if (!existing) await tx.cOPOMapping.create({ data: { coId, psoId, strength: m.strength || 2 } });
+          if (!existing) await tx.cOPOMapping.create({ data: { coId, psoId, strength: parseInt(m.strength, 10) || 2 } });
         }
       }
 
@@ -183,7 +187,7 @@ router.post('/confirm', authenticate, requireAdmin, async (req, res, next) => {
             courseId: course.id,
             title: `${extracted.course?.name || 'Course'} Rubric`,
             description: `Auto-imported from syllabus`,
-            totalMarks: extracted.assessmentConfig?.totalMarks || 30,
+            totalMarks: parseInt(extracted.assessmentConfig?.totalMarks, 10) || 30,
             isPublished: false,
           },
         });
@@ -192,14 +196,14 @@ router.post('/confirm', authenticate, requireAdmin, async (req, res, next) => {
           const c = extracted.rubricCriteria[i];
           if (!c.title) continue;
           const criterion = await tx.rubricCriterion.create({
-            data: { rubricId: rubric.id, title: c.title, maxMarks: c.maxMarks || 5, bloomLevel: c.bloomLevel, orderIndex: c.orderIndex ?? i },
+            data: { rubricId: rubric.id, title: c.title, maxMarks: parseInt(c.maxMarks, 10) || 5, bloomLevel: c.bloomLevel, orderIndex: c.orderIndex ?? i },
           });
           // Levels
           if (c.levels?.length) {
             for (const lv of c.levels) {
               if (lv.label && lv.maxMarks !== null) {
                 await tx.rubricLevel.create({
-                  data: { criterionId: criterion.id, label: lv.label, minMarks: lv.minMarks || 0, maxMarks: lv.maxMarks, descriptor: lv.descriptor },
+                  data: { criterionId: criterion.id, label: lv.label, minMarks: parseInt(lv.minMarks, 10) || 0, maxMarks: parseInt(lv.maxMarks, 10) || 0, descriptor: lv.descriptor },
                 });
               }
             }
