@@ -1,10 +1,9 @@
+const prisma = require('../db');
 const router = require('express').Router();
-const { PrismaClient } = require('@prisma/client');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const bcrypt = require('bcryptjs');
 const { logAudit } = require('../utils/audit');
 const { sendWelcomeEmail } = require('../utils/email');
-const prisma = new PrismaClient();
 
 function generatePassword() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';

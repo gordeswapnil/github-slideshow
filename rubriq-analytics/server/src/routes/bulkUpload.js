@@ -1,9 +1,8 @@
+const prisma = require('../db');
 const router = require('express').Router();
-const { PrismaClient } = require('@prisma/client');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const { excelUpload } = require('../middleware/upload');
 const ExcelJS = require('exceljs');
-const prisma = new PrismaClient();
 
 const FIELD_KEYWORDS = {
   rollNumber: ['roll', 'rollno', 'roll_no', 'rollnumber', 'roll_number', 'student_id'],

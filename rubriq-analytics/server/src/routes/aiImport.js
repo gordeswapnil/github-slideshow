@@ -1,11 +1,10 @@
+const prisma = require('../db');
 const router = require('express').Router();
-const { PrismaClient } = require('@prisma/client');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const { logAudit } = require('../utils/audit');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const prisma = new PrismaClient();
 
 const uploadDir = path.join(__dirname, '../../uploads/ai-import/');
 fs.mkdirSync(uploadDir, { recursive: true });

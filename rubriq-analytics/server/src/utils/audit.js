@@ -1,5 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../db');
 
 const logAudit = async ({ userId, action, entity, entityId, details, req }) => {
   try {
