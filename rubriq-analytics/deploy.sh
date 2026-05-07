@@ -24,7 +24,7 @@ chmod +x node_modules/.bin/prisma 2>/dev/null || true
 chmod +x node_modules/@prisma/engines/* 2>/dev/null || true
 
 echo "==> Running database migration..."
-npx prisma db push
+npx prisma db push || echo "⚠ DB migration failed (skipping — run manually if schema changed)"
 
 echo "==> Installing client dependencies..."
 cd "$CLIENT"
