@@ -2,6 +2,18 @@ import { useState, useRef, useEffect } from 'react';
 import { aiImportAPI } from '../services/api';
 import { Upload, Sparkles, CheckCircle, AlertCircle, FileText, Loader, ChevronDown, ChevronUp } from 'lucide-react';
 
+const EXTRACT_STEPS = [
+  { label: 'Reading document...', pct: 8 },
+  { label: 'Parsing tables & content...', pct: 18 },
+  { label: 'Sending to AI for analysis...', pct: 30 },
+  { label: 'Extracting university & college...', pct: 42 },
+  { label: 'Extracting program & course details...', pct: 54 },
+  { label: 'Extracting Course Outcomes (COs)...', pct: 64 },
+  { label: 'Extracting CO-PO mapping...', pct: 74 },
+  { label: 'Extracting rubric criteria...', pct: 84 },
+  { label: 'Preparing review...', pct: 93 },
+];
+
 const IMPORT_STEPS = [
   { label: 'Saving University & College...', pct: 10 },
   { label: 'Saving Department...', pct: 20 },
@@ -15,7 +27,7 @@ const IMPORT_STEPS = [
   { label: 'Finalising & verifying...', pct: 96 },
 ];
 
-function ImportProgress({ active, done }) {
+function ProgressCard({ steps, active, done, title, doneTitle, interval = 600 }) {
   const [stepIdx, setStepIdx] = useState(0);
   const [pct, setPct] = useState(0);
 
@@ -24,19 +36,15 @@ function ImportProgress({ active, done }) {
     setStepIdx(0); setPct(0);
     let i = 0;
     const tick = () => {
-      if (i < IMPORT_STEPS.length) {
-        setStepIdx(i);
-        setPct(IMPORT_STEPS[i].pct);
-        i++;
-      }
+      if (i < steps.length) { setStepIdx(i); setPct(steps[i].pct); i++; }
     };
     tick();
-    const id = setInterval(tick, 600);
+    const id = setInterval(tick, interval);
     return () => clearInterval(id);
   }, [active]);
 
   const displayPct = done ? 100 : pct;
-  const label = done ? 'Import complete!' : (IMPORT_STEPS[stepIdx]?.label || 'Processing...');
+  const label = done ? 'Done!' : (steps[stepIdx]?.label || 'Processing...');
 
   if (!active && !done) return null;
 
@@ -49,7 +57,7 @@ function ImportProgress({ active, done }) {
             : <Loader size={28} className="text-primary-600 animate-spin" />}
         </div>
         <h3 className="text-base font-semibold text-gray-900">
-          {done ? 'All records saved!' : 'Importing records...'}
+          {done ? doneTitle : title}
         </h3>
         <p className="text-sm text-gray-500">{label}</p>
       </div>
@@ -73,13 +81,11 @@ function ImportProgress({ active, done }) {
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        {IMPORT_STEPS.map((s, i) => (
+        {steps.map((s, i) => (
           <div key={i} className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg transition-all ${
-            done || i < stepIdx
-              ? 'bg-green-50 text-green-700'
-              : i === stepIdx
-              ? 'bg-primary-50 text-primary-700 font-medium'
-              : 'bg-gray-50 text-gray-400'
+            done || i < stepIdx ? 'bg-green-50 text-green-700'
+            : i === stepIdx ? 'bg-primary-50 text-primary-700 font-medium'
+            : 'bg-gray-50 text-gray-400'
           }`}>
             <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
               done || i < stepIdx ? 'bg-green-500' : i === stepIdx ? 'bg-primary-500' : 'bg-gray-300'
@@ -90,7 +96,7 @@ function ImportProgress({ active, done }) {
       </div>
 
       {!done && (
-        <p className="text-center text-xs text-gray-400">Please wait — this may take a few seconds</p>
+        <p className="text-center text-xs text-gray-400">Please wait — this may take up to a minute</p>
       )}
     </div>
   );
@@ -233,43 +239,56 @@ export default function AIImport() {
       {/* Step 1: Upload */}
       {step === 1 && (
         <div className="space-y-4">
-          <div
-            className={`card border-2 border-dashed p-12 text-center cursor-pointer transition-all ${file ? 'border-primary-400 bg-primary-50' : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'}`}
-            onClick={() => inputRef.current.click()}
-            onDragOver={e => e.preventDefault()}
-            onDrop={e => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); }}
-          >
-            <input ref={inputRef} type="file" className="hidden" accept=".pdf,.docx,.doc,.xlsx,.xls,.jpg,.jpeg,.png" onChange={e => handleFile(e.target.files[0])} />
-            {file ? (
-              <div className="space-y-2">
-                <CheckCircle size={32} className="text-primary-500 mx-auto" />
-                <p className="font-semibold text-gray-800">{file.name}</p>
-                <p className="text-sm text-gray-500">{(file.size / 1024).toFixed(0)} KB — Click to change</p>
+          {extracting ? (
+            <ProgressCard
+              steps={EXTRACT_STEPS}
+              active={extracting}
+              done={false}
+              title="Analysing document with AI..."
+              doneTitle="Analysis complete!"
+              interval={3500}
+            />
+          ) : (
+            <>
+              <div
+                className={`card border-2 border-dashed p-12 text-center cursor-pointer transition-all ${file ? 'border-primary-400 bg-primary-50' : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'}`}
+                onClick={() => inputRef.current.click()}
+                onDragOver={e => e.preventDefault()}
+                onDrop={e => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); }}
+              >
+                <input ref={inputRef} type="file" className="hidden" accept=".pdf,.docx,.doc,.xlsx,.xls,.jpg,.jpeg,.png" onChange={e => handleFile(e.target.files[0])} />
+                {file ? (
+                  <div className="space-y-2">
+                    <CheckCircle size={32} className="text-primary-500 mx-auto" />
+                    <p className="font-semibold text-gray-800">{file.name}</p>
+                    <p className="text-sm text-gray-500">{(file.size / 1024).toFixed(0)} KB — Click to change</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <Upload size={32} className="text-gray-300 mx-auto" />
+                    <p className="font-semibold text-gray-700">Drop your syllabus here or click to browse</p>
+                    <p className="text-sm text-gray-400">Supports PDF, Word, Excel, or scanned image (JPG/PNG)</p>
+                    <p className="text-xs text-gray-400">No fixed format — AI reads any standard syllabus document</p>
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="space-y-3">
-                <Upload size={32} className="text-gray-300 mx-auto" />
-                <p className="font-semibold text-gray-700">Drop your syllabus here or click to browse</p>
-                <p className="text-sm text-gray-400">Supports PDF, Word, Excel, or scanned image (JPG/PNG)</p>
-                <p className="text-xs text-gray-400">No fixed format — AI reads any standard syllabus document</p>
+
+              <div className="card p-4 bg-amber-50 border border-amber-200">
+                <p className="text-sm font-semibold text-amber-800 mb-2">What will be extracted:</p>
+                <div className="flex flex-wrap gap-2">
+                  {['University', 'College', 'Department', 'Program', 'Course', 'Course Outcomes (COs)', 'Program Outcomes (POs)', 'CO-PO Mapping', 'Rubric Criteria', 'Assessment Config'].map(i => (
+                    <span key={i} className="text-xs px-2 py-1 bg-white border border-amber-200 rounded text-amber-700">{i}</span>
+                  ))}
+                </div>
               </div>
-            )}
-          </div>
 
-          <div className="card p-4 bg-amber-50 border border-amber-200">
-            <p className="text-sm font-semibold text-amber-800 mb-2">What will be extracted:</p>
-            <div className="flex flex-wrap gap-2">
-              {['University', 'College', 'Department', 'Program', 'Course', 'Course Outcomes (COs)', 'Program Outcomes (POs)', 'CO-PO Mapping', 'Rubric Criteria', 'Assessment Config'].map(i => (
-                <span key={i} className="text-xs px-2 py-1 bg-white border border-amber-200 rounded text-amber-700">{i}</span>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex justify-end">
-            <button className="btn-primary" onClick={handleExtract} disabled={!file || extracting}>
-              {extracting ? <><Loader size={15} className="animate-spin" />Analysing document...</> : <><Sparkles size={15} />Extract with AI</>}
-            </button>
-          </div>
+              <div className="flex justify-end">
+                <button className="btn-primary" onClick={handleExtract} disabled={!file}>
+                  <Sparkles size={15} />Extract with AI
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -277,7 +296,7 @@ export default function AIImport() {
       {step === 2 && extracted && (
         <div className="space-y-4">
           {confirming ? (
-            <ImportProgress active={confirming} done={importDone} />
+            <ProgressCard steps={IMPORT_STEPS} active={confirming} done={importDone} title="Importing records..." doneTitle="All records saved!" interval={600} />
           ) : (<>
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-500">Extracted from: <span className="font-medium text-gray-700">{fileName}</span> — Review and edit before importing</p>
