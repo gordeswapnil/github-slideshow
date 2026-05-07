@@ -13,15 +13,21 @@ BASE="$(cd "$(dirname "$0")/.." && pwd)"
 SERVER="$BASE/rubriq-analytics/server"
 CLIENT="$BASE/rubriq-analytics/client"
 
-echo "==> Pulling latest code..."
+echo "==> Restoring git working tree..."
 cd "$BASE"
-git pull origin "$BRANCH"
+git fetch origin "$BRANCH"
+git checkout -f "$BRANCH" 2>/dev/null || true
+git reset --hard "origin/$BRANCH"
 
 echo "==> Installing server dependencies..."
 cd "$SERVER"
 npm install
 chmod +x node_modules/.bin/prisma 2>/dev/null || true
 chmod +x node_modules/@prisma/engines/* 2>/dev/null || true
+chmod +x node_modules/.bin/node-pre-gyp 2>/dev/null || true
+
+echo "==> Generating Prisma client..."
+npx prisma generate || echo "⚠ Prisma generate failed"
 
 echo "==> Running database migration..."
 npx prisma db push || echo "⚠ DB migration failed (skipping — run manually if schema changed)"
