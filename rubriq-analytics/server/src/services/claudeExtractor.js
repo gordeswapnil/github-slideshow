@@ -81,8 +81,8 @@ async function extractFromText(text) {
   const client = getClient();
   const message = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 4096,
-    messages: [{ role: 'user', content: `${EXTRACTION_PROMPT}\n\nDocument content:\n\n${text.slice(0, 15000)}` }],
+    max_tokens: 8192,
+    messages: [{ role: 'user', content: `${EXTRACTION_PROMPT}\n\nDocument content:\n\n${text.slice(0, 12000)}` }],
   });
   const raw = message.content[0].text.trim();
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
@@ -94,7 +94,7 @@ async function extractFromImage(base64, mediaType) {
   const client = getClient();
   const message = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 4096,
+    max_tokens: 8192,
     messages: [{
       role: 'user',
       content: [
