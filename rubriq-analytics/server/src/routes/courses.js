@@ -3,6 +3,95 @@ const router = require('express').Router();
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const { logAudit } = require('../utils/audit');
 
+async function hardDeleteCourse(tx, courseId) {
+  const assessments = await tx.assessment.findMany({ where: { courseId }, select: { id: true } });
+  const assessmentIds = assessments.map(a => a.id);
+
+  if (assessmentIds.length) {
+    // Exam marks chain
+    const examQs = await tx.examQuestion.findMany({ where: { assessmentId: { in: assessmentIds } }, select: { id: true } });
+    const examQIds = examQs.map(q => q.id);
+    if (examQIds.length) await tx.externalExamMark.deleteMany({ where: { questionId: { in: examQIds } } });
+    await tx.examQuestion.deleteMany({ where: { OR: [{ assessmentId: { in: assessmentIds } }, { courseId }] } });
+
+    // Submissions chain
+    const subs = await tx.studentSubmission.findMany({ where: { assessmentId: { in: assessmentIds } }, select: { id: true } });
+    const subIds = subs.map(s => s.id);
+    if (subIds.length) {
+      const evals = await tx.teacherEvaluation.findMany({ where: { submissionId: { in: subIds } }, select: { id: true } });
+      const evalIds = evals.map(e => e.id);
+      if (evalIds.length) await tx.teacherEvaluationScore.deleteMany({ where: { evaluationId: { in: evalIds } } });
+      await tx.teacherEvaluation.deleteMany({ where: { submissionId: { in: subIds } } });
+      await tx.submissionFile.deleteMany({ where: { submissionId: { in: subIds } } });
+      await tx.studentSubmission.deleteMany({ where: { assessmentId: { in: assessmentIds } } });
+    }
+
+    // Marks upload batches
+    const batches = await tx.marksUploadBatch.findMany({ where: { assessmentId: { in: assessmentIds } }, select: { id: true } });
+    const batchIds = batches.map(b => b.id);
+    if (batchIds.length) {
+      await tx.validationError.deleteMany({ where: { batchId: { in: batchIds } } });
+      await tx.columnMapping.deleteMany({ where: { batchId: { in: batchIds } } });
+      await tx.marksUploadBatch.deleteMany({ where: { id: { in: batchIds } } });
+    }
+
+    // Rubrics linked to assessments
+    const rubrics = await tx.rubric.findMany({ where: { assessmentId: { in: assessmentIds } }, select: { id: true } });
+    const rubricIds = rubrics.map(r => r.id);
+    if (rubricIds.length) {
+      const criteria = await tx.rubricCriterion.findMany({ where: { rubricId: { in: rubricIds } }, select: { id: true } });
+      const criterionIds = criteria.map(c => c.id);
+      if (criterionIds.length) {
+        await tx.teacherEvaluationScore.deleteMany({ where: { criterionId: { in: criterionIds } } });
+        await tx.criterionOutcomeMapping.deleteMany({ where: { criterionId: { in: criterionIds } } });
+        await tx.rubricLevel.deleteMany({ where: { criterionId: { in: criterionIds } } });
+        await tx.rubricCriterion.deleteMany({ where: { rubricId: { in: rubricIds } } });
+      }
+      await tx.rubric.deleteMany({ where: { id: { in: rubricIds } } });
+    }
+
+    await tx.assessment.deleteMany({ where: { courseId } });
+  }
+
+  // Rubrics linked directly to course (templates)
+  const courseRubrics = await tx.rubric.findMany({ where: { courseId, assessmentId: null }, select: { id: true } });
+  const cRubricIds = courseRubrics.map(r => r.id);
+  if (cRubricIds.length) {
+    const criteria = await tx.rubricCriterion.findMany({ where: { rubricId: { in: cRubricIds } }, select: { id: true } });
+    const criterionIds = criteria.map(c => c.id);
+    if (criterionIds.length) {
+      await tx.teacherEvaluationScore.deleteMany({ where: { criterionId: { in: criterionIds } } });
+      await tx.criterionOutcomeMapping.deleteMany({ where: { criterionId: { in: criterionIds } } });
+      await tx.rubricLevel.deleteMany({ where: { criterionId: { in: criterionIds } } });
+      await tx.rubricCriterion.deleteMany({ where: { rubricId: { in: cRubricIds } } });
+    }
+    await tx.rubric.deleteMany({ where: { id: { in: cRubricIds } } });
+  }
+
+  // Course outcomes and CO-PO mappings
+  const cos = await tx.courseOutcome.findMany({ where: { courseId }, select: { id: true } });
+  const coIds = cos.map(c => c.id);
+  if (coIds.length) {
+    await tx.cOPOMapping.deleteMany({ where: { coId: { in: coIds } } });
+    await tx.criterionOutcomeMapping.deleteMany({ where: { coId: { in: coIds } } });
+    await tx.courseOutcome.deleteMany({ where: { courseId } });
+  }
+
+  // Learning outcomes
+  const los = await tx.learningOutcome.findMany({ where: { courseId }, select: { id: true } });
+  const loIds = los.map(l => l.id);
+  if (loIds.length) {
+    await tx.criterionOutcomeMapping.deleteMany({ where: { loId: { in: loIds } } });
+    await tx.learningOutcome.deleteMany({ where: { courseId } });
+  }
+
+  await tx.facultyCourseAssignment.deleteMany({ where: { courseId } });
+  await tx.examQuestion.deleteMany({ where: { courseId } });
+  await tx.course.delete({ where: { id: courseId } });
+}
+
+module.exports.hardDeleteCourse = hardDeleteCourse;
+
 router.get('/', authenticate, async (req, res, next) => {
   try {
     const { programId } = req.query;
@@ -72,8 +161,12 @@ router.put('/:id', authenticate, requireAdmin, async (req, res, next) => {
 
 router.delete('/:id', authenticate, requireAdmin, async (req, res, next) => {
   try {
-    await prisma.course.update({ where: { id: parseInt(req.params.id) }, data: { isActive: false } });
-    res.json({ message: 'Course deactivated' });
+    const courseId = parseInt(req.params.id);
+    await prisma.$transaction(async (tx) => {
+      await hardDeleteCourse(tx, courseId);
+    }, { timeout: 30000 });
+    await logAudit({ userId: req.user.id, action: 'DELETE', entity: 'Course', entityId: courseId, req });
+    res.json({ message: 'Course and all related data permanently deleted.' });
   } catch (err) { next(err); }
 });
 

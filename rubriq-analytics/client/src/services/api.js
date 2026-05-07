@@ -69,6 +69,7 @@ export const programsAPI = {
   get: (id) => api.get(`/programs/${id}`),
   create: (data) => api.post('/programs', data),
   update: (id, data) => api.put(`/programs/${id}`, data),
+  delete: (id) => api.delete(`/programs/${id}`),
 };
 
 export const coursesAPI = {
@@ -76,6 +77,7 @@ export const coursesAPI = {
   get: (id) => api.get(`/courses/${id}`),
   create: (data) => api.post('/courses', data),
   update: (id, data) => api.put(`/courses/${id}`, data),
+  delete: (id) => api.delete(`/courses/${id}`),
   getOutcomes: (id) => api.get(`/courses/${id}/outcomes`),
   addOutcome: (id, data) => api.post(`/courses/${id}/outcomes`, data),
 };

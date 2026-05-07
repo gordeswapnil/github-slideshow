@@ -5,7 +5,7 @@ import Modal from '../components/shared/Modal';
 import StatusBadge from '../components/shared/StatusBadge';
 import FormSection, { FormGrid, FormField } from '../components/shared/FormSection';
 import { PageLoader } from '../components/shared/LoadingSpinner';
-import { Plus, Edit2, BookOpen } from 'lucide-react';
+import { Plus, Edit2, Trash2, AlertTriangle } from 'lucide-react';
 
 export default function ProgramsCourses() {
   const [tab, setTab] = useState('programs');
@@ -17,6 +17,8 @@ export default function ProgramsCourses() {
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // { type, item }
+  const [deleting, setDeleting] = useState(false);
 
   const load = () => {
     Promise.all([programsAPI.list(), coursesAPI.list(), departmentsAPI.list()])
@@ -42,6 +44,19 @@ export default function ProgramsCourses() {
     finally { setSaving(false); }
   };
 
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+    setDeleting(true);
+    try {
+      if (deleteConfirm.type === 'program') await programsAPI.delete(deleteConfirm.item.id);
+      else await coursesAPI.delete(deleteConfirm.item.id);
+      load();
+      setDeleteConfirm(null);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Delete failed');
+    } finally { setDeleting(false); }
+  };
+
   if (loading) return <PageLoader />;
 
   const progCols = [
@@ -53,7 +68,12 @@ export default function ProgramsCourses() {
     { key: 'courses', header: 'Courses', render: r => r._count?.courses || 0 },
     { key: 'students', header: 'Students', render: r => r._count?.students || 0 },
     { key: 'status', header: 'Status', render: r => <StatusBadge status={r.isActive ? 'ACTIVE' : 'INACTIVE'} /> },
-    { key: 'actions', header: '', render: r => <button className="btn-ghost text-xs py-1" onClick={() => openModal('program', r)}><Edit2 size={13} />Edit</button> },
+    { key: 'actions', header: '', render: r => (
+      <div className="flex gap-1">
+        <button className="btn-ghost text-xs py-1" onClick={() => openModal('program', r)}><Edit2 size={13} />Edit</button>
+        <button className="btn-ghost text-xs py-1 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setDeleteConfirm({ type: 'program', item: r })}><Trash2 size={13} />Delete</button>
+      </div>
+    )},
   ];
 
   const courseCols = [
@@ -64,7 +84,12 @@ export default function ProgramsCourses() {
     { key: 'semester', header: 'Semester', render: r => r.semester || '—' },
     { key: 'assessments', header: 'Assessments', render: r => r._count?.assessments || 0 },
     { key: 'status', header: 'Status', render: r => <StatusBadge status={r.isActive ? 'ACTIVE' : 'INACTIVE'} /> },
-    { key: 'actions', header: '', render: r => <button className="btn-ghost text-xs py-1" onClick={() => openModal('course', r)}><Edit2 size={13} />Edit</button> },
+    { key: 'actions', header: '', render: r => (
+      <div className="flex gap-1">
+        <button className="btn-ghost text-xs py-1" onClick={() => openModal('course', r)}><Edit2 size={13} />Edit</button>
+        <button className="btn-ghost text-xs py-1 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setDeleteConfirm({ type: 'course', item: r })}><Trash2 size={13} />Delete</button>
+      </div>
+    )},
   ];
 
   return (
@@ -79,6 +104,39 @@ export default function ProgramsCourses() {
         ))}
       </div>
       {tab === 'programs' ? <DataTable columns={progCols} data={programs} searchPlaceholder="Search programs..." /> : <DataTable columns={courseCols} data={courses} searchPlaceholder="Search courses..." />}
+
+      {/* Delete confirmation */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full mx-4 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <AlertTriangle size={20} className="text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Permanently delete {deleteConfirm.type}?</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  <span className="font-medium text-gray-800">{deleteConfirm.item.name} ({deleteConfirm.item.code})</span>
+                  {deleteConfirm.type === 'program'
+                    ? ` — This will delete all courses, assessments, submissions, marks, rubrics, students, and outcomes linked to this program.`
+                    : ` — This will delete all assessments, submissions, marks, rubrics, and outcomes linked to this course.`}
+                </p>
+                <p className="text-xs text-red-600 font-medium mt-2">This action cannot be undone.</p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button className="btn-secondary" onClick={() => setDeleteConfirm(null)} disabled={deleting}>Cancel</button>
+              <button
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 flex items-center gap-1.5"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? 'Deleting...' : <><Trash2 size={14} />Delete Permanently</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Modal open={modal.open} onClose={() => setModal({ open: false, type: '', data: null })} title={modal.data ? `Edit ${modal.type}` : `Add ${modal.type}`}
         footer={<><button className="btn-secondary" onClick={() => setModal({ open: false, type: '', data: null })}>Cancel</button><button className="btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button></>}>
