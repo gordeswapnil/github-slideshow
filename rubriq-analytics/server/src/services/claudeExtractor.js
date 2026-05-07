@@ -75,9 +75,12 @@ FIELD RULES:
 - strength: integer 1 (low), 2 (medium), or 3 (high)
 - confidence: 0.0–1.0 per section
 
-RUBRIC TABLE EXTRACTION (critical):
+RUBRIC TABLE EXTRACTION (critical — read every single row):
 The document may contain a rubric/evaluation table with criteria as rows and performance levels as columns (Excellent, Good, Satisfactory, Needs Improvement or similar). Column headers often show an overall score range like "21-25" or ">80%".
-For EACH criterion row:
+
+IMPORTANT: You MUST extract EVERY criterion row. Do not stop early. Count every row that has a weight or marks value. Example: if the table has 6 criteria rows (Content, Explanation, Examples, Language & grammar, Neatness & organization, Time management), your rubricCriteria array must have exactly 6 objects.
+
+For EACH criterion row (iterate until the "Overall Performance" or end-of-table row):
 1. Extract the criterion title and its weight/max marks (e.g. "Content (Weight: 6 Marks)" → title="Content", maxMarks=6)
 2. Compute per-criterion mark ranges proportionally from the criterion's maxMarks:
    - Excellent: round(0.81 × maxMarks) to maxMarks
@@ -85,7 +88,7 @@ For EACH criterion row:
    - Satisfactory: round(0.40 × maxMarks) to round(0.60 × maxMarks)
    - Needs Improvement: 0 to round(0.39 × maxMarks)
 3. Extract the descriptor text from each cell for that criterion and level
-4. Set assessmentConfig.totalMarks = sum of all criteria maxMarks
+4. Set assessmentConfig.totalMarks = sum of ALL criteria maxMarks (must equal the table's grand total)
 
 CO-PO MAPPING TABLE:
 - Rows = COs, Columns = POs. Cell value 3=High, 2=Medium, 1=Low, "-" or blank = skip (do not include in coPOMapping array)
@@ -100,7 +103,7 @@ async function extractFromText(text) {
   const message = await client.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 8192,
-    messages: [{ role: 'user', content: `${EXTRACTION_PROMPT}\n\nDocument content:\n\n${text.slice(0, 12000)}` }],
+    messages: [{ role: 'user', content: `${EXTRACTION_PROMPT}\n\nDocument content:\n\n${text.slice(0, 80000)}` }],
   });
   const raw = message.content[0].text.trim();
   const jsonMatch = raw.match(/\{[\s\S]*\}/);

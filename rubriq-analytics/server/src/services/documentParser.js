@@ -12,11 +12,22 @@ async function parseDocument(filePath, mimeType) {
     return { text: data.text, type: 'pdf', pages: data.numpages };
   }
 
-  // Word DOCX
+  // Word DOCX — use HTML conversion to preserve table row/cell structure
   if (ext === '.docx' || mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
     const mammoth = require('mammoth');
-    const result = await mammoth.extractRawText({ path: filePath });
-    return { text: result.value, type: 'docx' };
+    const htmlResult = await mammoth.convertToHtml({ path: filePath });
+    // Convert HTML tables to plain text with clear cell separators so Claude can parse rows
+    const html = htmlResult.value;
+    const text = html
+      .replace(/<tr[^>]*>/gi, '\nROW: ')
+      .replace(/<\/tr>/gi, '')
+      .replace(/<t[dh][^>]*>/gi, ' | ')
+      .replace(/<\/t[dh]>/gi, '')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    return { text, type: 'docx' };
   }
 
   // Excel
