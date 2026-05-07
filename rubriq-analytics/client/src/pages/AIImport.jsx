@@ -1,6 +1,100 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { aiImportAPI } from '../services/api';
 import { Upload, Sparkles, CheckCircle, AlertCircle, FileText, Loader, ChevronDown, ChevronUp } from 'lucide-react';
+
+const IMPORT_STEPS = [
+  { label: 'Saving University & College...', pct: 10 },
+  { label: 'Saving Department...', pct: 20 },
+  { label: 'Saving Program...', pct: 32 },
+  { label: 'Saving Course...', pct: 44 },
+  { label: 'Saving Program Outcomes (POs)...', pct: 55 },
+  { label: 'Saving Program Specific Outcomes (PSOs)...', pct: 64 },
+  { label: 'Saving Course Outcomes (COs)...', pct: 74 },
+  { label: 'Saving CO-PO Mappings...', pct: 83 },
+  { label: 'Creating Rubric Template...', pct: 91 },
+  { label: 'Finalising & verifying...', pct: 96 },
+];
+
+function ImportProgress({ active, done }) {
+  const [stepIdx, setStepIdx] = useState(0);
+  const [pct, setPct] = useState(0);
+
+  useEffect(() => {
+    if (!active) { setStepIdx(0); setPct(0); return; }
+    setStepIdx(0); setPct(0);
+    let i = 0;
+    const tick = () => {
+      if (i < IMPORT_STEPS.length) {
+        setStepIdx(i);
+        setPct(IMPORT_STEPS[i].pct);
+        i++;
+      }
+    };
+    tick();
+    const id = setInterval(tick, 600);
+    return () => clearInterval(id);
+  }, [active]);
+
+  const displayPct = done ? 100 : pct;
+  const label = done ? 'Import complete!' : (IMPORT_STEPS[stepIdx]?.label || 'Processing...');
+
+  if (!active && !done) return null;
+
+  return (
+    <div className="card p-8 space-y-6">
+      <div className="text-center space-y-1">
+        <div className="w-12 h-12 rounded-full bg-primary-50 flex items-center justify-center mx-auto mb-4">
+          {done
+            ? <CheckCircle size={28} className="text-green-500" />
+            : <Loader size={28} className="text-primary-600 animate-spin" />}
+        </div>
+        <h3 className="text-base font-semibold text-gray-900">
+          {done ? 'All records saved!' : 'Importing records...'}
+        </h3>
+        <p className="text-sm text-gray-500">{label}</p>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex justify-between text-xs text-gray-500">
+          <span>Progress</span>
+          <span>{displayPct}%</span>
+        </div>
+        <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{
+              width: `${displayPct}%`,
+              background: done
+                ? 'linear-gradient(90deg, #16a34a, #22c55e)'
+                : 'linear-gradient(90deg, #2563eb, #7c3aed)',
+            }}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        {IMPORT_STEPS.map((s, i) => (
+          <div key={i} className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg transition-all ${
+            done || i < stepIdx
+              ? 'bg-green-50 text-green-700'
+              : i === stepIdx
+              ? 'bg-primary-50 text-primary-700 font-medium'
+              : 'bg-gray-50 text-gray-400'
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+              done || i < stepIdx ? 'bg-green-500' : i === stepIdx ? 'bg-primary-500' : 'bg-gray-300'
+            }`} />
+            {s.label.replace('...', '')}
+          </div>
+        ))}
+      </div>
+
+      {!done && (
+        <p className="text-center text-xs text-gray-400">Please wait — this may take a few seconds</p>
+      )}
+    </div>
+  );
+}
 
 const BLOOM_LEVELS = ['Remember', 'Understand', 'Apply', 'Analyze', 'Evaluate', 'Create'];
 const CONFIDENCE_COLOR = (v) => v >= 0.85 ? 'text-green-600 bg-green-50' : v >= 0.6 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50';
@@ -53,6 +147,7 @@ export default function AIImport() {
   const [extracted, setExtracted] = useState(null);
   const [fileName, setFileName] = useState('');
   const [confirming, setConfirming] = useState(false);
+  const [importDone, setImportDone] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState('');
   const inputRef = useRef();
@@ -78,14 +173,16 @@ export default function AIImport() {
   };
 
   const handleConfirm = async () => {
-    setConfirming(true); setError('');
+    setConfirming(true); setImportDone(false); setError('');
     try {
       const res = await aiImportAPI.confirm(extracted);
+      setImportDone(true);
+      await new Promise(r => setTimeout(r, 900));
       setResults(res.data.results);
       setStep(3);
     } catch (err) {
       setError(err.response?.data?.error || 'Import failed.');
-    } finally { setConfirming(false); }
+    } finally { setConfirming(false); setImportDone(false); }
   };
 
   const update = (path, value) => {
@@ -179,6 +276,9 @@ export default function AIImport() {
       {/* Step 2: Review */}
       {step === 2 && extracted && (
         <div className="space-y-4">
+          {confirming ? (
+            <ImportProgress active={confirming} done={importDone} />
+          ) : (<>
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-500">Extracted from: <span className="font-medium text-gray-700">{fileName}</span> — Review and edit before importing</p>
             <div className="flex gap-2">
@@ -302,6 +402,7 @@ export default function AIImport() {
               {confirming ? <><Loader size={14} className="animate-spin" />Importing...</> : <><CheckCircle size={14} />Import All Records</>}
             </button>
           </div>
+          </>)}
         </div>
       )}
 
@@ -339,7 +440,7 @@ export default function AIImport() {
           </div>
 
           <div className="flex gap-2 justify-center">
-            <button className="btn-secondary" onClick={() => { setStep(1); setFile(null); setExtracted(null); setResults(null); }}>Import Another Syllabus</button>
+            <button className="btn-secondary" onClick={() => { setStep(1); setFile(null); setExtracted(null); setResults(null); setImportDone(false); }}>Import Another Syllabus</button>
             <a href="/programs-courses" className="btn-primary">View Programs & Courses →</a>
           </div>
         </div>
