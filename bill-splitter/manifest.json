@@ -1,0 +1,14 @@
+{
+  "name": "Bill Splitter",
+  "short_name": "BillSplit",
+  "description": "Split restaurant and party bills across people with item-level rules and proportional taxes.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f6f8",
+  "theme_color": "#d84315",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
