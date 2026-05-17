@@ -1,0 +1,127 @@
+name: Build Android APK
+
+# Builds Hisaab (the Bill Splitter Android app) on GitHub's runners,
+# which have full internet access — unlike the Claude Code container
+# where android.googlesource and dl.google.com are blocked.
+#
+# Outputs (downloadable from the Actions run page):
+#   - app-debug.apk   — debug-signed, easiest to sideload for personal use
+#   - app-release.apk — release-signed with a per-run keystore (sideload + share)
+#   - app-release.aab — Play Store submission bundle
+#   - keystore.jks    — the release keystore used to sign this build
+#                       (save this securely if you intend to update the app later;
+#                        Play Store requires consistent signing across versions)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - claude/bill-splitter-mobile-app-1Wm9f
+      - master
+    paths:
+      - 'android-app/**'
+      - 'bill-splitter/**'
+      - '.github/workflows/build-android.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Refresh bundled web app
+        run: |
+          cd bill-splitter
+          node build-single.js
+          cp bill-splitter.html ../android-app/app/src/main/assets/bill-splitter.html
+          ls -la ../android-app/app/src/main/assets/
+
+      - name: Generate release keystore
+        working-directory: android-app
+        run: |
+          # If repo secrets KEYSTORE_BASE64 / KEYSTORE_PASSWORD / KEY_PASSWORD exist,
+          # use them — this keeps the signing key consistent across builds so the
+          # app can be upgraded. Otherwise generate a fresh keystore for this run
+          # only, save it as an artifact, and warn the user.
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "Using keystore from secrets"
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
+            echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}"           >> $GITHUB_ENV
+          else
+            echo "::warning::No KEYSTORE_BASE64 secret set — generating a one-off keystore for this build. Save the keystore.jks artifact if you want to update the app later."
+            PW=$(openssl rand -hex 24)
+            keytool -genkeypair -v \
+              -keystore keystore.jks \
+              -alias hisaab \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$PW" -keypass "$PW" \
+              -dname "CN=Hisaab Bill Splitter, OU=Personal, O=gordeswapnil, L=N/A, S=N/A, C=IN"
+            echo "KEYSTORE_PASSWORD=$PW" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=$PW"      >> $GITHUB_ENV
+            # Save the password alongside the keystore artifact so the user can use it later
+            echo "$PW" > keystore-password.txt
+          fi
+          echo "KEYSTORE_PATH=$(pwd)/keystore.jks" >> $GITHUB_ENV
+          echo "KEY_ALIAS=hisaab"                  >> $GITHUB_ENV
+
+      - name: Build debug APK
+        working-directory: android-app
+        run: ./gradlew :app:assembleDebug --no-daemon
+
+      - name: Build release APK
+        working-directory: android-app
+        run: ./gradlew :app:assembleRelease --no-daemon
+
+      - name: Build release AAB (Play Store)
+        working-directory: android-app
+        run: ./gradlew :app:bundleRelease --no-daemon
+
+      - name: Collect outputs
+        run: |
+          mkdir -p out
+          cp android-app/app/build/outputs/apk/debug/app-debug.apk             out/Hisaab-debug.apk
+          cp android-app/app/build/outputs/apk/release/app-release.apk         out/Hisaab-release.apk
+          cp android-app/app/build/outputs/bundle/release/app-release.aab      out/Hisaab-release.aab
+          cp android-app/keystore.jks                                          out/keystore.jks       || true
+          cp android-app/keystore-password.txt                                 out/keystore-password.txt || true
+          ls -la out/
+          # Show APK info
+          echo "--- APK details ---"
+          $ANDROID_HOME/build-tools/*/aapt dump badging out/Hisaab-release.apk 2>/dev/null | head -20 || true
+
+      - name: Upload installable APK (sideload)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hisaab-installable-apk
+          path: |
+            out/Hisaab-debug.apk
+            out/Hisaab-release.apk
+          if-no-files-found: error
+
+      - name: Upload Play Store bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hisaab-play-store-aab
+          path: out/Hisaab-release.aab
+          if-no-files-found: error
+
+      - name: Upload keystore (SAVE THIS — needed for app updates)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hisaab-keystore-PRIVATE
+          path: |
+            out/keystore.jks
+            out/keystore-password.txt
+          if-no-files-found: warn
+          retention-days: 90

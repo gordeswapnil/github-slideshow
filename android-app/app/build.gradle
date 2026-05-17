@@ -1,0 +1,55 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.gordeswapnil.billsplitter'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.gordeswapnil.billsplitter"
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    signingConfigs {
+        release {
+            // Loaded from gradle.properties or environment.
+            // The CI workflow generates a temporary keystore at build time
+            // and writes these values via -P flags.
+            def ksFile      = System.getenv("KEYSTORE_PATH")     ?: project.findProperty("KEYSTORE_PATH")     ?: "keystore.jks"
+            def ksPassword  = System.getenv("KEYSTORE_PASSWORD") ?: project.findProperty("KEYSTORE_PASSWORD") ?: ""
+            def keyAlias    = System.getenv("KEY_ALIAS")         ?: project.findProperty("KEY_ALIAS")         ?: "hisaab"
+            def keyPassword = System.getenv("KEY_PASSWORD")      ?: project.findProperty("KEY_PASSWORD")      ?: ""
+
+            storeFile     file(ksFile)
+            storePassword ksPassword
+            keyAlias      keyAlias
+            keyPassword   keyPassword
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+            signingConfig signingConfigs.release
+        }
+        debug {
+            // Android Gradle Plugin signs debug builds with the auto-generated debug keystore.
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-debug"
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.11.0'
+}
