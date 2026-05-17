@@ -16,20 +16,19 @@ android {
 
     signingConfigs {
         release {
-            // Loaded from gradle.properties or environment.
-            // The CI workflow generates a temporary keystore at build time
-            // and writes these values via env vars / -P flags.
-            // NB: local names must differ from the property names below
-            // or Groovy parses `keyAlias keyAlias` as a method call.
-            def ksFile     = System.getenv("KEYSTORE_PATH")     ?: project.findProperty("KEYSTORE_PATH")     ?: "keystore.jks"
-            def ksPw       = System.getenv("KEYSTORE_PASSWORD") ?: project.findProperty("KEYSTORE_PASSWORD") ?: ""
-            def aliasName  = System.getenv("KEY_ALIAS")         ?: project.findProperty("KEY_ALIAS")         ?: "hisaab"
-            def keyPw      = System.getenv("KEY_PASSWORD")      ?: project.findProperty("KEY_PASSWORD")      ?: ""
+            // Use explicit `=` assignment everywhere. Groovy's bare-token
+            // form (e.g. `keyAlias foo`) is parsed as a method call which
+            // can mis-resolve when the local var name overlaps the
+            // property name. `=` is unambiguous.
+            def ksFile    = System.getenv("KEYSTORE_PATH")     ?: project.findProperty("KEYSTORE_PATH")     ?: "keystore.jks"
+            def ksPw      = System.getenv("KEYSTORE_PASSWORD") ?: project.findProperty("KEYSTORE_PASSWORD") ?: ""
+            def aliasName = System.getenv("KEY_ALIAS")         ?: project.findProperty("KEY_ALIAS")         ?: "hisaab"
+            def keyPw     = System.getenv("KEY_PASSWORD")      ?: project.findProperty("KEY_PASSWORD")      ?: ""
 
-            storeFile     file(ksFile)
-            storePassword ksPw
-            keyAlias      aliasName
-            keyPassword   keyPw
+            storeFile     = file(ksFile)
+            storePassword = ksPw
+            keyAlias      = aliasName
+            keyPassword   = keyPw
         }
     }
 
