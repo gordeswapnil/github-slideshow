@@ -44,9 +44,22 @@
     };
   }
 
-  /** Default person preferences. */
+  /** Default person preferences.
+   *  diet: 'both' (default — eats anything) | 'veg' (pure veg) | 'nonveg' (only non-veg)
+   */
   function defaultPrefs() {
-    return { isVeg: false, isDrinker: true };
+    return { diet: 'both', isDrinker: true };
+  }
+
+  /** Migrate legacy { isVeg: bool } to the new { diet } enum, in place. */
+  function normalisePrefs(prefs) {
+    if (!prefs) return defaultPrefs();
+    if (prefs.diet) return prefs;
+    // Old format: isVeg true → 'veg'; isVeg false → 'both' (eats anything)
+    return {
+      diet:      prefs.isVeg ? 'veg' : 'both',
+      isDrinker: prefs.isDrinker !== false,
+    };
   }
 
   /** Given an item and the people list, return the set of person ids that
@@ -54,10 +67,13 @@
   function eligiblePeople(item, people) {
     const tag = item && item.dietary;
     return people.filter((p) => {
-      const prefs = p.prefs || defaultPrefs();
+      const prefs = normalisePrefs(p.prefs);
       if (tag === 'liquor') return prefs.isDrinker !== false;
-      if (tag === 'nonveg') return prefs.isVeg !== true;
-      return true; // 'veg' / 'any' / undefined → everyone
+      // Pure-veg people are excluded from non-veg items
+      if (tag === 'nonveg') return prefs.diet !== 'veg';
+      // Pure non-veg people (rare) are excluded from veg-only items
+      if (tag === 'veg')    return prefs.diet !== 'nonveg';
+      return true; // 'any' / undefined → everyone
     });
   }
 
@@ -99,6 +115,7 @@
     uid,
     blankBill,
     defaultPrefs,
+    normalisePrefs,
     eligiblePeople,
     loadBills,
     saveBills,

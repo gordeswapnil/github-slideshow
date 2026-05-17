@@ -297,6 +297,54 @@
     });
     const grandTotal = round2(sum(grandPer));
 
+    // -----------------------------------------------------------
+    // Paid-by / Settlement.
+    //
+    // Items with an explicit `paidBy` create a reimbursement loop:
+    //   - the payer fronted the full (item + applicable tax)
+    //   - every consumer (including the payer) owes their tax-inclusive
+    //     share to that payer
+    //
+    // Items WITHOUT `paidBy` are assumed split at the counter — each
+    // person pays their share directly to the merchant; no reimbursement
+    // is generated for them.
+    //
+    // settlementConsumedPerPerson  = consumer's share, but only for
+    //                                items that have a payer (gross of tax)
+    // paidByPerson                 = total fronted by each payer (gross of tax)
+    // net = settlementConsumedPerPerson − paidByPerson
+    //   net > 0  → owes that much to the group of payers
+    //   net < 0  → group owes them that much (they fronted more than they ate)
+    // -----------------------------------------------------------
+    const cgstRate = +(taxes.cgst || 0) / 100;
+    const sgstRate = +(taxes.sgst || 0) / 100;
+    const vatRate  = +(taxes.vat  || 0) / 100;
+    const taxFactorFor = (section) =>
+      section === 'food'   ? 1 + cgstRate + sgstRate :
+      section === 'liquor' ? 1 + vatRate :
+                             1; // 'other' or undefined → no tax
+    const paidByPerson              = Object.fromEntries(people.map((p) => [p.id, 0]));
+    const settlementConsumedPerPerson = Object.fromEntries(people.map((p) => [p.id, 0]));
+    items.forEach((it) => {
+      if (!it.paidBy) return;
+      const tf      = taxFactorFor(it.section);
+      const gross   = itemTotal(it) * tf;
+      if (paidByPerson.hasOwnProperty(it.paidBy)) {
+        paidByPerson[it.paidBy] = round2(paidByPerson[it.paidBy] + gross);
+      }
+      const shares = itemShares[it.id] || {};
+      people.forEach((p) => {
+        settlementConsumedPerPerson[p.id] = round2(
+          settlementConsumedPerPerson[p.id] + (shares[p.id] || 0) * tf
+        );
+      });
+    });
+    const netPerPerson = Object.fromEntries(people.map((p) => [
+      p.id,
+      round2((settlementConsumedPerPerson[p.id] || 0) - (paidByPerson[p.id] || 0)),
+    ]));
+    const settlement = computeSettlement(people, netPerPerson);
+
     return {
       people, items, taxes,
       itemShares, itemRules, itemTotals,
@@ -307,11 +355,51 @@
       taxByPerson,
       taxTotals: { foodCgst: foodCgstTotal, foodSgst: foodSgstTotal, liquorVat: liquorVatTotal },
       grand: { perPerson: grandPer, total: grandTotal },
+      paidByPerson,
+      netPerPerson,
+      settlement,
     };
   }
 
   function sum(map) {
     return Object.values(map).reduce((s, v) => s + v, 0);
+  }
+
+  /**
+   * Greedy settlement: given each person's net (positive = owes, negative =
+   * is owed), produce a list of pairwise transfers that zero everyone out.
+   * Algorithm: repeatedly pair the largest debtor with the largest creditor
+   * and transfer min(|debt|, |credit|). Produces at most N-1 transfers for
+   * N people — the minimum possible without splitting cents oddly.
+   */
+  function computeSettlement(people, netPerPerson) {
+    const epsilon = 0.5;
+    // Build mutable lists of debtors (>0) and creditors (<0)
+    const debtors   = [];
+    const creditors = [];
+    people.forEach((p) => {
+      const n = netPerPerson[p.id] || 0;
+      if (n >  epsilon) debtors.push({ id: p.id, name: p.name, amount: n });
+      if (n < -epsilon) creditors.push({ id: p.id, name: p.name, amount: -n });
+    });
+    debtors.sort((a, b)   => b.amount - a.amount);
+    creditors.sort((a, b) => b.amount - a.amount);
+
+    const transfers = [];
+    let i = 0, j = 0;
+    while (i < debtors.length && j < creditors.length) {
+      const pay = Math.min(debtors[i].amount, creditors[j].amount);
+      transfers.push({
+        fromId: debtors[i].id,   from: debtors[i].name,
+        toId:   creditors[j].id, to:   creditors[j].name,
+        amount: round2(pay),
+      });
+      debtors[i].amount   = round2(debtors[i].amount   - pay);
+      creditors[j].amount = round2(creditors[j].amount - pay);
+      if (debtors[i].amount   < epsilon) i++;
+      if (creditors[j].amount < epsilon) j++;
+    }
+    return transfers;
   }
 
   /** Validation — returns array of human-readable warnings. */

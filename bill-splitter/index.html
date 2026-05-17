@@ -134,6 +134,12 @@
         <button class="tag-btn" data-tag="veg" aria-pressed="false">Veg</button>
         <button class="tag-btn" data-tag="nonveg" aria-pressed="false">Non-veg</button>
       </div>
+      <label class="it-paidby">
+        <span>Paid by</span>
+        <select class="it-paidby-sel">
+          <option value="">— At the counter (settle together) —</option>
+        </select>
+      </label>
       <button class="delbtn" aria-label="Delete">&times;</button>
     </div>
   </template>
@@ -146,9 +152,11 @@
         <button class="delbtn" aria-label="Delete">&times;</button>
       </div>
       <div class="person-prefs">
-        <button class="pref-btn pref-veg" data-pref="veg" aria-pressed="false">
-          <span class="pref-dot"></span><span class="pref-label">Veg</span>
-        </button>
+        <div class="diet-pill" data-diet="both">
+          <button class="diet-opt" data-diet="veg">🥬 Veg only</button>
+          <button class="diet-opt active" data-diet="both">🍽 Both</button>
+          <button class="diet-opt" data-diet="nonveg">🍗 Non-veg only</button>
+        </div>
         <button class="pref-btn pref-drink" data-pref="drink" aria-pressed="true">
           <span class="pref-dot"></span><span class="pref-label">Drinks</span>
         </button>

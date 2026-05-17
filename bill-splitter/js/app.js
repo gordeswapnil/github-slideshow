@@ -295,6 +295,23 @@
       });
     }
 
+    // "Paid by" selector — who fronted the cash. Empty = group settles
+    // at the counter (no reimbursement needed). Each person becomes an
+    // option. Re-rendered whenever people change.
+    const paidSel = $('.it-paidby-sel', node);
+    paidSel.innerHTML = '<option value="">— At the counter (settle together) —</option>';
+    App.bill.people.forEach((p) => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name || '(unnamed)';
+      paidSel.appendChild(opt);
+    });
+    paidSel.value = it.paidBy || '';
+    paidSel.addEventListener('change', () => {
+      it.paidBy = paidSel.value || null;
+      persist();
+    });
+
     $('.delbtn', node).addEventListener('click', () => {
       App.bill.items = App.bill.items.filter((x) => x.id !== it.id);
       delete App.bill.allocations[it.id];
@@ -376,17 +393,23 @@
       persist(); renderPeople();
     });
 
-    // Preference toggles (veg / drinker)
-    if (!p.prefs) p.prefs = Store.defaultPrefs();
-    const vegBtn   = $('.pref-btn[data-pref="veg"]',   node);
-    const drinkBtn = $('.pref-btn[data-pref="drink"]', node);
-    vegBtn.setAttribute('aria-pressed',   p.prefs.isVeg     ? 'true' : 'false');
-    drinkBtn.setAttribute('aria-pressed', p.prefs.isDrinker ? 'true' : 'false');
-    vegBtn.addEventListener('click', () => {
-      p.prefs.isVeg = !p.prefs.isVeg;
-      vegBtn.setAttribute('aria-pressed', p.prefs.isVeg ? 'true' : 'false');
+    // Preferences (diet tri-state + drinker toggle).
+    // Migrate legacy { isVeg } to the new { diet } enum on first render.
+    p.prefs = Store.normalisePrefs(p.prefs);
+    const pillWrap = $('.diet-pill', node);
+    const setDiet = (val) => {
+      p.prefs.diet = val;
+      $$('.diet-opt', pillWrap).forEach((b) =>
+        b.classList.toggle('active', b.dataset.diet === val));
+      pillWrap.dataset.diet = val;
       persist();
-    });
+    };
+    setDiet(p.prefs.diet || 'both');
+    $$('.diet-opt', pillWrap).forEach((b) =>
+      b.addEventListener('click', () => setDiet(b.dataset.diet)));
+
+    const drinkBtn = $('.pref-btn[data-pref="drink"]', node);
+    drinkBtn.setAttribute('aria-pressed', p.prefs.isDrinker ? 'true' : 'false');
     drinkBtn.addEventListener('click', () => {
       p.prefs.isDrinker = !p.prefs.isDrinker;
       drinkBtn.setAttribute('aria-pressed', p.prefs.isDrinker ? 'true' : 'false');
@@ -830,7 +853,9 @@
 
     html += `</tbody></table>`;
     html += `<div class="ftr">Note: Tax shares are proportional to each person's pre-tax section share. Minor rounding in individual shares is normal.</div>`;
-    return `<div class="rpt">${html}</div>`;
+    const wrapped = `<div class="rpt">${html}</div>`;
+    // Append settlement panel if anyone fronted cash
+    return wrapped + renderSettlement(b, calc, forExport);
   }
 
   function renderPerPerson(b, calc, opts) {
@@ -883,7 +908,60 @@
     html += `<div class="rpt" style="margin-top:14px"><table><tr class="grand-row">
       <td>★ GRAND TOTAL</td><td class="num">${fmt(calc.grand.total)}</td>
     </tr></table></div>`;
+
+    // Settlement panel — only show when someone fronted cash
+    html += renderSettlement(b, calc, forExport);
     return html;
+  }
+
+  /**
+   * Render the "Who pays whom" settlement section.
+   * Shows: each person's net, then a list of pairwise transfers.
+   */
+  function renderSettlement(b, calc, forExport) {
+    const anyPaid = Object.values(calc.paidByPerson || {}).some((v) => v > 0);
+    if (!anyPaid) return '';   // nothing to settle — group went Dutch
+
+    const people = b.people;
+    let rows = '';
+    rows += `<table style="margin:0">
+      <thead><tr><th>Person</th><th class="num">Consumed (₹)</th><th class="num">Paid (₹)</th><th class="num">Net (₹)</th></tr></thead><tbody>`;
+    people.forEach((p) => {
+      const consumed = calc.grand.perPerson[p.id] || 0;
+      const paid     = calc.paidByPerson[p.id]   || 0;
+      const net      = calc.netPerPerson[p.id]   || 0;
+      const netLabel = net >  0.005 ? `<span style="color:#b91c1c">owes ${fmt(net)}</span>`
+                     : net < -0.005 ? `<span style="color:#16a34a">+${fmt(-net)} to receive</span>`
+                                    : `<span style="color:#6b7280">settled</span>`;
+      rows += `<tr>
+        <td><b>${esc(p.name || '?')}</b></td>
+        <td class="num">${fmt(consumed)}</td>
+        <td class="num">${fmt(paid)}</td>
+        <td class="num">${netLabel}</td>
+      </tr>`;
+    });
+    rows += `</tbody></table>`;
+
+    let transfers = '';
+    if (!calc.settlement || calc.settlement.length === 0) {
+      transfers = `<div class="settle-empty">No transfers needed — everyone is settled.</div>`;
+    } else {
+      transfers = calc.settlement.map((t) =>
+        `<div class="settle-row">
+           <span class="from">${esc(t.from || '?')}</span>
+           <span class="arrow">→ pays →</span>
+           <span class="to">${esc(t.to || '?')}</span>
+           <span class="amt">${fmtINR(t.amount)}</span>
+         </div>`
+      ).join('');
+    }
+
+    return `<div class="rpt" style="margin-top:14px">
+      <div class="ttl-band">💸 SETTLEMENT — Who pays whom</div>
+      <div class="sub-band">Each person's consumption is balanced against what they paid out of pocket. Below: minimum number of transfers to settle everyone.</div>
+      ${rows}
+    </div>
+    <div class="settle-card">${transfers}</div>`;
   }
 
   function noteForRule(alloc, it, p) {
@@ -914,29 +992,56 @@
   function renderQuickPay(b, calc, opts) {
     const forExport = !!(opts && opts.forExport);
     const people = b.people;
+    const anyPaid = Object.values(calc.paidByPerson || {}).some((v) => v > 0);
+
     let html = `<div class="rpt"><div class="ttl-band">💳 QUICK PAY CARD — ${esc(b.meta.restName || '')}</div>`;
     html += `<div class="sub-band">${b.meta.billNo ? 'No: ' + esc(b.meta.billNo) : ''} ${b.meta.billTable ? '| Table ' + esc(b.meta.billTable) : ''} ${b.meta.billDate ? '| ' + esc(b.meta.billDate) : ''} | Grand Total: ${fmtINR(calc.grand.total)}</div>`;
 
+    if (!anyPaid) {
+      // Original simple display — group went Dutch
+      html += `<div class="qp">
+        <div class="qp-head"><div>Name</div><div>Amount to Pay (₹)</div><div>Rounded</div></div>`;
+      people.forEach((p, i) => {
+        const amt = calc.grand.perPerson[p.id] || 0;
+        const bgx = bgFor(p.color, i);
+        const hex = colorFor(p.color, i);
+        const rowStyle = forExport ? `background:${bgx};color:${hex}` : '';
+        html += `<div class="qp-row" style="${rowStyle}">
+          <div class="qp-name">${esc(p.name || ('P' + (i + 1)))}</div>
+          <div class="qp-amt">${fmt(amt)}</div>
+          <div class="qp-round">${Math.round(amt).toLocaleString('en-IN')}</div>
+        </div>`;
+      });
+      html += `<div class="qp-row qp-total">
+        <div class="qp-name">TOTAL</div>
+        <div class="qp-amt">${fmt(calc.grand.total)}</div>
+        <div class="qp-round">${Math.round(calc.grand.total).toLocaleString('en-IN')}</div>
+      </div>`;
+      html += `</div></div>`;
+      return html;
+    }
+
+    // Net display — someone fronted cash; show each person's net position
     html += `<div class="qp">
-      <div class="qp-head"><div>Name</div><div>Amount to Pay (₹)</div><div>Rounded</div></div>`;
+      <div class="qp-head"><div>Name</div><div>Net (₹)</div><div>Status</div></div>`;
     people.forEach((p, i) => {
-      const amt = calc.grand.perPerson[p.id] || 0;
-      const idx = slotIndex(p.color, i);
+      const net = calc.netPerPerson[p.id] || 0;
       const bgx = bgFor(p.color, i);
       const hex = colorFor(p.color, i);
       const rowStyle = forExport ? `background:${bgx};color:${hex}` : '';
+      let status;
+      if      (net >  0.005) status = '<b style="color:#b91c1c">PAY</b>';
+      else if (net < -0.005) status = '<b style="color:#16a34a">RECEIVE</b>';
+      else                   status = '<span style="color:#6b7280">settled</span>';
       html += `<div class="qp-row" style="${rowStyle}">
         <div class="qp-name">${esc(p.name || ('P' + (i + 1)))}</div>
-        <div class="qp-amt">${fmt(amt)}</div>
-        <div class="qp-round">${Math.round(amt).toLocaleString('en-IN')}</div>
+        <div class="qp-amt">${fmt(Math.abs(net))}</div>
+        <div class="qp-round">${status}</div>
       </div>`;
     });
-    html += `<div class="qp-row qp-total">
-      <div class="qp-name">TOTAL</div>
-      <div class="qp-amt">${fmt(calc.grand.total)}</div>
-      <div class="qp-round">${Math.round(calc.grand.total).toLocaleString('en-IN')}</div>
-    </div>`;
     html += `</div></div>`;
+    // Transfer instructions
+    html += renderSettlement(b, calc, forExport);
     return html;
   }
 
