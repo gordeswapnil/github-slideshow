@@ -272,6 +272,29 @@
       it._amountTouched = true; it.amount = +amtI.value || 0;
       persist(); refreshTotals();
     });
+
+    // Dietary tags — Food/Other items get any/veg/nonveg; Liquor items
+    // always show a single 'liquor' tag (not user-toggleable).
+    const tagsWrap = $('.it-tags', node);
+    if (it.section === 'liquor') {
+      tagsWrap.innerHTML = '<button class="tag-btn" data-tag="liquor" aria-pressed="true">🥃 Liquor</button>';
+      it.dietary = 'liquor';
+    } else {
+      if (!it.dietary || it.dietary === 'liquor') it.dietary = 'any';
+      $$('.tag-btn', tagsWrap).forEach((btn) => {
+        const isOn = btn.dataset.tag === it.dietary;
+        btn.setAttribute('aria-pressed', isOn ? 'true' : 'false');
+        btn.addEventListener('click', () => {
+          it.dietary = btn.dataset.tag;
+          $$('.tag-btn', tagsWrap).forEach((b) =>
+            b.setAttribute('aria-pressed', b.dataset.tag === it.dietary ? 'true' : 'false'));
+          // Invalidate this item's allocation so smart default re-applies on Allocate screen
+          delete App.bill.allocations[it.id];
+          persist();
+        });
+      });
+    }
+
     $('.delbtn', node).addEventListener('click', () => {
       App.bill.items = App.bill.items.filter((x) => x.id !== it.id);
       delete App.bill.allocations[it.id];
@@ -281,7 +304,11 @@
   }
 
   function addItem() {
-    const it = { id: Store.uid(), name: '', rate: 0, qty: 1, amount: 0, section: App.section };
+    const it = {
+      id: Store.uid(), name: '', rate: 0, qty: 1, amount: 0,
+      section: App.section,
+      dietary: App.section === 'liquor' ? 'liquor' : 'any',
+    };
     App.bill.items.push(it);
     persist(); renderItems(); refreshTotals();
     setTimeout(() => {
@@ -348,11 +375,28 @@
       Object.values(App.bill.allocations).forEach((a) => { if (a && a.values) delete a.values[p.id]; });
       persist(); renderPeople();
     });
+
+    // Preference toggles (veg / drinker)
+    if (!p.prefs) p.prefs = Store.defaultPrefs();
+    const vegBtn   = $('.pref-btn[data-pref="veg"]',   node);
+    const drinkBtn = $('.pref-btn[data-pref="drink"]', node);
+    vegBtn.setAttribute('aria-pressed',   p.prefs.isVeg     ? 'true' : 'false');
+    drinkBtn.setAttribute('aria-pressed', p.prefs.isDrinker ? 'true' : 'false');
+    vegBtn.addEventListener('click', () => {
+      p.prefs.isVeg = !p.prefs.isVeg;
+      vegBtn.setAttribute('aria-pressed', p.prefs.isVeg ? 'true' : 'false');
+      persist();
+    });
+    drinkBtn.addEventListener('click', () => {
+      p.prefs.isDrinker = !p.prefs.isDrinker;
+      drinkBtn.setAttribute('aria-pressed', p.prefs.isDrinker ? 'true' : 'false');
+      persist();
+    });
     return node;
   }
   function addPerson() {
     const i = App.bill.people.length;
-    const p = { id: Store.uid(), name: '', color: PALETTE[i % PALETTE.length] };
+    const p = { id: Store.uid(), name: '', color: PALETTE[i % PALETTE.length], prefs: Store.defaultPrefs() };
     App.bill.people.push(p);
     persist(); renderPeople();
     setTimeout(() => {
@@ -396,38 +440,108 @@
     App.bill.items.forEach((it) => wrap.appendChild(allocCard(it)));
   }
 
+  // Build a sensible default allocation for an item using person preferences.
+  function defaultAllocationFor(it) {
+    const eligible = Store.eligiblePeople(it, App.bill.people).map((p) => p.id);
+    const ids = eligible.length > 0 ? eligible : App.bill.people.map((p) => p.id);
+    return { rule: 'equal', values: Object.fromEntries(ids.map((id) => [id, 1])) };
+  }
+
   function allocCard(it) {
     const node = $('#tpl-alloc-card').content.firstElementChild.cloneNode(true);
     node.dataset.id = it.id;
-    $('.alloc-name', node).textContent = (it.name || '(untitled)') + '  · ' + (it.section).toUpperCase();
+    const tag = it.dietary && it.dietary !== 'any'
+      ? ' · ' + ({ veg: 'VEG', nonveg: 'NON-VEG', liquor: 'LIQUOR' }[it.dietary] || '')
+      : '';
+    $('.alloc-name', node).textContent = (it.name || '(untitled)') + '  · ' + (it.section).toUpperCase() + tag;
     $('.alloc-amt',  node).textContent = fmtINR(Calc.itemTotal(it));
-    const ruleSel = $('.alloc-rule', node);
+    const ruleSel    = $('.alloc-rule',   node);
+    const hintEl     = $('.alloc-hint',   node);
+    const quickEl    = $('.alloc-quick',  node);
     const peopleWrap = $('.alloc-people', node);
-    const status = $('.alloc-status', node);
+    const status     = $('.alloc-status', node);
 
     if (!App.bill.allocations[it.id]) {
-      // default: equal split across everyone
-      App.bill.allocations[it.id] = { rule: 'equal', values: Object.fromEntries(App.bill.people.map((p) => [p.id, 1])) };
+      App.bill.allocations[it.id] = defaultAllocationFor(it);
     }
     const alloc = App.bill.allocations[it.id];
     ruleSel.value = alloc.rule;
-    renderRule();
 
     ruleSel.addEventListener('change', () => {
       alloc.rule = ruleSel.value;
-      // reset values sensibly when rule changes
-      if (alloc.rule === 'equal')    alloc.values = Object.fromEntries(App.bill.people.map((p) => [p.id, 1]));
-      if (alloc.rule === 'assigned') alloc.values = Object.fromEntries([[App.bill.people[0].id, 1]]);
-      if (alloc.rule === 'percent')  alloc.values = Object.fromEntries(App.bill.people.map((p) => [p.id, Math.round(100 / App.bill.people.length)]));
+      // reset values sensibly when rule changes — but seed by preferences
+      const eligible = Store.eligiblePeople(it, App.bill.people).map((p) => p.id);
+      const useIds = eligible.length > 0 ? eligible : App.bill.people.map((p) => p.id);
+      if (alloc.rule === 'equal')    alloc.values = Object.fromEntries(useIds.map((id) => [id, 1]));
+      if (alloc.rule === 'assigned') alloc.values = { [useIds[0]]: 1 };
+      if (alloc.rule === 'percent')  alloc.values = Object.fromEntries(useIds.map((id) => [id, +(100 / useIds.length).toFixed(2)]));
       if (alloc.rule === 'amount') {
         const total = Calc.itemTotal(it);
-        const each  = Calc.round2(total / App.bill.people.length);
-        alloc.values = Object.fromEntries(App.bill.people.map((p) => [p.id, each]));
+        const each  = Calc.round2(total / useIds.length);
+        alloc.values = Object.fromEntries(useIds.map((id) => [id, each]));
+      }
+      if (alloc.rule === 'quantity') {
+        // Pre-fill quantities so they sum to item.qty, distributed equally among eligible
+        const qty = +it.qty || useIds.length;
+        const each = qty / useIds.length;
+        alloc.values = Object.fromEntries(useIds.map((id) => [id, +each.toFixed(2)]));
+      }
+      if (alloc.rule === 'mixed') {
+        // Pre-fill: no fixed amounts, qty distributed equally among eligible
+        const qty = +it.qty || useIds.length;
+        const each = qty / useIds.length;
+        alloc.values  = Object.fromEntries(useIds.map((id) => [id, +each.toFixed(2)]));
+        alloc.amounts = Object.fromEntries(App.bill.people.map((p) => [p.id, 0]));
       }
       persist(); renderRule(); renderRunningTotals();
     });
 
+    // Quick-action buttons
+    $$('.link-btn', quickEl).forEach((btn) => btn.addEventListener('click', () => {
+      const act = btn.dataset.act;
+      if (act === 'all')    App.bill.people.forEach((p) => (alloc.values[p.id] = 1));
+      if (act === 'none')   App.bill.people.forEach((p) => (alloc.values[p.id] = 0));
+      if (act === 'suggest') {
+        const eligible = new Set(Store.eligiblePeople(it, App.bill.people).map((p) => p.id));
+        App.bill.people.forEach((p) => (alloc.values[p.id] = eligible.has(p.id) ? 1 : 0));
+      }
+      if (act === 'auto-remainder') {
+        // Quantity / Mixed rules: spread the unallocated qty equally among
+        // people whose qty input is currently 0.
+        const totalQty = +it.qty || 0;
+        const assigned = App.bill.people.reduce((s, p) => s + (+alloc.values[p.id] || 0), 0);
+        const remaining = Math.max(0, totalQty - assigned);
+        const empty = App.bill.people.filter((p) => !(+alloc.values[p.id] > 0));
+        if (empty.length === 0) { toast('Everyone already has a qty — clear one first.'); return; }
+        const each = remaining / empty.length;
+        empty.forEach((p) => (alloc.values[p.id] = +each.toFixed(2)));
+      }
+      persist(); renderRule(); renderRunningTotals();
+    }));
+
+    renderRule();
+
     function renderRule() {
+      ruleSel.value = alloc.rule;
+      // Hint + quick-action visibility per rule
+      const showAllNone = (alloc.rule === 'equal');
+      const showSuggest = showAllNone && it.dietary && it.dietary !== 'any';
+      const showRem     = (alloc.rule === 'quantity' || alloc.rule === 'mixed');
+      quickEl.hidden = !(showAllNone || showRem);
+      $('.link-btn[data-act="all"]',  quickEl).hidden = !showAllNone;
+      $('.link-btn[data-act="none"]', quickEl).hidden = !showAllNone;
+      $('.link-btn[data-act="suggest"]', quickEl).hidden = !showSuggest;
+      $('.link-btn[data-act="auto-remainder"]', quickEl).hidden = !showRem;
+
+      hintEl.textContent = ({
+        equal:    'Tap a person below to include / exclude them from this split.',
+        assigned: 'Tap the person who paid 100% of this item.',
+        quantity: 'Enter how many ' + ((+it.qty) || 'units') + ' each person had. Sum must equal ' + (it.qty || '?') + '.',
+        percent:  'Enter each person\'s share %. Must total 100%.',
+        amount:   'Enter each person\'s exact ₹ amount. Must total ' + fmtINR(Calc.itemTotal(it)) + '.',
+        mixed:    'Per-person fixed ₹ + qty share. Fixed amounts are paid first; the remainder is split by qty.',
+      })[alloc.rule] || '';
+
       peopleWrap.innerHTML = '';
       App.bill.people.forEach((p, i) => {
         const row = document.createElement('div');
@@ -438,25 +552,27 @@
         row.appendChild(chip); row.appendChild(name);
 
         if (alloc.rule === 'equal') {
-          if (alloc.values[p.id]) chip.classList.add('on');
+          const on = !!alloc.values[p.id];
+          chip.classList.toggle('on', on); chip.classList.toggle('off', !on);
           chip.addEventListener('click', () => {
-            alloc.values[p.id] = alloc.values[p.id] ? 0 : 1;
+            alloc.values[p.id] = on ? 0 : 1;
             persist(); renderRule(); renderRunningTotals();
           });
           const share = document.createElement('span'); share.className = 'pshare';
           const shares = Calc.splitItem(it, alloc, App.bill.people);
-          share.textContent = fmtINR(shares[p.id] || 0);
+          share.textContent = on ? fmtINR(shares[p.id] || 0) : '—';
           row.appendChild(share);
         }
         else if (alloc.rule === 'assigned') {
           const onId = Object.keys(alloc.values).find((k) => alloc.values[k]);
-          if (onId === p.id) chip.classList.add('on');
+          const on = onId === p.id;
+          chip.classList.toggle('on', on); chip.classList.toggle('off', !on);
           chip.addEventListener('click', () => {
             alloc.values = { [p.id]: 1 };
             persist(); renderRule(); renderRunningTotals();
           });
           const share = document.createElement('span'); share.className = 'pshare';
-          share.textContent = onId === p.id ? fmtINR(Calc.itemTotal(it)) : '—';
+          share.textContent = on ? fmtINR(Calc.itemTotal(it)) : '—';
           row.appendChild(share);
         }
         else if (alloc.rule === 'percent') {
@@ -465,12 +581,10 @@
           input.value = alloc.values[p.id] || 0;
           input.addEventListener('input', () => {
             alloc.values[p.id] = +input.value || 0;
-            persist(); renderRunningTotals();
-            updateAllocStatus();
+            persist(); renderRunningTotals(); updateAllocStatus();
           });
           row.appendChild(input);
-          const suffix = document.createElement('span'); suffix.className = 'pshare';
-          suffix.textContent = '%';
+          const suffix = document.createElement('span'); suffix.className = 'pshare'; suffix.textContent = '%';
           row.appendChild(suffix);
         }
         else if (alloc.rule === 'amount') {
@@ -479,10 +593,64 @@
           input.value = alloc.values[p.id] || 0;
           input.addEventListener('input', () => {
             alloc.values[p.id] = +input.value || 0;
-            persist(); renderRunningTotals();
-            updateAllocStatus();
+            persist(); renderRunningTotals(); updateAllocStatus();
           });
           row.appendChild(input);
+        }
+        else if (alloc.rule === 'quantity') {
+          const qrow = document.createElement('span'); qrow.className = 'pqtyrow';
+          const minus = document.createElement('button'); minus.className = 'qty-step'; minus.textContent = '−';
+          const input = document.createElement('input');
+          input.className = 'pinput'; input.type = 'number'; input.step = '1'; input.min = '0'; input.inputMode = 'decimal';
+          input.style.width = '60px';
+          input.value = alloc.values[p.id] || 0;
+          const plus  = document.createElement('button'); plus.className  = 'qty-step'; plus.textContent  = '+';
+          minus.addEventListener('click', () => { input.value = Math.max(0, (+input.value || 0) - 1); input.dispatchEvent(new Event('input')); });
+          plus.addEventListener( 'click', () => { input.value = (+input.value || 0) + 1;             input.dispatchEvent(new Event('input')); });
+          input.addEventListener('input', () => {
+            alloc.values[p.id] = +input.value || 0;
+            // Recompute the share preview
+            const shares = Calc.splitItem(it, alloc, App.bill.people);
+            shareLabel.textContent = (+input.value > 0) ? fmtINR(shares[p.id] || 0) : '—';
+            persist(); renderRunningTotals(); updateAllocStatus();
+          });
+          qrow.appendChild(minus); qrow.appendChild(input); qrow.appendChild(plus);
+          row.appendChild(qrow);
+          const shareLabel = document.createElement('span'); shareLabel.className = 'pshare';
+          const shares = Calc.splitItem(it, alloc, App.bill.people);
+          shareLabel.textContent = (+alloc.values[p.id] > 0) ? fmtINR(shares[p.id] || 0) : '—';
+          row.appendChild(shareLabel);
+        }
+        else if (alloc.rule === 'mixed') {
+          if (!alloc.amounts) alloc.amounts = {};
+          // Two inputs: ₹ fixed (left)  and  qty (right). Plus a per-person share preview.
+          const fixed = document.createElement('input');
+          fixed.className = 'pinput'; fixed.type = 'number'; fixed.step = '0.5'; fixed.inputMode = 'decimal';
+          fixed.style.width = '78px'; fixed.placeholder = '₹';
+          fixed.value = alloc.amounts[p.id] || '';
+          const qty = document.createElement('input');
+          qty.className = 'pinput'; qty.type = 'number'; qty.step = '1'; qty.min = '0'; qty.inputMode = 'decimal';
+          qty.style.width = '60px'; qty.placeholder = 'qty';
+          qty.value = alloc.values[p.id] || '';
+          const recalc = () => {
+            alloc.amounts[p.id] = +fixed.value || 0;
+            alloc.values[p.id]  = +qty.value   || 0;
+            const shares = Calc.splitItem(it, alloc, App.bill.people);
+            shareLabel.textContent = (shares[p.id] || 0) > 0 ? fmtINR(shares[p.id]) : '—';
+            persist(); renderRunningTotals(); updateAllocStatus();
+          };
+          fixed.addEventListener('input', recalc);
+          qty.addEventListener('input', recalc);
+          const wrap2 = document.createElement('span'); wrap2.className = 'pqtyrow';
+          wrap2.appendChild(fixed);
+          const plus = document.createElement('span'); plus.textContent = '+'; plus.style.color = '#94a3b8'; plus.style.fontWeight = '700';
+          wrap2.appendChild(plus);
+          wrap2.appendChild(qty);
+          row.appendChild(wrap2);
+          const shareLabel = document.createElement('span'); shareLabel.className = 'pshare';
+          const shares = Calc.splitItem(it, alloc, App.bill.people);
+          shareLabel.textContent = (shares[p.id] || 0) > 0 ? fmtINR(shares[p.id]) : '—';
+          row.appendChild(shareLabel);
         }
         peopleWrap.appendChild(row);
       });
@@ -501,9 +669,29 @@
         status.classList.toggle('warn', Math.abs(s - total) >= 0.5);
         status.classList.toggle('ok',   Math.abs(s - total) <  0.5);
         status.textContent = 'Sum: ' + fmtINR(s) + ' / ' + fmtINR(total) + (Math.abs(s - total) < 0.5 ? ' ✓' : ' (must match item total)');
+      } else if (alloc.rule === 'quantity') {
+        const totalQty = +it.qty || 0;
+        const s = Object.values(alloc.values || {}).reduce((s, v) => s + (+v || 0), 0);
+        const ok = totalQty > 0 && Math.abs(s - totalQty) < 0.001;
+        status.classList.toggle('warn', !ok);
+        status.classList.toggle('ok',   ok);
+        status.textContent = 'Allocated: ' + s + ' / ' + totalQty + (ok ? ' ✓' : ' (must match item qty)');
+      } else if (alloc.rule === 'mixed') {
+        const fixedSum = Object.values(alloc.amounts || {}).reduce((s, v) => s + (+v || 0), 0);
+        const qtySum   = Object.values(alloc.values  || {}).reduce((s, v) => s + (+v || 0), 0);
+        const remainder = Calc.round2(total - fixedSum);
+        let msg = 'Fixed: ' + fmtINR(fixedSum) + ' · Remainder: ' + fmtINR(remainder);
+        if (remainder > 0.5 && qtySum > 0) msg += ' (split across ' + qtySum + ' qty units)';
+        if (fixedSum > total + 0.5)          { status.classList.add('warn'); status.classList.remove('ok'); msg = 'Fixed amounts exceed total ' + fmtINR(total); }
+        else if (remainder > 0.5 && qtySum <= 0) { status.classList.add('warn'); status.classList.remove('ok'); msg += ' — set qty for sharers'; }
+        else                                  { status.classList.add('ok');   status.classList.remove('warn'); msg += ' ✓'; }
+        status.textContent = msg;
+      } else if (alloc.rule === 'equal') {
+        const n = Object.values(alloc.values || {}).filter((v) => v).length;
+        status.textContent = n === 0 ? 'No one selected.' : 'Equal split across ' + n + ' ' + (n === 1 ? 'person' : 'people');
+        status.classList.toggle('warn', n === 0); status.classList.remove('ok');
       } else {
-        status.textContent = '';
-        status.classList.remove('warn', 'ok');
+        status.textContent = ''; status.classList.remove('warn', 'ok');
       }
     }
 
@@ -707,6 +895,19 @@
     if (alloc.rule === 'assigned') return 'Assigned';
     if (alloc.rule === 'percent')  return 'Custom %';
     if (alloc.rule === 'amount')   return 'Custom split';
+    if (alloc.rule === 'quantity') {
+      const q = +(alloc.values || {})[p.id] || 0;
+      const total = +it.qty || 0;
+      return 'Qty ' + q + ' of ' + total;
+    }
+    if (alloc.rule === 'mixed') {
+      const q = +(alloc.values  || {})[p.id] || 0;
+      const a = +(alloc.amounts || {})[p.id] || 0;
+      const bits = [];
+      if (a > 0) bits.push('₹' + a.toFixed(0) + ' fixed');
+      if (q > 0) bits.push('qty ' + q);
+      return bits.join(' + ') || '—';
+    }
     return '';
   }
 

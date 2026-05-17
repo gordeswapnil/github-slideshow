@@ -27,17 +27,38 @@
         billHall: '',
       },
       // section: 'food' | 'liquor' | 'other'
+      // dietary (food items): 'any' | 'veg' | 'nonveg'
+      // dietary (liquor items): always 'liquor'
       items: [],
       // tax percentages
       taxes: { cgst: 2.5, sgst: 2.5, vat: 10 },
+      // person: { id, name, color, prefs: { isVeg: bool, isDrinker: bool } }
       people: [],
-      // map: itemId -> { rule: 'equal'|'assigned'|'percent'|'amount', values: { personId: number } }
-      // For 'equal': values = { personId: 1 } means person is included
-      // For 'assigned': values = { personId: 1 } (one entry)
-      // For 'percent': values = { personId: % } (sum to 100)
-      // For 'amount': values = { personId: ₹ }   (sum to item total)
+      // map: itemId -> { rule, values }
+      // 'equal':    values = { personId: 1 } means person is included
+      // 'assigned': values = { personId: 1 } (one entry)
+      // 'percent':  values = { personId: % } (sum to 100)
+      // 'amount':   values = { personId: ₹ } (sum to item total)
+      // 'quantity': values = { personId: qty } (sum to item qty)
       allocations: {},
     };
+  }
+
+  /** Default person preferences. */
+  function defaultPrefs() {
+    return { isVeg: false, isDrinker: true };
+  }
+
+  /** Given an item and the people list, return the set of person ids that
+      are eligible by dietary preference. Used to seed default allocations. */
+  function eligiblePeople(item, people) {
+    const tag = item && item.dietary;
+    return people.filter((p) => {
+      const prefs = p.prefs || defaultPrefs();
+      if (tag === 'liquor') return prefs.isDrinker !== false;
+      if (tag === 'nonveg') return prefs.isVeg !== true;
+      return true; // 'veg' / 'any' / undefined → everyone
+    });
   }
 
   function loadBills() {
@@ -77,6 +98,8 @@
   global.Store = {
     uid,
     blankBill,
+    defaultPrefs,
+    eligiblePeople,
     loadBills,
     saveBills,
     loadSettings,

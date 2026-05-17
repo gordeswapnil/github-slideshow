@@ -76,6 +76,64 @@
       return shares;
     }
 
+    if (rule === 'quantity') {
+      // values = { personId: qty }. Per-person amount = (qty / totalQty) * total.
+      // If user entered no qty at all, fall back to equal split for safety.
+      const totalQty = +item.qty || 0;
+      const sumQty = Object.values(values).reduce((s, v) => s + (+v || 0), 0);
+      const base = totalQty > 0 ? totalQty : sumQty;
+      if (base <= 0) {
+        const each = total / people.length;
+        people.forEach((p) => (shares[p.id] = round2(each)));
+        reconcile(shares, people.map((p) => p.id), total);
+        return shares;
+      }
+      const ids = [];
+      Object.entries(values).forEach(([id, qty]) => {
+        if (shares.hasOwnProperty(id) && +qty > 0) {
+          shares[id] = round2(total * (+qty / base));
+          ids.push(id);
+        }
+      });
+      reconcile(shares, ids, total);
+      return shares;
+    }
+
+    if (rule === 'mixed') {
+      // Hybrid of amount + quantity:
+      //   values  = { personId: qty }      (qty share per person)
+      //   amounts = { personId: ₹fixed }   (fixed amount per person)
+      // Fixed amounts are paid first; the remainder of the line total is
+      // distributed in proportion to qty values.
+      const amounts = a.amounts || {};
+      const fixedSum = Object.values(amounts).reduce((s, v) => s + (+v || 0), 0);
+      const remainder = round2(total - fixedSum);
+      // First: assign fixed amounts
+      Object.entries(amounts).forEach(([id, amt]) => {
+        if (shares.hasOwnProperty(id)) shares[id] = round2(+amt || 0);
+      });
+      // Then: split the remainder by qty (if any qty entered and remainder positive)
+      const qtySum = Object.values(values).reduce((s, v) => s + (+v || 0), 0);
+      if (qtySum > 0 && remainder > 0.005) {
+        const ids = [];
+        Object.entries(values).forEach(([id, qty]) => {
+          if (shares.hasOwnProperty(id) && +qty > 0) {
+            shares[id] = round2(shares[id] + remainder * (+qty / qtySum));
+            ids.push(id);
+          }
+        });
+        // Reconcile remainder rounding only across the qty-bearing payers
+        const distributedSum = ids.reduce((s, id) => s + (shares[id] - (+amounts[id] || 0)), 0);
+        const diff = round2(remainder - distributedSum);
+        if (Math.abs(diff) >= 0.005 && ids.length) {
+          let biggest = ids[0];
+          ids.forEach((id) => { if ((+values[id] || 0) > (+values[biggest] || 0)) biggest = id; });
+          shares[biggest] = round2(shares[biggest] + diff);
+        }
+      }
+      return shares;
+    }
+
     return shares;
   }
 
@@ -123,6 +181,30 @@
           return (who ? who.name : '?') + ': ₹' + (+v).toFixed(0);
         })
         .join(' | ');
+    }
+    if (rule === 'quantity') {
+      return Object.entries(alloc.values || {})
+        .filter(([, v]) => +v > 0)
+        .map(([id, v]) => {
+          const who = people.find((p) => p.id === id);
+          return (who ? who.name : '?') + ': ' + v;
+        })
+        .join(' + ') + ' qty';
+    }
+    if (rule === 'mixed') {
+      const parts = [];
+      const amounts = alloc.amounts || {};
+      people.forEach((p) => {
+        const q = +(alloc.values || {})[p.id] || 0;
+        const a = +amounts[p.id] || 0;
+        if (q > 0 || a > 0) {
+          const bits = [];
+          if (a > 0) bits.push('₹' + a.toFixed(0));
+          if (q > 0) bits.push('qty ' + q);
+          parts.push(p.name + ': ' + bits.join('+'));
+        }
+      });
+      return parts.join(' | ') || '—';
     }
     return '—';
   }
@@ -257,6 +339,31 @@
       if (a && a.rule === 'assigned') {
         const n = Object.values(a.values || {}).filter(Boolean).length;
         if (n === 0) out.push('"' + (it.name || 'item') + '": no person assigned.');
+      }
+      if (a && a.rule === 'quantity') {
+        const totalQty = +it.qty || 0;
+        const s = Object.values(a.values || {}).reduce((s, v) => s + (+v || 0), 0);
+        if (totalQty > 0 && Math.abs(s - totalQty) >= 0.001) {
+          out.push('"' + (it.name || 'item') + '": quantities sum to ' + s + ' but item qty is ' + totalQty + '.');
+        }
+        if (totalQty <= 0 && s <= 0) {
+          out.push('"' + (it.name || 'item') + '": no quantities entered.');
+        }
+      }
+      if (a && a.rule === 'mixed') {
+        const fixedSum = Object.values(a.amounts || {}).reduce((s, v) => s + (+v || 0), 0);
+        const qtySum   = Object.values(a.values  || {}).reduce((s, v) => s + (+v || 0), 0);
+        if (fixedSum > t + 0.5) {
+          out.push('"' + (it.name || 'item') + '": fixed amounts (₹' + fixedSum.toFixed(2) +
+                   ') exceed item total ₹' + t.toFixed(2) + '.');
+        }
+        if (fixedSum < t - 0.5 && qtySum <= 0) {
+          out.push('"' + (it.name || 'item') + '": ₹' + round2(t - fixedSum).toFixed(2) +
+                   ' is unallocated — set a qty for the sharers or raise the fixed amounts.');
+        }
+        if (fixedSum === 0 && qtySum === 0) {
+          out.push('"' + (it.name || 'item') + '": no qty or amount entered.');
+        }
       }
     });
     return out;
