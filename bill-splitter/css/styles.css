@@ -157,6 +157,18 @@ button[disabled]{ opacity:.5; pointer-events:none; }
 
 .taxcard{ gap:6px; }
 
+.taxes-list{ display:flex; flex-direction:column; gap:8px; }
+.tax-row{
+  background:#fff; border:1px solid var(--line); border-radius:10px;
+  padding:8px; display:grid; grid-template-columns:1fr 80px 1fr 30px; gap:6px; align-items:center;
+}
+.tax-row input, .tax-row select{
+  padding:8px 10px; border:1px solid var(--line-strong); border-radius:8px; width:100%;
+  font-size:13px;
+}
+.tax-row .tax-rate{ text-align:right; }
+.tax-row .delbtn{ position:static; padding:0; width:30px; height:30px; }
+
 /* Per-item "paid by" selector */
 .it-paidby{ display:flex; align-items:center; gap:8px; font-size:12px; }
 .it-paidby > span{ color:var(--muted); font-weight:500; }

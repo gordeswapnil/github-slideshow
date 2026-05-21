@@ -30,18 +30,30 @@
       // dietary (food items): 'any' | 'veg' | 'nonveg'
       // dietary (liquor items): always 'liquor'
       items: [],
-      // tax percentages
-      taxes: { cgst: 2.5, sgst: 2.5, vat: 10 },
-      // person: { id, name, color, prefs: { isVeg: bool, isDrinker: bool } }
+      // Taxes are an arbitrary list — empty for a new bill, populated either
+      // by OCR from a scanned bill or manually by the user.
+      // Each tax: { id, name, rate, base }
+      //   base: 'food'   → distributed proportionally to each person's food share
+      //         'liquor' → liquor share
+      //         'other'  → other share
+      //         'all'    → total pre-tax share (e.g. service charge on full bill)
+      taxes: [],
+      // person: { id, name, color, prefs: { diet, isDrinker } }
       people: [],
       // map: itemId -> { rule, values }
-      // 'equal':    values = { personId: 1 } means person is included
-      // 'assigned': values = { personId: 1 } (one entry)
-      // 'percent':  values = { personId: % } (sum to 100)
-      // 'amount':   values = { personId: ₹ } (sum to item total)
-      // 'quantity': values = { personId: qty } (sum to item qty)
       allocations: {},
     };
+  }
+
+  /** Migrate a legacy {cgst, sgst, vat} taxes object to the new array form. */
+  function normaliseTaxes(taxes) {
+    if (Array.isArray(taxes)) return taxes;
+    if (!taxes || typeof taxes !== 'object') return [];
+    const out = [];
+    if (+taxes.cgst > 0) out.push({ id: 'cgst', name: 'CGST', rate: +taxes.cgst, base: 'food'   });
+    if (+taxes.sgst > 0) out.push({ id: 'sgst', name: 'SGST', rate: +taxes.sgst, base: 'food'   });
+    if (+taxes.vat  > 0) out.push({ id: 'vat',  name: 'VAT',  rate: +taxes.vat,  base: 'liquor' });
+    return out;
   }
 
   /** Default person preferences.
@@ -116,6 +128,7 @@
     blankBill,
     defaultPrefs,
     normalisePrefs,
+    normaliseTaxes,
     eligiblePeople,
     loadBills,
     saveBills,

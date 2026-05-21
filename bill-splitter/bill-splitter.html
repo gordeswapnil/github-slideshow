@@ -167,6 +167,18 @@ button[disabled]{ opacity:.5; pointer-events:none; }
 
 .taxcard{ gap:6px; }
 
+.taxes-list{ display:flex; flex-direction:column; gap:8px; }
+.tax-row{
+  background:#fff; border:1px solid var(--line); border-radius:10px;
+  padding:8px; display:grid; grid-template-columns:1fr 80px 1fr 30px; gap:6px; align-items:center;
+}
+.tax-row input, .tax-row select{
+  padding:8px 10px; border:1px solid var(--line-strong); border-radius:8px; width:100%;
+  font-size:13px;
+}
+.tax-row .tax-rate{ text-align:right; }
+.tax-row .delbtn{ position:static; padding:0; width:30px; height:30px; }
+
 /* Per-item "paid by" selector */
 .it-paidby{ display:flex; align-items:center; gap:8px; font-size:12px; }
 .it-paidby > span{ color:var(--muted); font-weight:500; }
@@ -466,11 +478,8 @@ button[disabled]{ opacity:.5; pointer-events:none; }
       <button class="primary" id="addItemBtn">+ Add Item</button>
 
       <h3 class="section-title">Taxes &amp; Charges</h3>
-      <div class="card taxcard">
-        <label class="field inline"><span>Food CGST %</span><input id="taxCgst" type="number" step="0.01" value="2.5" /></label>
-        <label class="field inline"><span>Food SGST %</span><input id="taxSgst" type="number" step="0.01" value="2.5" /></label>
-        <label class="field inline"><span>Liquor VAT %</span><input id="taxVat" type="number" step="0.01" value="10" /></label>
-      </div>
+      <div id="taxesList" class="taxes-list"></div>
+      <button class="ghost" id="addTaxBtn">+ Add Tax / Charge</button>
 
       <div class="totals-card" id="totalsCard"></div>
     </section>
@@ -533,6 +542,20 @@ button[disabled]{ opacity:.5; pointer-events:none; }
           <option value="">— At the counter (settle together) —</option>
         </select>
       </label>
+      <button class="delbtn" aria-label="Delete">&times;</button>
+    </div>
+  </template>
+
+  <template id="tpl-tax-row">
+    <div class="tax-row" data-id="">
+      <input class="tax-name" placeholder="Tax / charge name" />
+      <input class="tax-rate" type="number" step="0.01" inputmode="decimal" placeholder="%" />
+      <select class="tax-base">
+        <option value="food">on Food</option>
+        <option value="liquor">on Liquor</option>
+        <option value="other">on Others</option>
+        <option value="all">on Whole bill</option>
+      </select>
       <button class="delbtn" aria-label="Delete">&times;</button>
     </div>
   </template>
@@ -627,18 +650,30 @@ button[disabled]{ opacity:.5; pointer-events:none; }
       // dietary (food items): 'any' | 'veg' | 'nonveg'
       // dietary (liquor items): always 'liquor'
       items: [],
-      // tax percentages
-      taxes: { cgst: 2.5, sgst: 2.5, vat: 10 },
-      // person: { id, name, color, prefs: { isVeg: bool, isDrinker: bool } }
+      // Taxes are an arbitrary list — empty for a new bill, populated either
+      // by OCR from a scanned bill or manually by the user.
+      // Each tax: { id, name, rate, base }
+      //   base: 'food'   → distributed proportionally to each person's food share
+      //         'liquor' → liquor share
+      //         'other'  → other share
+      //         'all'    → total pre-tax share (e.g. service charge on full bill)
+      taxes: [],
+      // person: { id, name, color, prefs: { diet, isDrinker } }
       people: [],
       // map: itemId -> { rule, values }
-      // 'equal':    values = { personId: 1 } means person is included
-      // 'assigned': values = { personId: 1 } (one entry)
-      // 'percent':  values = { personId: % } (sum to 100)
-      // 'amount':   values = { personId: ₹ } (sum to item total)
-      // 'quantity': values = { personId: qty } (sum to item qty)
       allocations: {},
     };
+  }
+
+  /** Migrate a legacy {cgst, sgst, vat} taxes object to the new array form. */
+  function normaliseTaxes(taxes) {
+    if (Array.isArray(taxes)) return taxes;
+    if (!taxes || typeof taxes !== 'object') return [];
+    const out = [];
+    if (+taxes.cgst > 0) out.push({ id: 'cgst', name: 'CGST', rate: +taxes.cgst, base: 'food'   });
+    if (+taxes.sgst > 0) out.push({ id: 'sgst', name: 'SGST', rate: +taxes.sgst, base: 'food'   });
+    if (+taxes.vat  > 0) out.push({ id: 'vat',  name: 'VAT',  rate: +taxes.vat,  base: 'liquor' });
+    return out;
   }
 
   /** Default person preferences.
@@ -713,6 +748,7 @@ button[disabled]{ opacity:.5; pointer-events:none; }
     blankBill,
     defaultPrefs,
     normalisePrefs,
+    normaliseTaxes,
     eligiblePeople,
     loadBills,
     saveBills,
@@ -977,7 +1013,11 @@ button[disabled]{ opacity:.5; pointer-events:none; }
   function compute(bill) {
     const people = bill.people || [];
     const items  = bill.items  || [];
-    const taxes  = bill.taxes  || { cgst: 0, sgst: 0, vat: 0 };
+    // Taxes are always an array now; tolerate legacy object form by leaning on
+    // Store.normaliseTaxes when it's available.
+    const taxes  = Array.isArray(bill.taxes) ? bill.taxes
+                  : (window.Store && window.Store.normaliseTaxes) ? window.Store.normaliseTaxes(bill.taxes)
+                  : [];
 
     const itemShares = {};
     const itemRules  = {};
@@ -1001,28 +1041,51 @@ button[disabled]{ opacity:.5; pointer-events:none; }
     const foodSubtotal   = sum(baseFood);
     const liquorSubtotal = sum(baseLiquor);
     const otherSubtotal  = sum(baseOther);
+    const baseAll        = Object.fromEntries(people.map((p) => [p.id,
+      round2((baseFood[p.id] || 0) + (baseLiquor[p.id] || 0) + (baseOther[p.id] || 0))
+    ]));
 
-    const foodCgstTotal = round2(foodSubtotal * (taxes.cgst || 0) / 100);
-    const foodSgstTotal = round2(foodSubtotal * (taxes.sgst || 0) / 100);
-    const liquorVatTotal = round2(liquorSubtotal * (taxes.vat  || 0) / 100);
+    // -----------------------------------------------------------
+    // Generic tax distribution: each tax line is applied to its own
+    // base (food / liquor / other / all), proportional to each person's
+    // share of that base.
+    // -----------------------------------------------------------
+    function baseFor(t) {
+      switch (t && t.base) {
+        case 'food':   return baseFood;
+        case 'liquor': return baseLiquor;
+        case 'other':  return baseOther;
+        case 'all':    return baseAll;
+        default:       return baseFood;
+      }
+    }
+    function baseSubtotalFor(t) {
+      switch (t && t.base) {
+        case 'food':   return foodSubtotal;
+        case 'liquor': return liquorSubtotal;
+        case 'other':  return otherSubtotal;
+        case 'all':    return foodSubtotal + liquorSubtotal + otherSubtotal;
+        default:       return foodSubtotal;
+      }
+    }
 
-    const foodCgst = distributeTax(foodCgstTotal,  baseFood);
-    const foodSgst = distributeTax(foodSgstTotal,  baseFood);
-    const liquorVat = distributeTax(liquorVatTotal, baseLiquor);
-
-    const taxByPerson = Object.fromEntries(people.map((p) => [p.id, {
-      foodCgst: foodCgst[p.id]  || 0,
-      foodSgst: foodSgst[p.id]  || 0,
-      liquorVat: liquorVat[p.id] || 0,
-    }]));
+    // taxByPerson[personId][taxId]  = share of that tax for that person
+    // taxTotals[taxId]              = total of that tax
+    const taxByPerson = Object.fromEntries(people.map((p) => [p.id, {}]));
+    const taxTotals   = {};
+    taxes.forEach((t) => {
+      const subtotal = baseSubtotalFor(t);
+      const total    = round2(subtotal * (+t.rate || 0) / 100);
+      taxTotals[t.id] = total;
+      const distributed = distributeTax(total, baseFor(t));
+      people.forEach((p) => { taxByPerson[p.id][t.id] = distributed[p.id] || 0; });
+    });
 
     const grandPer = {};
     people.forEach((p) => {
-      const g = round2(
-        baseFood[p.id] + baseLiquor[p.id] + baseOther[p.id] +
-        foodCgst[p.id] + foodSgst[p.id]   + liquorVat[p.id]
-      );
-      grandPer[p.id] = g;
+      let g = (baseFood[p.id] || 0) + (baseLiquor[p.id] || 0) + (baseOther[p.id] || 0);
+      taxes.forEach((t) => { g += taxByPerson[p.id][t.id] || 0; });
+      grandPer[p.id] = round2(g);
     });
     const grandTotal = round2(sum(grandPer));
 
@@ -1045,13 +1108,16 @@ button[disabled]{ opacity:.5; pointer-events:none; }
     //   net > 0  → owes that much to the group of payers
     //   net < 0  → group owes them that much (they fronted more than they ate)
     // -----------------------------------------------------------
-    const cgstRate = +(taxes.cgst || 0) / 100;
-    const sgstRate = +(taxes.sgst || 0) / 100;
-    const vatRate  = +(taxes.vat  || 0) / 100;
-    const taxFactorFor = (section) =>
-      section === 'food'   ? 1 + cgstRate + sgstRate :
-      section === 'liquor' ? 1 + vatRate :
-                             1; // 'other' or undefined → no tax
+    // Sum of all tax rates that apply to a given section, used to grow each
+    // item's "what the payer actually fronted" amount.
+    function rateSumFor(section) {
+      let r = 0;
+      taxes.forEach((t) => {
+        if (t.base === section || t.base === 'all') r += +t.rate || 0;
+      });
+      return r / 100;
+    }
+    const taxFactorFor = (section) => 1 + rateSumFor(section);
     const paidByPerson              = Object.fromEntries(people.map((p) => [p.id, 0]));
     const settlementConsumedPerPerson = Object.fromEntries(people.map((p) => [p.id, 0]));
     items.forEach((it) => {
@@ -1082,7 +1148,7 @@ button[disabled]{ opacity:.5; pointer-events:none; }
         totals: { food: foodSubtotal, liquor: liquorSubtotal, other: otherSubtotal },
       },
       taxByPerson,
-      taxTotals: { foodCgst: foodCgstTotal, foodSgst: foodSgstTotal, liquorVat: liquorVatTotal },
+      taxTotals,
       grand: { perPerson: grandPer, total: grandTotal },
       paidByPerson,
       netPerPerson,
@@ -1218,12 +1284,17 @@ Use this exact shape:
     "billNo": "string",
     "billDate": "YYYY-MM-DD",
     "billTable": "string",
-    "billHall": "string (hall name + time, e.g. 'Garden 9:42 PM')"
+    "billHall": "string (hall name + time, e.g. 'Garden 9:42 PM')",
+    "restaurantType": "veg" | "nonveg" | "both" | "bar"
   },
   "items": [
-    { "name": "string", "rate": number, "qty": number, "amount": number, "section": "food" | "liquor" | "other" }
+    { "name": "string", "rate": number, "qty": number, "amount": number,
+      "section": "food" | "liquor" | "other",
+      "dietary": "veg" | "nonveg" | "any" | "liquor" }
   ],
-  "taxes": { "cgst": number, "sgst": number, "vat": number }
+  "taxes": [
+    { "name": "string (e.g. CGST, SGST, VAT, Service Charge)", "rate": number, "base": "food" | "liquor" | "other" | "all" }
+  ]
 }
 
 CRITICAL RULES — item extraction
@@ -1254,10 +1325,33 @@ CRITICAL RULES — item extraction
 
 4. NUMBERS. Plain JSON numbers, no commas, no currency symbols.
 
-5. TAX FIELDS. Percentages, not decimals (e.g. 2.5 not 0.025). If the bill
-   shows only tax amounts, infer the percentage from amount ÷ subtotal × 100.
+5. TAX FIELDS. The "taxes" array contains ONLY the taxes/charges that the bill
+   actually prints. Do NOT add taxes that aren't on the receipt.
+   - "rate" is a percentage (2.5, not 0.025). If only an amount is shown,
+     compute rate as amount ÷ subtotal × 100.
+   - "base" is the section the tax is computed on. CGST/SGST/GST on a food
+     subtotal → "food". VAT/excise on alcohol → "liquor". A service charge on
+     the entire bill → "all". A tax on the non-food/non-liquor subtotal → "other".
+   - If the bill has NO taxes (rare), return "taxes": [].
 
-6. Omit any field you genuinely cannot read; never invent values. Output ONE
+6. RESTAURANT TYPE INFERENCE — use the restaurant's name and content to set
+   meta.restaurantType and each item's dietary tag intelligently:
+   - "VEG", "PURE VEG", "SHAKAHARI", "SATTVIC", "JAIN" in the restaurant name
+     → restaurantType: "veg". EVERY food item's dietary MUST be "veg".
+     The bill cannot contain liquor — do not emit any liquor items.
+   - "NON-VEG", "MUTTON", "CHICKEN" obvious in the restaurant name
+     → restaurantType: "nonveg". Tag each food item by its own type
+     (chicken/mutton/fish/egg → "nonveg"; explicit veg dishes → "veg";
+     ambiguous like dal/rice/roti → "any").
+   - "BAR", "WINES", "DISTILLERY" prominent → restaurantType: "bar".
+     Items in the LIQUOR section get dietary "liquor". Food items same logic
+     as above for nonveg.
+   - Otherwise → restaurantType: "both". Tag items individually.
+   For every individual food item, when in doubt between veg/any, prefer "veg"
+   if the dish is unambiguously vegetarian (idli, dosa, sambar, dal, paneer,
+   khichadi, etc.). Use "nonveg" only for clearly non-veg dishes.
+
+7. Omit any field you genuinely cannot read; never invent values. Output ONE
    JSON object and nothing else.`;
 
   async function fileToImageBase64(file) {
@@ -1744,15 +1838,39 @@ CRITICAL RULES — item extraction
       const parsed = await OCR.extractFromFile(file, settings.apiKey);
       const bill = Store.blankBill();
       bill.meta = Object.assign(bill.meta, parsed.meta || {});
-      bill.taxes = Object.assign(bill.taxes, parsed.taxes || {});
-      bill.items = (parsed.items || []).map((it) => ({
-        id: Store.uid(),
-        name: String(it.name || ''),
-        rate: +it.rate || 0,
-        qty:  +it.qty  || 1,
-        amount: +it.amount || 0,
-        section: ['food', 'liquor', 'other'].includes(it.section) ? it.section : 'food',
-      }));
+      const restType = (parsed.meta && parsed.meta.restaurantType) || 'both';
+      bill.items = (parsed.items || []).map((it) => {
+        const section = ['food', 'liquor', 'other'].includes(it.section) ? it.section : 'food';
+        // Pure-veg restaurant: force veg on every food item and discard any
+        // liquor item the model may have hallucinated.
+        let dietary = it.dietary;
+        if (section === 'liquor') dietary = 'liquor';
+        else if (restType === 'veg') dietary = 'veg';
+        else if (!['veg', 'nonveg', 'any'].includes(dietary)) dietary = 'any';
+        return {
+          id: Store.uid(),
+          name: String(it.name || ''),
+          rate: +it.rate || 0,
+          qty:  +it.qty  || 1,
+          amount: +it.amount || 0,
+          section,
+          dietary,
+        };
+      }).filter((it) => !(restType === 'veg' && it.section === 'liquor'));
+      // Taxes from OCR: an array if the new schema was followed, else legacy
+      // object (auto-migrated). Strip anything with 0% — bills sometimes list
+      // a tax line at 0 rate (e.g. round-off lines mis-identified).
+      const taxesIn = Array.isArray(parsed.taxes)
+        ? parsed.taxes
+        : Store.normaliseTaxes(parsed.taxes);
+      bill.taxes = taxesIn
+        .filter((t) => +t.rate > 0)
+        .map((t) => ({
+          id:   Store.uid(),
+          name: String(t.name || 'Tax'),
+          rate: +t.rate || 0,
+          base: ['food', 'liquor', 'other', 'all'].includes(t.base) ? t.base : 'food',
+        }));
       setBill(bill);
       m.close();
       toast('Scanned ' + bill.items.length + ' items — review and continue.');
@@ -1789,15 +1907,15 @@ CRITICAL RULES — item extraction
   // ============================================================
   function bindBill() {
     const b = App.bill;
+    // Migrate legacy {cgst,sgst,vat} object to array form
+    b.taxes = Store.normaliseTaxes(b.taxes);
+
     $('#restName').value  = b.meta.restName || '';
     $('#restSub').value   = b.meta.restSub  || '';
     $('#billNo').value    = b.meta.billNo   || '';
     $('#billDate').value  = b.meta.billDate || '';
     $('#billTable').value = b.meta.billTable|| '';
     $('#billHall').value  = b.meta.billHall || '';
-    $('#taxCgst').value   = b.taxes.cgst ?? '';
-    $('#taxSgst').value   = b.taxes.sgst ?? '';
-    $('#taxVat').value    = b.taxes.vat  ?? '';
 
     const writeMeta = (k, v) => { b.meta[k] = v; persist(); refreshTotals(); };
     $('#restName').addEventListener('input',  (e) => writeMeta('restName',  e.target.value));
@@ -1806,9 +1924,6 @@ CRITICAL RULES — item extraction
     $('#billDate').addEventListener('change', (e) => writeMeta('billDate',  e.target.value));
     $('#billTable').addEventListener('input', (e) => writeMeta('billTable', e.target.value));
     $('#billHall').addEventListener('input',  (e) => writeMeta('billHall',  e.target.value));
-    $('#taxCgst').addEventListener('input',   (e) => { b.taxes.cgst = +e.target.value || 0; persist(); refreshTotals(); });
-    $('#taxSgst').addEventListener('input',   (e) => { b.taxes.sgst = +e.target.value || 0; persist(); refreshTotals(); });
-    $('#taxVat').addEventListener('input',    (e) => { b.taxes.vat  = +e.target.value || 0; persist(); refreshTotals(); });
 
     $$('#sectionSeg .seg-btn').forEach((btn) => btn.addEventListener('click', () => {
       $$('#sectionSeg .seg-btn').forEach((x) => x.classList.toggle('active', x === btn));
@@ -1816,8 +1931,49 @@ CRITICAL RULES — item extraction
       renderItems();
     }));
     $('#addItemBtn').addEventListener('click', addItem);
+    $('#addTaxBtn').addEventListener('click', () => {
+      b.taxes.push({ id: Store.uid(), name: '', rate: 0, base: 'food' });
+      persist(); renderTaxes(); refreshTotals();
+      setTimeout(() => {
+        const last = $$('#taxesList .tax-row').pop();
+        if (last) last.querySelector('.tax-name').focus();
+      }, 40);
+    });
     renderItems();
+    renderTaxes();
     refreshTotals();
+  }
+
+  function renderTaxes() {
+    const wrap = $('#taxesList'); if (!wrap) return;
+    wrap.innerHTML = '';
+    if (!App.bill.taxes || App.bill.taxes.length === 0) {
+      const e = document.createElement('div');
+      e.className = 'empty';
+      e.textContent = 'No taxes on this bill yet. Tap "+ Add Tax / Charge" if your bill has GST, VAT, service charge, etc.';
+      wrap.appendChild(e);
+      return;
+    }
+    App.bill.taxes.forEach((t) => wrap.appendChild(taxRow(t)));
+  }
+
+  function taxRow(t) {
+    const node = $('#tpl-tax-row').content.firstElementChild.cloneNode(true);
+    node.dataset.id = t.id;
+    const nameI = $('.tax-name', node);
+    const rateI = $('.tax-rate', node);
+    const baseS = $('.tax-base', node);
+    nameI.value = t.name || '';
+    rateI.value = t.rate ?? '';
+    baseS.value = t.base || 'food';
+    nameI.addEventListener('input',  () => { t.name = nameI.value;          persist(); });
+    rateI.addEventListener('input',  () => { t.rate = +rateI.value || 0;    persist(); refreshTotals(); });
+    baseS.addEventListener('change', () => { t.base = baseS.value;          persist(); refreshTotals(); });
+    $('.delbtn', node).addEventListener('click', () => {
+      App.bill.taxes = App.bill.taxes.filter((x) => x.id !== t.id);
+      persist(); renderTaxes(); refreshTotals();
+    });
+    return node;
   }
 
   function renderItems() {
@@ -1922,20 +2078,30 @@ CRITICAL RULES — item extraction
   function refreshTotals() {
     if (!$('#totalsCard')) return;
     const b = App.bill;
+    b.taxes = Store.normaliseTaxes(b.taxes);
     const food   = sumSection(b, 'food');
     const liquor = sumSection(b, 'liquor');
     const other  = sumSection(b, 'other');
-    const cgst  = Calc.round2(food   * (b.taxes.cgst || 0) / 100);
-    const sgst  = Calc.round2(food   * (b.taxes.sgst || 0) / 100);
-    const vat   = Calc.round2(liquor * (b.taxes.vat  || 0) / 100);
-    const grand = Calc.round2(food + liquor + other + cgst + sgst + vat);
+    const all    = food + liquor + other;
+    const baseFor = (t) =>
+      t.base === 'liquor' ? liquor :
+      t.base === 'other'  ? other :
+      t.base === 'all'    ? all :
+                            food;
+    let taxRows = '';
+    let taxSum  = 0;
+    b.taxes.forEach((t) => {
+      const amt = Calc.round2(baseFor(t) * (+t.rate || 0) / 100);
+      taxSum += amt;
+      const label = (t.name || 'Tax') + ' ' + (+t.rate || 0) + '%';
+      taxRows += `<div class="tline"><span>${esc(label)} <i style="color:#94a3b8">(on ${t.base})</i></span><span>${fmtINR(amt)}</span></div>`;
+    });
+    const grand = Calc.round2(all + taxSum);
     $('#totalsCard').innerHTML = `
       <div class="tline"><span>Food subtotal</span><span>${fmtINR(food)}</span></div>
       <div class="tline"><span>Liquor subtotal</span><span>${fmtINR(liquor)}</span></div>
       <div class="tline"><span>Others subtotal</span><span>${fmtINR(other)}</span></div>
-      <div class="tline"><span>Food CGST ${b.taxes.cgst || 0}%</span><span>${fmtINR(cgst)}</span></div>
-      <div class="tline"><span>Food SGST ${b.taxes.sgst || 0}%</span><span>${fmtINR(sgst)}</span></div>
-      <div class="tline"><span>Liquor VAT ${b.taxes.vat || 0}%</span><span>${fmtINR(vat)}</span></div>
+      ${taxRows}
       <div class="tline grand"><span>Grand Total</span><span>${fmtINR(grand)}</span></div>`;
   }
   function sumSection(b, sec) {
@@ -2414,19 +2580,17 @@ CRITICAL RULES — item extraction
     html += groupRows('🥃 LIQUOR (Pre-tax)',  groups.liquor, 'liquor');
     html += groupRows('📋 OTHERS',            groups.other, 'other');
 
-    // Tax rows
+    // Tax rows — one row per tax line on the bill
     const tx = calc.taxByPerson;
-    function taxRow(label, perPersonField, totalField) {
-      return `<tr class="tax-row">
-        <td colspan="3">${label}</td>
-        <td class="num">${fmt(calc.taxTotals[totalField])}</td>
-        ${people.map((p) => `<td class="num">${fmt(tx[p.id][perPersonField])}</td>`).join('')}
-        <td><i style="color:#6b7280">Proportional to pre-tax share</i></td>
+    (b.taxes || []).forEach((t) => {
+      const label = (t.name || 'Tax') + ' @ ' + (+t.rate || 0) + '% on ' + t.base;
+      html += `<tr class="tax-row">
+        <td colspan="3">${esc(label)}</td>
+        <td class="num">${fmt(calc.taxTotals[t.id] || 0)}</td>
+        ${people.map((p) => `<td class="num">${fmt(tx[p.id][t.id] || 0)}</td>`).join('')}
+        <td><i style="color:#6b7280">Proportional to ${t.base} share</i></td>
       </tr>`;
-    }
-    html += taxRow('Food CGST @ ' + b.taxes.cgst + '%', 'foodCgst',  'foodCgst');
-    html += taxRow('Food SGST @ ' + b.taxes.sgst + '%', 'foodSgst',  'foodSgst');
-    html += taxRow('Liquor VAT @ ' + b.taxes.vat + '%', 'liquorVat', 'liquorVat');
+    });
 
     // Grand total row
     html += `<tr class="grand-row">
@@ -2468,10 +2632,14 @@ CRITICAL RULES — item extraction
           <td><i style="color:#6b7280">${esc(ruleNote)}</i></td>
         </tr>`;
       });
-      const t = calc.taxByPerson[p.id];
-      if (t.foodCgst > 0)  rows += `<tr><td>Food CGST ${b.taxes.cgst}%</td><td class="num">${fmt(t.foodCgst)}</td><td><i style="color:#6b7280">Proportional</i></td></tr>`;
-      if (t.foodSgst > 0)  rows += `<tr><td>Food SGST ${b.taxes.sgst}%</td><td class="num">${fmt(t.foodSgst)}</td><td><i style="color:#6b7280">Proportional</i></td></tr>`;
-      if (t.liquorVat > 0) rows += `<tr><td>Liquor VAT ${b.taxes.vat}%</td><td class="num">${fmt(t.liquorVat)}</td><td><i style="color:#6b7280">Proportional</i></td></tr>`;
+      const tx = calc.taxByPerson[p.id] || {};
+      (b.taxes || []).forEach((t) => {
+        const v = tx[t.id] || 0;
+        if (v > 0) {
+          const label = (t.name || 'Tax') + ' ' + (+t.rate || 0) + '%';
+          rows += `<tr><td>${esc(label)}</td><td class="num">${fmt(v)}</td><td><i style="color:#6b7280">on ${t.base}</i></td></tr>`;
+        }
+      });
       const tot = calc.grand.perPerson[p.id] || 0;
 
       const bandStyle = forExport ? `background:${hex}` : '';

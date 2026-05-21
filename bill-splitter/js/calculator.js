@@ -248,7 +248,11 @@
   function compute(bill) {
     const people = bill.people || [];
     const items  = bill.items  || [];
-    const taxes  = bill.taxes  || { cgst: 0, sgst: 0, vat: 0 };
+    // Taxes are always an array now; tolerate legacy object form by leaning on
+    // Store.normaliseTaxes when it's available.
+    const taxes  = Array.isArray(bill.taxes) ? bill.taxes
+                  : (window.Store && window.Store.normaliseTaxes) ? window.Store.normaliseTaxes(bill.taxes)
+                  : [];
 
     const itemShares = {};
     const itemRules  = {};
@@ -272,28 +276,51 @@
     const foodSubtotal   = sum(baseFood);
     const liquorSubtotal = sum(baseLiquor);
     const otherSubtotal  = sum(baseOther);
+    const baseAll        = Object.fromEntries(people.map((p) => [p.id,
+      round2((baseFood[p.id] || 0) + (baseLiquor[p.id] || 0) + (baseOther[p.id] || 0))
+    ]));
 
-    const foodCgstTotal = round2(foodSubtotal * (taxes.cgst || 0) / 100);
-    const foodSgstTotal = round2(foodSubtotal * (taxes.sgst || 0) / 100);
-    const liquorVatTotal = round2(liquorSubtotal * (taxes.vat  || 0) / 100);
+    // -----------------------------------------------------------
+    // Generic tax distribution: each tax line is applied to its own
+    // base (food / liquor / other / all), proportional to each person's
+    // share of that base.
+    // -----------------------------------------------------------
+    function baseFor(t) {
+      switch (t && t.base) {
+        case 'food':   return baseFood;
+        case 'liquor': return baseLiquor;
+        case 'other':  return baseOther;
+        case 'all':    return baseAll;
+        default:       return baseFood;
+      }
+    }
+    function baseSubtotalFor(t) {
+      switch (t && t.base) {
+        case 'food':   return foodSubtotal;
+        case 'liquor': return liquorSubtotal;
+        case 'other':  return otherSubtotal;
+        case 'all':    return foodSubtotal + liquorSubtotal + otherSubtotal;
+        default:       return foodSubtotal;
+      }
+    }
 
-    const foodCgst = distributeTax(foodCgstTotal,  baseFood);
-    const foodSgst = distributeTax(foodSgstTotal,  baseFood);
-    const liquorVat = distributeTax(liquorVatTotal, baseLiquor);
-
-    const taxByPerson = Object.fromEntries(people.map((p) => [p.id, {
-      foodCgst: foodCgst[p.id]  || 0,
-      foodSgst: foodSgst[p.id]  || 0,
-      liquorVat: liquorVat[p.id] || 0,
-    }]));
+    // taxByPerson[personId][taxId]  = share of that tax for that person
+    // taxTotals[taxId]              = total of that tax
+    const taxByPerson = Object.fromEntries(people.map((p) => [p.id, {}]));
+    const taxTotals   = {};
+    taxes.forEach((t) => {
+      const subtotal = baseSubtotalFor(t);
+      const total    = round2(subtotal * (+t.rate || 0) / 100);
+      taxTotals[t.id] = total;
+      const distributed = distributeTax(total, baseFor(t));
+      people.forEach((p) => { taxByPerson[p.id][t.id] = distributed[p.id] || 0; });
+    });
 
     const grandPer = {};
     people.forEach((p) => {
-      const g = round2(
-        baseFood[p.id] + baseLiquor[p.id] + baseOther[p.id] +
-        foodCgst[p.id] + foodSgst[p.id]   + liquorVat[p.id]
-      );
-      grandPer[p.id] = g;
+      let g = (baseFood[p.id] || 0) + (baseLiquor[p.id] || 0) + (baseOther[p.id] || 0);
+      taxes.forEach((t) => { g += taxByPerson[p.id][t.id] || 0; });
+      grandPer[p.id] = round2(g);
     });
     const grandTotal = round2(sum(grandPer));
 
@@ -316,13 +343,16 @@
     //   net > 0  → owes that much to the group of payers
     //   net < 0  → group owes them that much (they fronted more than they ate)
     // -----------------------------------------------------------
-    const cgstRate = +(taxes.cgst || 0) / 100;
-    const sgstRate = +(taxes.sgst || 0) / 100;
-    const vatRate  = +(taxes.vat  || 0) / 100;
-    const taxFactorFor = (section) =>
-      section === 'food'   ? 1 + cgstRate + sgstRate :
-      section === 'liquor' ? 1 + vatRate :
-                             1; // 'other' or undefined → no tax
+    // Sum of all tax rates that apply to a given section, used to grow each
+    // item's "what the payer actually fronted" amount.
+    function rateSumFor(section) {
+      let r = 0;
+      taxes.forEach((t) => {
+        if (t.base === section || t.base === 'all') r += +t.rate || 0;
+      });
+      return r / 100;
+    }
+    const taxFactorFor = (section) => 1 + rateSumFor(section);
     const paidByPerson              = Object.fromEntries(people.map((p) => [p.id, 0]));
     const settlementConsumedPerPerson = Object.fromEntries(people.map((p) => [p.id, 0]));
     items.forEach((it) => {
@@ -353,7 +383,7 @@
         totals: { food: foodSubtotal, liquor: liquorSubtotal, other: otherSubtotal },
       },
       taxByPerson,
-      taxTotals: { foodCgst: foodCgstTotal, foodSgst: foodSgstTotal, liquorVat: liquorVatTotal },
+      taxTotals,
       grand: { perPerson: grandPer, total: grandTotal },
       paidByPerson,
       netPerPerson,

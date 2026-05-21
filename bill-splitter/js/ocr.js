@@ -25,12 +25,17 @@ Use this exact shape:
     "billNo": "string",
     "billDate": "YYYY-MM-DD",
     "billTable": "string",
-    "billHall": "string (hall name + time, e.g. 'Garden 9:42 PM')"
+    "billHall": "string (hall name + time, e.g. 'Garden 9:42 PM')",
+    "restaurantType": "veg" | "nonveg" | "both" | "bar"
   },
   "items": [
-    { "name": "string", "rate": number, "qty": number, "amount": number, "section": "food" | "liquor" | "other" }
+    { "name": "string", "rate": number, "qty": number, "amount": number,
+      "section": "food" | "liquor" | "other",
+      "dietary": "veg" | "nonveg" | "any" | "liquor" }
   ],
-  "taxes": { "cgst": number, "sgst": number, "vat": number }
+  "taxes": [
+    { "name": "string (e.g. CGST, SGST, VAT, Service Charge)", "rate": number, "base": "food" | "liquor" | "other" | "all" }
+  ]
 }
 
 CRITICAL RULES — item extraction
@@ -61,10 +66,33 @@ CRITICAL RULES — item extraction
 
 4. NUMBERS. Plain JSON numbers, no commas, no currency symbols.
 
-5. TAX FIELDS. Percentages, not decimals (e.g. 2.5 not 0.025). If the bill
-   shows only tax amounts, infer the percentage from amount ÷ subtotal × 100.
+5. TAX FIELDS. The "taxes" array contains ONLY the taxes/charges that the bill
+   actually prints. Do NOT add taxes that aren't on the receipt.
+   - "rate" is a percentage (2.5, not 0.025). If only an amount is shown,
+     compute rate as amount ÷ subtotal × 100.
+   - "base" is the section the tax is computed on. CGST/SGST/GST on a food
+     subtotal → "food". VAT/excise on alcohol → "liquor". A service charge on
+     the entire bill → "all". A tax on the non-food/non-liquor subtotal → "other".
+   - If the bill has NO taxes (rare), return "taxes": [].
 
-6. Omit any field you genuinely cannot read; never invent values. Output ONE
+6. RESTAURANT TYPE INFERENCE — use the restaurant's name and content to set
+   meta.restaurantType and each item's dietary tag intelligently:
+   - "VEG", "PURE VEG", "SHAKAHARI", "SATTVIC", "JAIN" in the restaurant name
+     → restaurantType: "veg". EVERY food item's dietary MUST be "veg".
+     The bill cannot contain liquor — do not emit any liquor items.
+   - "NON-VEG", "MUTTON", "CHICKEN" obvious in the restaurant name
+     → restaurantType: "nonveg". Tag each food item by its own type
+     (chicken/mutton/fish/egg → "nonveg"; explicit veg dishes → "veg";
+     ambiguous like dal/rice/roti → "any").
+   - "BAR", "WINES", "DISTILLERY" prominent → restaurantType: "bar".
+     Items in the LIQUOR section get dietary "liquor". Food items same logic
+     as above for nonveg.
+   - Otherwise → restaurantType: "both". Tag items individually.
+   For every individual food item, when in doubt between veg/any, prefer "veg"
+   if the dish is unambiguously vegetarian (idli, dosa, sambar, dal, paneer,
+   khichadi, etc.). Use "nonveg" only for clearly non-veg dishes.
+
+7. Omit any field you genuinely cannot read; never invent values. Output ONE
    JSON object and nothing else.`;
 
   async function fileToImageBase64(file) {
