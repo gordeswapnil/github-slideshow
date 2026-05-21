@@ -33,12 +33,39 @@ Use this exact shape:
   "taxes": { "cgst": number, "sgst": number, "vat": number }
 }
 
-RULES
-- Section assignment: food items → "food", alcoholic drinks → "liquor", service/guest charges/tips → "other".
-- Numbers must be plain JSON numbers (no commas, no currency symbols).
-- Tax fields are PERCENTAGES (2.5 not 0.025). If the bill shows only amounts, infer percentages.
-- Omit fields you cannot read; never invent values.
-- Output ONE JSON object and nothing else.`;
+CRITICAL RULES — item extraction
+
+1. MULTI-LINE ITEM NAMES. Restaurant receipts often wrap long item names across
+   two or three text lines because of narrow columns. A single item is ALWAYS
+   identified by the line that contains its qty AND its price; lines immediately
+   above or below that — which contain ONLY text (no qty, no price) — belong to
+   that item's name.
+
+   Examples of wrapped names that MUST be combined into one item:
+     "Sabudana"             ↘
+     "Khichadi  1 100 100"  → one item: name "Sabudana Khichadi", qty 1, rate 100, amount 100
+     "Maysur Masala"        ↘
+     "Dosa      1 130 130"  → one item: name "Maysur Masala Dosa", qty 1, rate 130, amount 130
+     "Kesari Bhath"         ↘
+     "(sheera)  1 100 100"  → one item: name "Kesari Bhath (sheera)", qty 1, rate 100, amount 100
+
+   NEVER emit an item whose qty or rate is invented from an adjacent row.
+
+2. SANITY CHECK. After extracting items, sum their amounts. The sum MUST equal
+   the bill's printed subtotal (pre-tax total). If they don't match, you have
+   either split a wrapped name OR missed an item — re-read the receipt before
+   answering.
+
+3. SECTION ASSIGNMENT. Food → "food"; alcoholic drinks → "liquor"; service /
+   guest charges / tips → "other".
+
+4. NUMBERS. Plain JSON numbers, no commas, no currency symbols.
+
+5. TAX FIELDS. Percentages, not decimals (e.g. 2.5 not 0.025). If the bill
+   shows only tax amounts, infer the percentage from amount ÷ subtotal × 100.
+
+6. Omit any field you genuinely cannot read; never invent values. Output ONE
+   JSON object and nothing else.`;
 
   async function fileToImageBase64(file) {
     if (file.type === 'application/pdf') {
