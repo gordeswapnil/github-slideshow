@@ -9,6 +9,8 @@ import android.view.WindowInsets;
 import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -16,23 +18,38 @@ import android.content.Intent;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import androidx.webkit.WebSettingsCompat;
+import androidx.webkit.WebViewAssetLoader;
 import androidx.webkit.WebViewFeature;
 
 /**
  * Loads the bundled bill-splitter.html out of the app's assets and runs it
- * inside a WebView. The web app uses localStorage, which is persisted by
- * the WebView into the app's private storage on the phone — meaning the
- * user's bills never leave the device.
+ * inside a WebView. localStorage is persisted to the app's private storage,
+ * so bills never leave the device.
+ *
+ * The bundled HTML is served via {@link WebViewAssetLoader} at
+ * https://appassets.androidplatform.net/assets/... rather than file:///,
+ * because pages loaded from file:// silently fail to call cross-origin
+ * HTTPS APIs (e.g. the Anthropic OCR endpoint) on most Android versions.
+ * With a real HTTPS origin, fetch/XHR works as in a normal browser.
  */
 public class MainActivity extends Activity {
 
+    private static final String APP_ORIGIN = "https://appassets.androidplatform.net";
+    private static final String ENTRY_URL  = APP_ORIGIN + "/assets/bill-splitter.html";
+
     private WebView webView;
+    private WebViewAssetLoader assetLoader;
     private ValueCallback<Uri[]> pendingFileChooser;
     private static final int FILE_CHOOSER_REQUEST = 1001;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        assetLoader = new WebViewAssetLoader.Builder()
+                .setDomain("appassets.androidplatform.net")
+                .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this))
+                .build();
 
         webView = new WebView(this);
         setContentView(webView);
@@ -41,7 +58,7 @@ public class MainActivity extends Activity {
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);                         // localStorage / sessionStorage
         s.setDatabaseEnabled(true);
-        s.setAllowFileAccess(false);                          // we only load via file:///android_asset/
+        s.setAllowFileAccess(false);
         s.setAllowContentAccess(true);
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         s.setMediaPlaybackRequiresUserGesture(false);
@@ -50,27 +67,34 @@ public class MainActivity extends Activity {
         s.setSupportZoom(false);
         s.setTextZoom(100);
 
-        // Honour dark mode if the WebView build supports the new API
         if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
             WebSettingsCompat.setAlgorithmicDarkeningAllowed(s, true);
         }
 
         webView.setWebViewClient(new WebViewClient() {
+            // Serve the bundled HTML/CSS/JS via the asset loader on the
+            // appassets.androidplatform.net origin. Anything else falls
+            // through to the network.
             @Override
-            public boolean shouldOverrideUrlLoading(WebView view, android.webkit.WebResourceRequest req) {
+            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest req) {
+                return assetLoader.shouldInterceptRequest(req.getUrl());
+            }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {
                 Uri url = req.getUrl();
                 String scheme = url.getScheme();
-                // Keep in-app for file://android_asset, http/https for CDN-loaded libs.
-                // Anything else (mailto:, tel:, intent:) hands off to the system.
-                if ("http".equals(scheme) || "https".equals(scheme)) {
-                    // Allow only known asset libraries; everything else opens in browser.
-                    String host = url.getHost();
-                    if (host != null && (
-                        host.endsWith("cdnjs.cloudflare.com") ||
-                        host.endsWith("cdn.jsdelivr.net")     ||
-                        host.endsWith("api.anthropic.com"))) {
-                        return false; // load in WebView
+                String host   = url.getHost();
+                if ("https".equals(scheme) && host != null) {
+                    // Our own served pages and known CDN/API hosts stay in-app.
+                    if (host.equals("appassets.androidplatform.net")
+                            || host.endsWith("cdnjs.cloudflare.com")
+                            || host.endsWith("cdn.jsdelivr.net")
+                            || host.endsWith("api.anthropic.com")) {
+                        return false;
                     }
+                }
+                if ("http".equals(scheme) || "https".equals(scheme)) {
                     Intent intent = new Intent(Intent.ACTION_VIEW, url);
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     startActivity(intent);
@@ -102,7 +126,6 @@ public class MainActivity extends Activity {
             }
         });
 
-        // Edge-to-edge friendly padding via system insets (API 30+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             webView.setOnApplyWindowInsetsListener((v, insets) -> {
                 int top    = insets.getInsets(WindowInsets.Type.systemBars()).top;
@@ -112,7 +135,7 @@ public class MainActivity extends Activity {
             });
         }
 
-        webView.loadUrl("file:///android_asset/bill-splitter.html");
+        webView.loadUrl(ENTRY_URL);
     }
 
     @Override
