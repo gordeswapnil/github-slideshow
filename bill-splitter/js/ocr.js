@@ -89,10 +89,20 @@ RULES
       }],
     };
 
-    // Hard timeout so a hung connection doesn't spin forever.
+    // Inside the Android APK we hand the call to the Java bridge to bypass
+    // WebView CORS restrictions on cross-origin browser fetch. In a plain
+    // browser (or PWA) we fall back to fetch.
+    const responseText = (typeof window !== 'undefined' && window.HisaabNative && typeof window.HisaabNative.callAnthropic === 'function')
+      ? await callViaBridge(apiKey, body)
+      : await callViaFetch(apiKey, body);
+
+    return parseJsonLoose(responseText);
+  }
+
+  /** Browser fetch path (PWA / single-file build / dev). */
+  async function callViaFetch(apiKey, body) {
     const ctl = new AbortController();
     const to  = setTimeout(() => ctl.abort(), TIMEOUT_MS);
-
     let res;
     try {
       res = await fetch(ENDPOINT, {
@@ -109,21 +119,72 @@ RULES
     } catch (e) {
       clearTimeout(to);
       if (e.name === 'AbortError') {
-        throw new Error('Scan timed out after ' + (TIMEOUT_MS / 1000) + 's. Check your internet connection and try again.');
+        throw new Error('Scan timed out after ' + (TIMEOUT_MS / 1000) + 's. Check your internet connection.');
       }
-      // TypeError: Failed to fetch — Android WebView blocks file:// → https
-      throw new Error('Network call to Claude failed (' + (e.message || e.name) +
-        '). If you are on the older APK build, please update to the latest from GitHub Actions.');
+      throw new Error('Network call to Claude failed (' + (e.message || e.name) + ').');
     }
     clearTimeout(to);
-
     if (!res.ok) {
       const t = await res.text();
       throw new Error('Claude API error ' + res.status + ': ' + t.slice(0, 300));
     }
     const json = await res.json();
-    const text = (json.content || []).map((c) => c.text || '').join('').trim();
-    return parseJsonLoose(text);
+    return (json.content || []).map((c) => c.text || '').join('').trim();
+  }
+
+  /** Android-only path via the WebAppInterface Java bridge. */
+  function callViaBridge(apiKey, body) {
+    return new Promise((resolve, reject) => {
+      if (!window.HisaabBridge) {
+        window.HisaabBridge = {
+          _pending: Object.create(null),
+          _resolve(id, resultJson) {
+            const cb = this._pending[id];
+            if (!cb) return;
+            delete this._pending[id];
+            try {
+              const r = JSON.parse(resultJson);
+              cb(r);
+            } catch (e) {
+              cb({ status: -1, error: 'Bridge returned malformed JSON' });
+            }
+          },
+        };
+      }
+      const cbId = 'cb_' + Math.random().toString(36).slice(2);
+      const timer = setTimeout(() => {
+        if (window.HisaabBridge._pending[cbId]) {
+          delete window.HisaabBridge._pending[cbId];
+          reject(new Error('Scan timed out after ' + (TIMEOUT_MS / 1000) + 's.'));
+        }
+      }, TIMEOUT_MS);
+
+      window.HisaabBridge._pending[cbId] = (r) => {
+        clearTimeout(timer);
+        if (r.status < 0) {
+          reject(new Error('Network error: ' + (r.error || 'unknown')));
+          return;
+        }
+        if (r.status < 200 || r.status >= 300) {
+          reject(new Error('Claude API error ' + r.status + ': ' + (r.body || '').slice(0, 300)));
+          return;
+        }
+        try {
+          const j = JSON.parse(r.body);
+          resolve((j.content || []).map((c) => c.text || '').join('').trim());
+        } catch (e) {
+          reject(new Error('Could not parse Claude response: ' + e.message));
+        }
+      };
+
+      try {
+        window.HisaabNative.callAnthropic(apiKey, JSON.stringify(body), cbId);
+      } catch (e) {
+        clearTimeout(timer);
+        delete window.HisaabBridge._pending[cbId];
+        reject(new Error('Failed to invoke native bridge: ' + (e.message || e)));
+      }
+    });
   }
 
   /** Strip code fences / extract first JSON object. */
