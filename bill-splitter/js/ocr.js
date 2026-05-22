@@ -26,16 +26,25 @@ Use this exact shape:
     "billDate": "YYYY-MM-DD",
     "billTable": "string",
     "billHall": "string (hall name + time, e.g. 'Garden 9:42 PM')",
-    "restaurantType": "veg" | "nonveg" | "both" | "bar"
+    "restaurantType": "veg" | "nonveg" | "both" | "bar",
+    "cuisine": "string (e.g. 'Indian', 'Chinese', 'Continental', 'Cafe')",
+    "currency": "string (e.g. 'INR', 'USD' — default 'INR')"
   },
   "items": [
-    { "name": "string", "rate": number, "qty": number, "amount": number,
+    { "name": "string",
+      "rate": number,
+      "qty": number,
+      "amount": number,
       "section": "food" | "liquor" | "other",
-      "dietary": "veg" | "nonveg" | "any" | "liquor" }
+      "dietary": "veg" | "nonveg" | "any" | "liquor",
+      "category": "starter" | "main" | "dessert" | "beverage" | "drink" | "accompaniment" | "extra",
+      "isParcel": boolean }
   ],
   "taxes": [
     { "name": "string (e.g. CGST, SGST, VAT, Service Charge)", "rate": number, "base": "food" | "liquor" | "other" | "all" }
-  ]
+  ],
+  "warnings": [ "string" ],
+  "hasServiceCharge": boolean
 }
 
 CRITICAL RULES — item extraction
@@ -92,8 +101,42 @@ CRITICAL RULES — item extraction
    if the dish is unambiguously vegetarian (idli, dosa, sambar, dal, paneer,
    khichadi, etc.). Use "nonveg" only for clearly non-veg dishes.
 
-7. Omit any field you genuinely cannot read; never invent values. Output ONE
-   JSON object and nothing else.`;
+7. ITEM CATEGORY — tag each item with what KIND of dish it is, so the UI can
+   group related items:
+   - starter        : appetizers, soups, salads, papad, masala papad, pakoda, samosa
+   - main           : biryani, curry, dal, rice, roti, naan, sabji, thali, dosa,
+                      idli, khichadi, pasta, sandwich, burger — the bulk dish
+   - dessert        : ice cream, kulfi, halwa, kheer, gulab jamun, kesari bhath, etc.
+   - beverage       : water, soft drinks, juice, tea, coffee, lassi, butter milk
+   - drink          : alcoholic only (overrides if item is in liquor section)
+   - accompaniment  : pickle, raita, chutney, side salad
+   - extra          : guest charges, paan, mints, anything that doesn't fit
+
+8. PARCEL / TAKEAWAY DETECTION — set isParcel: true if the item line contains
+   "PARCEL", "TO GO", "TAKE AWAY", "TAKEAWAY", "PACKED", or similar markers.
+   These items typically belong to one person; the app will default such items
+   to a single-person assignment.
+
+9. MATH VALIDATION — before emitting your response, sum the item amounts and
+   verify it equals the printed subtotal (pre-tax). If they DIFFER by more
+   than 1 unit of currency, re-read the bill. If you still cannot reconcile,
+   add a clear warning string to "warnings" describing the discrepancy
+   (e.g. "Items sum to ₹453 but bill prints subtotal ₹455. Likely a missed
+   item — please verify."). The "warnings" array MUST be empty when the
+   numbers reconcile.
+
+10. SERVICE CHARGE — set hasServiceCharge: true if the bill prints any line
+    matching "Service Charge", "Service Tax", "Tip", "Gratuity", "Service Fee".
+    Whether or not it's there, the user can add one in-app afterwards. If a
+    service charge IS present, include it as one of the taxes (base "all" if
+    on the whole bill, "food" if explicitly only on food).
+
+11. CURRENCY — set meta.currency to the 3-letter ISO code (INR, USD, EUR,
+    GBP, AED, etc.) based on the printed currency symbol or locale.
+    Default to "INR" only if you genuinely cannot determine it.
+
+12. Omit any field you genuinely cannot read; never invent values. Output ONE
+    JSON object and nothing else.`;
 
   async function fileToImageBase64(file) {
     if (file.type === 'application/pdf') {

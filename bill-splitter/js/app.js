@@ -162,12 +162,12 @@
       const restType = (parsed.meta && parsed.meta.restaurantType) || 'both';
       bill.items = (parsed.items || []).map((it) => {
         const section = ['food', 'liquor', 'other'].includes(it.section) ? it.section : 'food';
-        // Pure-veg restaurant: force veg on every food item and discard any
-        // liquor item the model may have hallucinated.
         let dietary = it.dietary;
         if (section === 'liquor') dietary = 'liquor';
         else if (restType === 'veg') dietary = 'veg';
         else if (!['veg', 'nonveg', 'any'].includes(dietary)) dietary = 'any';
+        const category = ['starter','main','dessert','beverage','drink','accompaniment','extra'].includes(it.category)
+          ? it.category : (section === 'liquor' ? 'drink' : section === 'other' ? 'extra' : 'main');
         return {
           id: Store.uid(),
           name: String(it.name || ''),
@@ -176,11 +176,10 @@
           amount: +it.amount || 0,
           section,
           dietary,
+          category,
+          isParcel: !!it.isParcel,
         };
       }).filter((it) => !(restType === 'veg' && it.section === 'liquor'));
-      // Taxes from OCR: an array if the new schema was followed, else legacy
-      // object (auto-migrated). Strip anything with 0% — bills sometimes list
-      // a tax line at 0 rate (e.g. round-off lines mis-identified).
       const taxesIn = Array.isArray(parsed.taxes)
         ? parsed.taxes
         : Store.normaliseTaxes(parsed.taxes);
@@ -192,9 +191,17 @@
           rate: +t.rate || 0,
           base: ['food', 'liquor', 'other', 'all'].includes(t.base) ? t.base : 'food',
         }));
+      // Stash scan-only metadata for the Bill screen banner
+      bill._scanWarnings    = Array.isArray(parsed.warnings) ? parsed.warnings.slice() : [];
+      bill._hasServiceCharge = !!parsed.hasServiceCharge;
+      // Auto-allocate parcels to a single (placeholder) person at allocation time.
+      // We can't pick a person yet (people list is empty after scan); the Allocate
+      // screen will surface a hint per-parcel.
       setBill(bill);
       m.close();
-      toast('Scanned ' + bill.items.length + ' items — review and continue.');
+      let toastMsg = 'Scanned ' + bill.items.length + ' items';
+      if (bill._scanWarnings.length) toastMsg += ' · ' + bill._scanWarnings.length + ' warning(s)';
+      toast(toastMsg + ' — review and continue.');
       go('bill');
     } catch (err) {
       m.close();
@@ -260,9 +267,62 @@
         if (last) last.querySelector('.tax-name').focus();
       }, 40);
     });
+    $('#addTipBtn').addEventListener('click', () => promptTip());
+    renderScanWarnings();
     renderItems();
     renderTaxes();
     refreshTotals();
+  }
+
+  function promptTip() {
+    const existing = (App.bill.taxes || []).find((t) =>
+      /tip|service|gratuity/i.test(t.name || ''));
+    const presets = [5, 10, 15];
+    const m = openModal(`
+      <h3>Add service charge / tip</h3>
+      <p class="muted" style="margin:0">${App.bill._hasServiceCharge
+        ? 'A service charge already appears on the bill — adding another will charge the group twice.'
+        : 'Adds a charge on the whole bill, split proportionally.'}</p>
+      <div class="tip-presets">
+        ${presets.map((p) => `<button class="ghost tip-preset" data-pct="${p}">${p}%</button>`).join('')}
+      </div>
+      <label class="field"><span>Custom %</span><input id="tipPct" type="number" step="0.5" min="0" placeholder="e.g. 12.5" /></label>
+      <div class="modal-actions">
+        <button class="ghost" id="closeTip">Cancel</button>
+        <button class="primary" id="applyTip">Apply</button>
+      </div>`);
+    function apply(pct) {
+      if (!(pct > 0)) return toast('Enter a positive percentage.');
+      if (existing) { existing.rate = +pct; existing.base = 'all'; }
+      else App.bill.taxes.push({ id: Store.uid(), name: 'Service / Tip', rate: +pct, base: 'all' });
+      persist(); renderTaxes(); refreshTotals(); m.close();
+      toast('Added ' + pct + '% service / tip.');
+    }
+    $$('.tip-preset', m.box).forEach((b) =>
+      b.addEventListener('click', () => apply(+b.dataset.pct)));
+    $('#applyTip', m.box).addEventListener('click', () => apply(+$('#tipPct', m.box).value));
+    $('#closeTip', m.box).addEventListener('click', m.close);
+  }
+
+  function renderScanWarnings() {
+    const main = $('#main');
+    const existing = $('.scan-warn-banner', main);
+    if (existing) existing.remove();
+    const b = App.bill;
+    if (!b._scanWarnings || b._scanWarnings.length === 0) return;
+    const banner = document.createElement('div');
+    banner.className = 'scan-warn-banner';
+    banner.innerHTML = `
+      <div class="scan-warn-head">⚠️ Scan warnings — please verify</div>
+      <ul>${b._scanWarnings.map((w) => '<li>' + esc(w) + '</li>').join('')}</ul>
+      <button class="link-btn" id="dismissWarn">Dismiss</button>`;
+    // Insert just below the page heading
+    const screen = $('.screen', main);
+    const h2 = screen.querySelector('h2');
+    screen.insertBefore(banner, h2.nextSibling);
+    $('#dismissWarn', banner).addEventListener('click', () => {
+      b._scanWarnings = []; persist(); banner.remove();
+    });
   }
 
   function renderTaxes() {
@@ -307,7 +367,27 @@
       wrap.appendChild(e);
       return;
     }
-    list.forEach((it) => wrap.appendChild(itemRow(it)));
+    // Group by category for readability
+    const order = ['starter', 'main', 'accompaniment', 'dessert', 'beverage', 'drink', 'extra'];
+    const labels = {
+      starter:'🥗 Starters', main:'🍛 Mains', accompaniment:'🌿 Sides',
+      dessert:'🍨 Desserts', beverage:'🥤 Beverages', drink:'🍺 Drinks',
+      extra:'📋 Extras',
+    };
+    const byCat = {};
+    list.forEach((it) => {
+      const c = it.category || 'main';
+      (byCat[c] = byCat[c] || []).push(it);
+    });
+    order.forEach((cat) => {
+      const items = byCat[cat] || [];
+      if (items.length === 0) return;
+      const head = document.createElement('div');
+      head.className = 'cat-head';
+      head.textContent = labels[cat] || cat;
+      wrap.appendChild(head);
+      items.forEach((it) => wrap.appendChild(itemRow(it)));
+    });
   }
 
   function itemRow(it) {
@@ -334,6 +414,22 @@
       it._amountTouched = true; it.amount = +amtI.value || 0;
       persist(); refreshTotals();
     });
+
+    // Parcel chip — toggleable
+    const ttagsParent = $('.it-tags', node).parentNode;
+    const parcelChip = document.createElement('button');
+    parcelChip.className = 'parcel-chip';
+    parcelChip.type = 'button';
+    parcelChip.setAttribute('aria-pressed', it.isParcel ? 'true' : 'false');
+    parcelChip.innerHTML = '📦 Parcel';
+    parcelChip.addEventListener('click', () => {
+      it.isParcel = !it.isParcel;
+      parcelChip.setAttribute('aria-pressed', it.isParcel ? 'true' : 'false');
+      // When marking as parcel, reset allocation so the smart default re-applies
+      delete App.bill.allocations[it.id];
+      persist();
+    });
+    ttagsParent.insertBefore(parcelChip, $('.it-tags', node));
 
     // Dietary tags — Food/Other items get any/veg/nonveg; Liquor items
     // always show a single 'liquor' tag (not user-toggleable).
@@ -539,6 +635,10 @@
   function defaultAllocationFor(it) {
     const eligible = Store.eligiblePeople(it, App.bill.people).map((p) => p.id);
     const ids = eligible.length > 0 ? eligible : App.bill.people.map((p) => p.id);
+    // Parcels default to single-person assignment — the user just picks who.
+    if (it.isParcel) {
+      return { rule: 'assigned', values: { [ids[0]]: 1 } };
+    }
     return { rule: 'equal', values: Object.fromEntries(ids.map((id) => [id, 1])) };
   }
 

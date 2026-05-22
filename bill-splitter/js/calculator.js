@@ -435,6 +435,11 @@
   /** Validation — returns array of human-readable warnings. */
   function validate(bill) {
     const out = [];
+    // Surface OCR-side warnings as informational items so the user sees them
+    // again on the Result screen even if they dismissed the banner.
+    if (Array.isArray(bill._scanWarnings)) {
+      bill._scanWarnings.forEach((w) => out.push('Scan: ' + w));
+    }
     if (!bill.people || bill.people.length === 0) out.push('Add at least one person.');
     if (!bill.items  || bill.items.length  === 0) out.push('Add at least one item.');
     (bill.items || []).forEach((it) => {
