@@ -61,51 +61,89 @@ public class WebAppInterface {
     @JavascriptInterface
     public void callAnthropic(final String apiKey, final String body, final String callbackId) {
         new Thread(() -> {
-            String result;
-            HttpURLConnection conn = null;
-            try {
-                URL url = new URL(ENDPOINT);
-                conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("Content-Type",     "application/json");
-                conn.setRequestProperty("x-api-key",        apiKey);
-                conn.setRequestProperty("anthropic-version","2023-06-01");
-                conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
-                conn.setReadTimeout(READ_TIMEOUT_MS);
-                conn.setDoOutput(true);
-                try (OutputStream os = conn.getOutputStream()) {
-                    os.write(body.getBytes("UTF-8"));
+            // Retry transient server errors (429 Rate limit, 502/503/504 gateway,
+            // 529 Anthropic Overloaded). 4 total attempts with backoff
+            // 0 / 2s / 4s / 8s. Non-transient errors (4xx other than 429)
+            // are returned immediately.
+            final int[] backoffMs = { 0, 2000, 4000, 8000 };
+            String result = null;
+            for (int attempt = 0; attempt < backoffMs.length; attempt++) {
+                if (backoffMs[attempt] > 0) {
+                    try { Thread.sleep(backoffMs[attempt]); }
+                    catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
                 }
-                int code = conn.getResponseCode();
-                InputStream is = (code >= 200 && code < 300)
-                        ? conn.getInputStream()
-                        : conn.getErrorStream();
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                if (is != null) {
-                    byte[] buf = new byte[4096];
-                    int n;
-                    while ((n = is.read(buf)) > 0) baos.write(buf, 0, n);
-                }
-                JSONObject out = new JSONObject();
-                out.put("status", code);
-                out.put("body",   baos.toString("UTF-8"));
-                result = out.toString();
-            } catch (Exception e) {
-                String msg = e.getMessage();
-                if (msg == null) msg = e.getClass().getSimpleName();
-                try {
-                    JSONObject out = new JSONObject();
-                    out.put("status", -1);
-                    out.put("error",  msg);
-                    result = out.toString();
-                } catch (Exception ignored) {
-                    result = "{\"status\":-1,\"error\":\"unknown\"}";
-                }
-            } finally {
-                if (conn != null) conn.disconnect();
+                Result r = makeOneAnthropicCall(apiKey, body);
+                result = r.json;
+                if (!r.transientError) break;       // success or hard failure
+                // else: loop and retry
             }
             postBridgeResolve(callbackId, result);
         }, "HisaabAnthropicCall").start();
+    }
+
+    private static class Result {
+        final String json;
+        final boolean transientError;
+        Result(String json, boolean transientError) {
+            this.json = json;
+            this.transientError = transientError;
+        }
+    }
+
+    private static boolean isTransientHttp(int code) {
+        return code == 429 || code == 502 || code == 503 || code == 504 || code == 529;
+    }
+
+    private Result makeOneAnthropicCall(String apiKey, String body) {
+        HttpURLConnection conn = null;
+        try {
+            URL url = new URL(ENDPOINT);
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type",     "application/json");
+            conn.setRequestProperty("x-api-key",        apiKey);
+            conn.setRequestProperty("anthropic-version","2023-06-01");
+            conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+            conn.setReadTimeout(READ_TIMEOUT_MS);
+            conn.setDoOutput(true);
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(body.getBytes("UTF-8"));
+            }
+            int code = conn.getResponseCode();
+            InputStream is = (code >= 200 && code < 300)
+                    ? conn.getInputStream()
+                    : conn.getErrorStream();
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            if (is != null) {
+                byte[] buf = new byte[4096];
+                int n;
+                while ((n = is.read(buf)) > 0) baos.write(buf, 0, n);
+            }
+            JSONObject out = new JSONObject();
+            out.put("status", code);
+            out.put("body",   baos.toString("UTF-8"));
+            return new Result(out.toString(), isTransientHttp(code));
+        } catch (Exception e) {
+            String msg = e.getMessage();
+            if (msg == null) msg = e.getClass().getSimpleName();
+            String json;
+            try {
+                JSONObject out = new JSONObject();
+                out.put("status", -1);
+                out.put("error",  msg);
+                json = out.toString();
+            } catch (Exception ignored) {
+                json = "{\"status\":-1,\"error\":\"unknown\"}";
+            }
+            // I/O exceptions are usually transient (network glitch, dropped
+            // connection); worth retrying once or twice.
+            return new Result(json, true);
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
     }
 
     // ===================================================================

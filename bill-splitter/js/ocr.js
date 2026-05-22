@@ -302,40 +302,76 @@ CRITICAL RULES — item extraction
     return parsed;
   }
 
-  /** Browser fetch path (PWA / single-file build / dev). */
+  /** Browser fetch path (PWA / single-file build / dev).
+   *  Retries 429 / 502 / 503 / 504 / 529 up to 3 times with 2/4/8s backoff. */
   async function callViaFetch(apiKey, body) {
-    const ctl = new AbortController();
-    const to  = setTimeout(() => ctl.abort(), TIMEOUT_MS);
-    let res;
-    try {
-      res = await fetch(ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
-        },
-        body: JSON.stringify(body),
-        signal: ctl.signal,
-      });
-    } catch (e) {
-      clearTimeout(to);
-      if (e.name === 'AbortError') {
-        throw new Error('Scan timed out after ' + (TIMEOUT_MS / 1000) + 's. Check your internet connection.');
+    const backoff = [0, 2000, 4000, 8000];
+    let lastErr = null;
+    let lastRes = null;
+    for (let attempt = 0; attempt < backoff.length; attempt++) {
+      if (backoff[attempt] > 0) await new Promise((r) => setTimeout(r, backoff[attempt]));
+      const ctl = new AbortController();
+      const to  = setTimeout(() => ctl.abort(), TIMEOUT_MS);
+      try {
+        const res = await fetch(ENDPOINT, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true',
+          },
+          body: JSON.stringify(body),
+          signal: ctl.signal,
+        });
+        clearTimeout(to);
+        if (res.ok) {
+          const json = await res.json();
+          return {
+            raw: json,
+            text: (json.content || []).map((c) => c.text || '').join('').trim(),
+          };
+        }
+        // HTTP error — retry transient codes, surface immediately otherwise
+        lastRes = { status: res.status, body: await res.text() };
+        if (!isTransientHttp(res.status) || attempt === backoff.length - 1) {
+          throw friendlyHttpError(lastRes.status, lastRes.body);
+        }
+      } catch (e) {
+        clearTimeout(to);
+        if (e instanceof Error && e.message && (e.message.includes('Claude API') || e.message.includes('temporarily'))) {
+          throw e;
+        }
+        if (e.name === 'AbortError') {
+          if (attempt === backoff.length - 1) {
+            throw new Error('Scan timed out after ' + (TIMEOUT_MS / 1000) + 's. Check your internet connection.');
+          }
+          continue;
+        }
+        lastErr = e;
+        if (attempt === backoff.length - 1) {
+          throw new Error('Network call to Claude failed (' + (e.message || e.name) + ').');
+        }
       }
-      throw new Error('Network call to Claude failed (' + (e.message || e.name) + ').');
     }
-    clearTimeout(to);
-    if (!res.ok) {
-      const t = await res.text();
-      throw new Error('Claude API error ' + res.status + ': ' + t.slice(0, 300));
+    throw lastErr || new Error('Scan failed after several retries.');
+  }
+
+  function isTransientHttp(code) {
+    return code === 429 || code === 502 || code === 503 || code === 504 || code === 529;
+  }
+
+  function friendlyHttpError(status, bodyText) {
+    if (status === 529 || status === 503) {
+      return new Error("Anthropic's servers are overloaded right now. Tried 4 times. Please retry in a minute.");
     }
-    const json = await res.json();
-    return {
-      raw: json,
-      text: (json.content || []).map((c) => c.text || '').join('').trim(),
-    };
+    if (status === 429) {
+      return new Error('Rate limited by Anthropic — too many requests. Wait a minute and try again.');
+    }
+    if (status === 401 || status === 403) {
+      return new Error('Anthropic rejected the API key (' + status + '). Check it in Settings.');
+    }
+    return new Error('Claude API error ' + status + ': ' + (bodyText || '').slice(0, 300));
   }
 
   /** Android-only path via the WebAppInterface Java bridge. */
@@ -372,7 +408,9 @@ CRITICAL RULES — item extraction
           return;
         }
         if (r.status < 200 || r.status >= 300) {
-          reject(new Error('Claude API error ' + r.status + ': ' + (r.body || '').slice(0, 300)));
+          // The native bridge has already retried transient errors, so this
+          // is the final result. Just present a friendly message.
+          reject(friendlyHttpError(r.status, r.body || ''));
           return;
         }
         try {
