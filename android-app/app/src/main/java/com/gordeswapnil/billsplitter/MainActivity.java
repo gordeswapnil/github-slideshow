@@ -136,7 +136,7 @@ public class MainActivity extends Activity {
         }
 
         // JS ⇄ Java bridge for the Anthropic OCR call.
-        webView.addJavascriptInterface(new WebAppInterface(webView), "HisaabNative");
+        webView.addJavascriptInterface(new WebAppInterface(this, webView), "HisaabNative");
 
         webView.loadUrl(ENTRY_URL);
     }

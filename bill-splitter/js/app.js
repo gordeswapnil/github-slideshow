@@ -978,25 +978,72 @@
       App.resultView = btn.dataset.view; renderResult();
     }));
     renderResult();
-    $('#exportPdf').addEventListener('click',  () => doExport('pdf'));
-    $('#exportPng').addEventListener('click',  () => doExport('png'));
-    $('#exportHtml').addEventListener('click', () => doExport('html'));
-    $('#exportShare').addEventListener('click', async () => {
-      const calc = Calc.compute(App.bill);
-      const r = await Exporter.shareSummary(App.bill, calc);
-      if (r === 'copied') toast('Summary copied to clipboard.');
-    });
+    $('#exportPdf').addEventListener('click',  () => doSaveToDownloads('pdf'));
+    $('#exportPng').addEventListener('click',  () => doSaveToDownloads('png'));
+    $('#exportHtml').addEventListener('click', () => doSaveToDownloads('html'));
+    $('#exportShare').addEventListener('click', () => openShareFormatPicker());
   }
 
-  async function doExport(kind) {
+  /** Build the chosen format and save it to the device's Downloads folder
+   *  (or trigger a browser download in non-APK contexts). */
+  async function doSaveToDownloads(kind) {
     const calc = Calc.compute(App.bill);
     const fns  = { renderMaster, renderPerPerson, renderQuickPay };
     try {
-      if (kind === 'pdf')      { toast('Building PDF…');  await Exporter.exportPdf(App.bill,  calc, fns); }
-      else if (kind === 'png') { toast('Building PNG…');  await Exporter.exportPng(App.bill,  calc, fns); }
-      else if (kind === 'html'){ Exporter.exportHtml(App.bill, calc, fns); toast('HTML downloaded.'); }
+      toast('Building ' + kind.toUpperCase() + '…');
+      if      (kind === 'pdf')  await Exporter.exportPdf (App.bill, calc, fns);
+      else if (kind === 'png')  await Exporter.exportPng (App.bill, calc, fns);
+      else if (kind === 'html') await Exporter.exportHtml(App.bill, calc, fns);
+      // The native bridge shows its own toast ("Saved to Downloads/..."), so
+      // we skip a duplicate here. Browser fallback uses a normal download
+      // which is also visible.
     } catch (e) {
-      alert('Export failed: ' + (e.message || e));
+      alert('Save failed: ' + (e.message || e));
+    }
+  }
+
+  /** Share-button modal: pick a format, then hand it to Android's share sheet. */
+  function openShareFormatPicker() {
+    const m = openModal(`
+      <h3>Share bill split</h3>
+      <p class="muted" style="margin:0">Pick a format. Android's share menu will open so you can send to WhatsApp, Drive, Gmail, anywhere.</p>
+      <div class="share-grid">
+        <button class="share-opt" data-fmt="pdf">
+          <span class="share-ico">📄</span><span class="share-lbl">PDF</span>
+          <span class="share-sub">Full report</span>
+        </button>
+        <button class="share-opt" data-fmt="png">
+          <span class="share-ico">🖼️</span><span class="share-lbl">Image</span>
+          <span class="share-sub">PNG screenshot</span>
+        </button>
+        <button class="share-opt" data-fmt="html">
+          <span class="share-ico">🌐</span><span class="share-lbl">HTML</span>
+          <span class="share-sub">Opens in any browser</span>
+        </button>
+        <button class="share-opt" data-fmt="text">
+          <span class="share-ico">📝</span><span class="share-lbl">Text</span>
+          <span class="share-sub">Plain summary</span>
+        </button>
+      </div>
+      <div class="modal-actions"><button class="ghost" id="cancelShare">Cancel</button></div>`);
+    $('#cancelShare', m.box).addEventListener('click', m.close);
+    $$('.share-opt', m.box).forEach((b) =>
+      b.addEventListener('click', () => { m.close(); doShare(b.dataset.fmt); }));
+  }
+
+  async function doShare(kind) {
+    const calc = Calc.compute(App.bill);
+    const fns  = { renderMaster, renderPerPerson, renderQuickPay };
+    try {
+      if      (kind === 'pdf')  await Exporter.sharePdf (App.bill, calc, fns);
+      else if (kind === 'png')  await Exporter.sharePng (App.bill, calc, fns);
+      else if (kind === 'html') await Exporter.shareHtml(App.bill, calc, fns);
+      else if (kind === 'text') {
+        const r = await Exporter.shareText(App.bill, calc);
+        if (r === 'copied') toast('Summary copied to clipboard.');
+      }
+    } catch (e) {
+      alert('Share failed: ' + (e.message || e));
     }
   }
 

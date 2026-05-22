@@ -5,6 +5,10 @@
     <!-- Network permission for OCR (Claude API) and CDN-loaded export libs.
          Manual entry + HTML export work fully offline; declared as not required. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- For Android 8-9 (API 26-28), writing to public Downloads needs this
+         legacy permission. Android 10+ uses MediaStore and ignores it. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+                     android:maxSdkVersion="28" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
     <application
@@ -29,6 +33,19 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- FileProvider grants temporary read access to files in our cache
+             when we hand them to another app via the share sheet. Required
+             since Android 7.0 for ACTION_SEND with file URIs. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
     </application>
 </manifest>

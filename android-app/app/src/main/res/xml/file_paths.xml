@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- The 'share' subdirectory of the app's private cache; files dropped
+         here by WebAppInterface.shareFile are exposed via FileProvider so
+         other apps can read them when the user picks them in the share sheet. -->
+    <cache-path name="share" path="share/" />
+</paths>

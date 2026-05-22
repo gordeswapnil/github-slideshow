@@ -340,6 +340,18 @@ button[disabled]{ opacity:.5; pointer-events:none; }
 }
 .export-bar button{ padding:11px 6px; font-size:13px; }
 
+/* Share format picker modal */
+.share-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.share-opt{
+  background:#fff; border:1px solid var(--line-strong); border-radius:10px;
+  padding:14px 10px; cursor:pointer; display:flex; flex-direction:column;
+  align-items:center; gap:3px; transition:transform .1s;
+}
+.share-opt:active{ transform:scale(.97); background:var(--accent-soft); border-color:var(--accent); }
+.share-opt .share-ico{ font-size:28px; }
+.share-opt .share-lbl{ font-weight:700; color:var(--ink); }
+.share-opt .share-sub{ font-size:11px; color:var(--muted); }
+
 /* ---- Layout that mirrors the sample PDF ---- */
 .rpt{ font-size:13px; line-height:1.35; }
 .rpt table{ width:100%; border-collapse:collapse; }
