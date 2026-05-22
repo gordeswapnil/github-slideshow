@@ -10,6 +10,7 @@
   const KEY_BILLS    = 'bsp.bills.v1';
   const KEY_SETTINGS = 'bsp.settings.v1';
   const KEY_CURRENT  = 'bsp.current.v1';
+  const KEY_USAGE    = 'bsp.usage.v1';     // [{ ts, costInr, costUsd, inTok, outTok }]
 
   const uid = () =>
     Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -128,6 +129,42 @@
     saveBills(loadBills().filter((b) => b.id !== id));
   }
 
+  // ---------- API-usage tracking (cost meter + monthly cap) ----------
+
+  function loadUsage() {
+    try { return JSON.parse(localStorage.getItem(KEY_USAGE) || '[]'); }
+    catch { return []; }
+  }
+  function saveUsage(arr) {
+    // Keep at most last 1000 events — bounds storage if user scans daily forever
+    if (arr.length > 1000) arr = arr.slice(-1000);
+    localStorage.setItem(KEY_USAGE, JSON.stringify(arr));
+  }
+  function recordUsage(usage) {
+    if (!usage || !usage.costInr) return;
+    const all = loadUsage();
+    all.push({
+      ts:    Date.now(),
+      costInr: +usage.costInr.toFixed(4),
+      costUsd: +usage.costUsd.toFixed(6),
+      inTok:  usage.inputTokens,
+      outTok: usage.outputTokens,
+    });
+    saveUsage(all);
+  }
+  /** Total INR spent in the current calendar month (local time). */
+  function monthSpend() {
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth();
+    return loadUsage().reduce((s, e) => {
+      const d = new Date(e.ts);
+      return (d.getFullYear() === y && d.getMonth() === m) ? s + (e.costInr || 0) : s;
+    }, 0);
+  }
+  function clearUsage() {
+    localStorage.removeItem(KEY_USAGE);
+  }
+
   global.Store = {
     uid,
     blankBill,
@@ -143,5 +180,9 @@
     saveCurrent,
     upsertBill,
     deleteBill,
+    loadUsage,
+    recordUsage,
+    monthSpend,
+    clearUsage,
   };
 })(window);

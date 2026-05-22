@@ -401,6 +401,21 @@ button[disabled]{ opacity:.5; pointer-events:none; }
 .qp .qp-row .qp-round{ font-variant-numeric:tabular-nums; font-weight:700; }
 .qp .qp-row.qp-total{ background:#b91c1c; color:#fff; border:0; }
 
+/* Usage panel in settings menu */
+.usage-card{
+  background:#fff7ed; border:1px solid #fed7aa; border-radius:10px;
+  padding:10px 12px; display:flex; flex-direction:column; gap:4px;
+}
+.usage-card .usage-head{ font-weight:700; color:#9a3412; font-size:13px; margin-bottom:2px; }
+.usage-card .usage-row{ display:flex; justify-content:space-between; font-size:13px; }
+.usage-bar{
+  height:6px; background:#fed7aa; border-radius:3px; overflow:hidden; margin-top:4px;
+}
+.usage-bar > span{
+  display:block; height:100%; background:var(--accent);
+  transition:width .2s;
+}
+
 /* ---------- Modal ---------- */
 .modal-backdrop{
   position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:50;
@@ -682,6 +697,7 @@ button[disabled]{ opacity:.5; pointer-events:none; }
   const KEY_BILLS    = 'bsp.bills.v1';
   const KEY_SETTINGS = 'bsp.settings.v1';
   const KEY_CURRENT  = 'bsp.current.v1';
+  const KEY_USAGE    = 'bsp.usage.v1';     // [{ ts, costInr, costUsd, inTok, outTok }]
 
   const uid = () =>
     Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -800,6 +816,42 @@ button[disabled]{ opacity:.5; pointer-events:none; }
     saveBills(loadBills().filter((b) => b.id !== id));
   }
 
+  // ---------- API-usage tracking (cost meter + monthly cap) ----------
+
+  function loadUsage() {
+    try { return JSON.parse(localStorage.getItem(KEY_USAGE) || '[]'); }
+    catch { return []; }
+  }
+  function saveUsage(arr) {
+    // Keep at most last 1000 events — bounds storage if user scans daily forever
+    if (arr.length > 1000) arr = arr.slice(-1000);
+    localStorage.setItem(KEY_USAGE, JSON.stringify(arr));
+  }
+  function recordUsage(usage) {
+    if (!usage || !usage.costInr) return;
+    const all = loadUsage();
+    all.push({
+      ts:    Date.now(),
+      costInr: +usage.costInr.toFixed(4),
+      costUsd: +usage.costUsd.toFixed(6),
+      inTok:  usage.inputTokens,
+      outTok: usage.outputTokens,
+    });
+    saveUsage(all);
+  }
+  /** Total INR spent in the current calendar month (local time). */
+  function monthSpend() {
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth();
+    return loadUsage().reduce((s, e) => {
+      const d = new Date(e.ts);
+      return (d.getFullYear() === y && d.getMonth() === m) ? s + (e.costInr || 0) : s;
+    }, 0);
+  }
+  function clearUsage() {
+    localStorage.removeItem(KEY_USAGE);
+  }
+
   global.Store = {
     uid,
     blankBill,
@@ -815,6 +867,10 @@ button[disabled]{ opacity:.5; pointer-events:none; }
     saveCurrent,
     upsertBill,
     deleteBill,
+    loadUsage,
+    recordUsage,
+    monthSpend,
+    clearUsage,
   };
 })(window);
 
@@ -1340,6 +1396,27 @@ button[disabled]{ opacity:.5; pointer-events:none; }
   const ENDPOINT = 'https://api.anthropic.com/v1/messages';
   const TIMEOUT_MS = 45000;
 
+  // Anthropic public pricing for claude-haiku-4-5 (USD per million tokens).
+  // Used only for the in-app cost meter; kept in one place so it's easy to
+  // update if pricing changes.
+  const PRICE_INPUT_PER_MTOK_USD  = 1.00;
+  const PRICE_OUTPUT_PER_MTOK_USD = 5.00;
+  const USD_TO_INR = 85;   // rough; user can override in settings later
+
+  function computeUsage(json) {
+    const u = (json && json.usage) || {};
+    const inputTokens  = +u.input_tokens  || 0;
+    const outputTokens = +u.output_tokens || 0;
+    const usd =
+      (inputTokens  / 1e6) * PRICE_INPUT_PER_MTOK_USD +
+      (outputTokens / 1e6) * PRICE_OUTPUT_PER_MTOK_USD;
+    return {
+      inputTokens, outputTokens,
+      costUsd: usd,
+      costInr: usd * USD_TO_INR,
+    };
+  }
+
   const SCHEMA_PROMPT = `You are a bill-extraction engine. Read the attached restaurant/party bill image and return STRICT JSON only — no prose, no markdown fences.
 
 Use this exact shape:
@@ -1593,11 +1670,17 @@ CRITICAL RULES — item extraction
     // Inside the Android APK we hand the call to the Java bridge to bypass
     // WebView CORS restrictions on cross-origin browser fetch. In a plain
     // browser (or PWA) we fall back to fetch.
-    const responseText = (typeof window !== 'undefined' && window.HisaabNative && typeof window.HisaabNative.callAnthropic === 'function')
+    const useBridge = (typeof window !== 'undefined'
+        && window.HisaabNative
+        && typeof window.HisaabNative.callAnthropic === 'function');
+    const { text, raw } = useBridge
       ? await callViaBridge(apiKey, body)
       : await callViaFetch(apiKey, body);
 
-    return parseJsonLoose(responseText);
+    const parsed = parseJsonLoose(text);
+    // Attach usage metadata so the caller can track cost without re-fetching.
+    parsed._usage = computeUsage(raw);
+    return parsed;
   }
 
   /** Browser fetch path (PWA / single-file build / dev). */
@@ -1630,7 +1713,10 @@ CRITICAL RULES — item extraction
       throw new Error('Claude API error ' + res.status + ': ' + t.slice(0, 300));
     }
     const json = await res.json();
-    return (json.content || []).map((c) => c.text || '').join('').trim();
+    return {
+      raw: json,
+      text: (json.content || []).map((c) => c.text || '').join('').trim(),
+    };
   }
 
   /** Android-only path via the WebAppInterface Java bridge. */
@@ -1672,7 +1758,10 @@ CRITICAL RULES — item extraction
         }
         try {
           const j = JSON.parse(r.body);
-          resolve((j.content || []).map((c) => c.text || '').join('').trim());
+          resolve({
+            raw: j,
+            text: (j.content || []).map((c) => c.text || '').join('').trim(),
+          });
         } catch (e) {
           reject(new Error('Could not parse Claude response: ' + e.message));
         }
@@ -1939,6 +2028,21 @@ CRITICAL RULES — item extraction
     return { back, box, close: () => back.remove() };
   }
 
+  /** Promise-returning yes/no confirmation modal. */
+  function confirmModal(title, body, okLabel, cancelLabel) {
+    return new Promise((resolve) => {
+      const m = openModal(`
+        <h3>${esc(title)}</h3>
+        <p style="margin:0">${esc(body)}</p>
+        <div class="modal-actions">
+          <button class="ghost" id="cmCancel">${esc(cancelLabel || 'Cancel')}</button>
+          <button class="primary" id="cmOk">${esc(okLabel || 'OK')}</button>
+        </div>`);
+      $('#cmCancel', m.box).addEventListener('click', () => { m.close(); resolve(false); });
+      $('#cmOk',     m.box).addEventListener('click', () => { m.close(); resolve(true); });
+    });
+  }
+
   // ============== Routing =============
 
   function go(screen) {
@@ -2020,6 +2124,18 @@ CRITICAL RULES — item extraction
 
   async function onScanFileResume(file) {
     const settings = Store.loadSettings();
+    // Budget cap check — refuse to scan if it would exceed the monthly budget.
+    const cap = +settings.monthlyBudgetInr || 0;
+    const spent = Store.monthSpend();
+    if (cap > 0 && spent >= cap) {
+      const proceed = await confirmModal(
+        '⚠️ Monthly scan budget reached',
+        `You've spent ₹${spent.toFixed(2)} of your ₹${cap.toFixed(2)} budget this month. ` +
+        `Each scan costs roughly ₹0.50. Scan anyway?`,
+        'Scan anyway', 'Cancel'
+      );
+      if (!proceed) return;
+    }
     const m = openModal(`<h3>Scanning bill…</h3><div class="spinner"></div><p class="muted" style="text-align:center;margin:0">Reading items from your image. This may take 10–20 seconds.</p>`);
     try {
       const parsed = await OCR.extractFromFile(file, settings.apiKey);
@@ -2065,8 +2181,15 @@ CRITICAL RULES — item extraction
       // screen will surface a hint per-parcel.
       setBill(bill);
       m.close();
+      // Record API usage (cost meter) — _usage attached by ocr.js
+      if (parsed._usage) {
+        Store.recordUsage(parsed._usage);
+      }
       let toastMsg = 'Scanned ' + bill.items.length + ' items';
       if (bill._scanWarnings.length) toastMsg += ' · ' + bill._scanWarnings.length + ' warning(s)';
+      if (parsed._usage) {
+        toastMsg += ' · cost ₹' + parsed._usage.costInr.toFixed(2);
+      }
       toast(toastMsg + ' — review and continue.');
       go('bill');
     } catch (err) {
@@ -3138,15 +3261,49 @@ CRITICAL RULES — item extraction
   // ============================================================
   function openMenu() {
     const settings = Store.loadSettings();
+    const monthSpent = Store.monthSpend();
+    const cap = +settings.monthlyBudgetInr || 0;
+    const usageEvents = Store.loadUsage();
+    const monthCount = (() => {
+      const now = new Date(), y = now.getFullYear(), m = now.getMonth();
+      return usageEvents.filter((e) => {
+        const d = new Date(e.ts);
+        return d.getFullYear() === y && d.getMonth() === m;
+      }).length;
+    })();
     const m = openModal(`
       <h3>Settings</h3>
+
+      <div class="usage-card">
+        <div class="usage-head">📊 Scan usage this month</div>
+        <div class="usage-row"><span>Scans</span><b>${monthCount}</b></div>
+        <div class="usage-row"><span>Total cost</span><b>₹${monthSpent.toFixed(2)}</b></div>
+        ${cap > 0
+          ? `<div class="usage-row"><span>Monthly cap</span><b>₹${cap.toFixed(2)}</b></div>
+             <div class="usage-bar"><span style="width:${Math.min(100, (monthSpent/cap)*100).toFixed(1)}%"></span></div>`
+          : `<p class="muted" style="margin:4px 0 0;font-size:11px">No cap set — set one below to block scans beyond a budget.</p>`}
+      </div>
+      <label class="field"><span>Monthly scan budget (₹, 0 = no cap)</span>
+        <input id="capInr" type="number" min="0" step="10" value="${cap}" />
+      </label>
+
       <button class="primary" id="setKey">Set Anthropic API key</button>
+      <button class="ghost"   id="clrUsage">Reset usage history</button>
       <button class="ghost"   id="clrCurrent">Discard current bill</button>
       <button class="ghost"   id="clrAll" style="border-color:#dc2626;color:#dc2626">Clear all data</button>
       <div class="modal-actions"><button class="ghost" id="closeMenu">Close</button></div>
-      <p class="muted" style="font-size:11px;margin:0">Bills are stored locally on this device. API key (if set) is used only to call Anthropic from your browser.</p>`);
+      <p class="muted" style="font-size:11px;margin:0">Bills are stored locally on this device. API key (if set) is used only to call Anthropic from your browser. Approx. ₹0.25–0.65 per scan with Haiku 4.5.</p>`);
     $('#closeMenu', m.box).addEventListener('click', m.close);
     $('#setKey', m.box).addEventListener('click', () => { m.close(); promptForApiKey(); });
+    $('#capInr', m.box).addEventListener('input', (e) => {
+      const v = +e.target.value || 0;
+      Store.saveSettings(Object.assign(settings, { monthlyBudgetInr: v }));
+    });
+    $('#clrUsage', m.box).addEventListener('click', () => {
+      if (confirm('Reset scan-usage history? (Bills are not affected.)')) {
+        Store.clearUsage(); m.close(); openMenu();
+      }
+    });
     $('#clrCurrent', m.box).addEventListener('click', () => {
       if (confirm('Discard the current bill (saved bills remain)?')) {
         Store.saveCurrent(null); App.bill = null; m.close(); go('home');

@@ -391,6 +391,21 @@ button[disabled]{ opacity:.5; pointer-events:none; }
 .qp .qp-row .qp-round{ font-variant-numeric:tabular-nums; font-weight:700; }
 .qp .qp-row.qp-total{ background:#b91c1c; color:#fff; border:0; }
 
+/* Usage panel in settings menu */
+.usage-card{
+  background:#fff7ed; border:1px solid #fed7aa; border-radius:10px;
+  padding:10px 12px; display:flex; flex-direction:column; gap:4px;
+}
+.usage-card .usage-head{ font-weight:700; color:#9a3412; font-size:13px; margin-bottom:2px; }
+.usage-card .usage-row{ display:flex; justify-content:space-between; font-size:13px; }
+.usage-bar{
+  height:6px; background:#fed7aa; border-radius:3px; overflow:hidden; margin-top:4px;
+}
+.usage-bar > span{
+  display:block; height:100%; background:var(--accent);
+  transition:width .2s;
+}
+
 /* ---------- Modal ---------- */
 .modal-backdrop{
   position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:50;

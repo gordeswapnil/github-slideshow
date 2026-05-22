@@ -73,6 +73,21 @@
     return { back, box, close: () => back.remove() };
   }
 
+  /** Promise-returning yes/no confirmation modal. */
+  function confirmModal(title, body, okLabel, cancelLabel) {
+    return new Promise((resolve) => {
+      const m = openModal(`
+        <h3>${esc(title)}</h3>
+        <p style="margin:0">${esc(body)}</p>
+        <div class="modal-actions">
+          <button class="ghost" id="cmCancel">${esc(cancelLabel || 'Cancel')}</button>
+          <button class="primary" id="cmOk">${esc(okLabel || 'OK')}</button>
+        </div>`);
+      $('#cmCancel', m.box).addEventListener('click', () => { m.close(); resolve(false); });
+      $('#cmOk',     m.box).addEventListener('click', () => { m.close(); resolve(true); });
+    });
+  }
+
   // ============== Routing =============
 
   function go(screen) {
@@ -154,6 +169,18 @@
 
   async function onScanFileResume(file) {
     const settings = Store.loadSettings();
+    // Budget cap check — refuse to scan if it would exceed the monthly budget.
+    const cap = +settings.monthlyBudgetInr || 0;
+    const spent = Store.monthSpend();
+    if (cap > 0 && spent >= cap) {
+      const proceed = await confirmModal(
+        '⚠️ Monthly scan budget reached',
+        `You've spent ₹${spent.toFixed(2)} of your ₹${cap.toFixed(2)} budget this month. ` +
+        `Each scan costs roughly ₹0.50. Scan anyway?`,
+        'Scan anyway', 'Cancel'
+      );
+      if (!proceed) return;
+    }
     const m = openModal(`<h3>Scanning bill…</h3><div class="spinner"></div><p class="muted" style="text-align:center;margin:0">Reading items from your image. This may take 10–20 seconds.</p>`);
     try {
       const parsed = await OCR.extractFromFile(file, settings.apiKey);
@@ -199,8 +226,15 @@
       // screen will surface a hint per-parcel.
       setBill(bill);
       m.close();
+      // Record API usage (cost meter) — _usage attached by ocr.js
+      if (parsed._usage) {
+        Store.recordUsage(parsed._usage);
+      }
       let toastMsg = 'Scanned ' + bill.items.length + ' items';
       if (bill._scanWarnings.length) toastMsg += ' · ' + bill._scanWarnings.length + ' warning(s)';
+      if (parsed._usage) {
+        toastMsg += ' · cost ₹' + parsed._usage.costInr.toFixed(2);
+      }
       toast(toastMsg + ' — review and continue.');
       go('bill');
     } catch (err) {
@@ -1272,15 +1306,49 @@
   // ============================================================
   function openMenu() {
     const settings = Store.loadSettings();
+    const monthSpent = Store.monthSpend();
+    const cap = +settings.monthlyBudgetInr || 0;
+    const usageEvents = Store.loadUsage();
+    const monthCount = (() => {
+      const now = new Date(), y = now.getFullYear(), m = now.getMonth();
+      return usageEvents.filter((e) => {
+        const d = new Date(e.ts);
+        return d.getFullYear() === y && d.getMonth() === m;
+      }).length;
+    })();
     const m = openModal(`
       <h3>Settings</h3>
+
+      <div class="usage-card">
+        <div class="usage-head">📊 Scan usage this month</div>
+        <div class="usage-row"><span>Scans</span><b>${monthCount}</b></div>
+        <div class="usage-row"><span>Total cost</span><b>₹${monthSpent.toFixed(2)}</b></div>
+        ${cap > 0
+          ? `<div class="usage-row"><span>Monthly cap</span><b>₹${cap.toFixed(2)}</b></div>
+             <div class="usage-bar"><span style="width:${Math.min(100, (monthSpent/cap)*100).toFixed(1)}%"></span></div>`
+          : `<p class="muted" style="margin:4px 0 0;font-size:11px">No cap set — set one below to block scans beyond a budget.</p>`}
+      </div>
+      <label class="field"><span>Monthly scan budget (₹, 0 = no cap)</span>
+        <input id="capInr" type="number" min="0" step="10" value="${cap}" />
+      </label>
+
       <button class="primary" id="setKey">Set Anthropic API key</button>
+      <button class="ghost"   id="clrUsage">Reset usage history</button>
       <button class="ghost"   id="clrCurrent">Discard current bill</button>
       <button class="ghost"   id="clrAll" style="border-color:#dc2626;color:#dc2626">Clear all data</button>
       <div class="modal-actions"><button class="ghost" id="closeMenu">Close</button></div>
-      <p class="muted" style="font-size:11px;margin:0">Bills are stored locally on this device. API key (if set) is used only to call Anthropic from your browser.</p>`);
+      <p class="muted" style="font-size:11px;margin:0">Bills are stored locally on this device. API key (if set) is used only to call Anthropic from your browser. Approx. ₹0.25–0.65 per scan with Haiku 4.5.</p>`);
     $('#closeMenu', m.box).addEventListener('click', m.close);
     $('#setKey', m.box).addEventListener('click', () => { m.close(); promptForApiKey(); });
+    $('#capInr', m.box).addEventListener('input', (e) => {
+      const v = +e.target.value || 0;
+      Store.saveSettings(Object.assign(settings, { monthlyBudgetInr: v }));
+    });
+    $('#clrUsage', m.box).addEventListener('click', () => {
+      if (confirm('Reset scan-usage history? (Bills are not affected.)')) {
+        Store.clearUsage(); m.close(); openMenu();
+      }
+    });
     $('#clrCurrent', m.box).addEventListener('click', () => {
       if (confirm('Discard the current bill (saved bills remain)?')) {
         Store.saveCurrent(null); App.bill = null; m.close(); go('home');

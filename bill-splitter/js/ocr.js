@@ -15,6 +15,27 @@
   const ENDPOINT = 'https://api.anthropic.com/v1/messages';
   const TIMEOUT_MS = 45000;
 
+  // Anthropic public pricing for claude-haiku-4-5 (USD per million tokens).
+  // Used only for the in-app cost meter; kept in one place so it's easy to
+  // update if pricing changes.
+  const PRICE_INPUT_PER_MTOK_USD  = 1.00;
+  const PRICE_OUTPUT_PER_MTOK_USD = 5.00;
+  const USD_TO_INR = 85;   // rough; user can override in settings later
+
+  function computeUsage(json) {
+    const u = (json && json.usage) || {};
+    const inputTokens  = +u.input_tokens  || 0;
+    const outputTokens = +u.output_tokens || 0;
+    const usd =
+      (inputTokens  / 1e6) * PRICE_INPUT_PER_MTOK_USD +
+      (outputTokens / 1e6) * PRICE_OUTPUT_PER_MTOK_USD;
+    return {
+      inputTokens, outputTokens,
+      costUsd: usd,
+      costInr: usd * USD_TO_INR,
+    };
+  }
+
   const SCHEMA_PROMPT = `You are a bill-extraction engine. Read the attached restaurant/party bill image and return STRICT JSON only — no prose, no markdown fences.
 
 Use this exact shape:
@@ -268,11 +289,17 @@ CRITICAL RULES — item extraction
     // Inside the Android APK we hand the call to the Java bridge to bypass
     // WebView CORS restrictions on cross-origin browser fetch. In a plain
     // browser (or PWA) we fall back to fetch.
-    const responseText = (typeof window !== 'undefined' && window.HisaabNative && typeof window.HisaabNative.callAnthropic === 'function')
+    const useBridge = (typeof window !== 'undefined'
+        && window.HisaabNative
+        && typeof window.HisaabNative.callAnthropic === 'function');
+    const { text, raw } = useBridge
       ? await callViaBridge(apiKey, body)
       : await callViaFetch(apiKey, body);
 
-    return parseJsonLoose(responseText);
+    const parsed = parseJsonLoose(text);
+    // Attach usage metadata so the caller can track cost without re-fetching.
+    parsed._usage = computeUsage(raw);
+    return parsed;
   }
 
   /** Browser fetch path (PWA / single-file build / dev). */
@@ -305,7 +332,10 @@ CRITICAL RULES — item extraction
       throw new Error('Claude API error ' + res.status + ': ' + t.slice(0, 300));
     }
     const json = await res.json();
-    return (json.content || []).map((c) => c.text || '').join('').trim();
+    return {
+      raw: json,
+      text: (json.content || []).map((c) => c.text || '').join('').trim(),
+    };
   }
 
   /** Android-only path via the WebAppInterface Java bridge. */
@@ -347,7 +377,10 @@ CRITICAL RULES — item extraction
         }
         try {
           const j = JSON.parse(r.body);
-          resolve((j.content || []).map((c) => c.text || '').join('').trim());
+          resolve({
+            raw: j,
+            text: (j.content || []).map((c) => c.text || '').join('').trim(),
+          });
         } catch (e) {
           reject(new Error('Could not parse Claude response: ' + e.message));
         }
