@@ -142,33 +142,111 @@ CRITICAL RULES — item extraction
     if (file.type === 'application/pdf') {
       return await pdfFirstPageToBase64(file);
     }
-    return await new Promise((resolve, reject) => {
+    // For ordinary photos we MUST downscale and re-encode:
+    //   - Anthropic's vision endpoint rejects images > 5 MB base64
+    //   - Modern phone cameras routinely produce 4-10 MB JPEGs even for a
+    //     simple receipt photo
+    //   - For OCR of a receipt, ~1800 px on the long edge is plenty; text
+    //     is comfortably above the resolving threshold
+    return await imageToCompressedBase64(file);
+  }
+
+  /** Resize + re-encode an image File so the API payload stays under 4 MB. */
+  async function imageToCompressedBase64(file) {
+    const MAX_LONG_EDGE = 1800;
+    const TARGET_BYTES  = 4 * 1024 * 1024; // 4 MB leaves headroom for base64 expansion + JSON envelope
+
+    // Step 1: load into an Image element
+    const dataUrl = await new Promise((resolve, reject) => {
       const r = new FileReader();
-      r.onload = () => {
-        const s = r.result;
-        const comma = s.indexOf(',');
-        resolve({ media: file.type || 'image/jpeg', data: s.slice(comma + 1) });
-      };
+      r.onload = () => resolve(r.result);
       r.onerror = reject;
       r.readAsDataURL(file);
     });
+    const img = await new Promise((resolve, reject) => {
+      const im = new Image();
+      im.onload  = () => resolve(im);
+      im.onerror = reject;
+      im.src = dataUrl;
+    });
+
+    // Step 2: pick target dimensions
+    let w = img.naturalWidth || img.width;
+    let h = img.naturalHeight || img.height;
+    const longEdge = Math.max(w, h);
+    if (longEdge > MAX_LONG_EDGE) {
+      const scale = MAX_LONG_EDGE / longEdge;
+      w = Math.round(w * scale);
+      h = Math.round(h * scale);
+    }
+
+    // Step 3: draw to canvas
+    const canvas = document.createElement('canvas');
+    canvas.width  = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    // White background — many JPEGs have implicit transparency that becomes
+    // black on canvas; white is much friendlier for OCR contrast.
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+
+    // Step 4: encode as JPEG at decreasing quality until under target size
+    let quality = 0.85;
+    let blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+    while (blob.size > TARGET_BYTES && quality > 0.4) {
+      quality -= 0.15;
+      blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+    }
+
+    // Step 5: blob → base64 (strip the data:image/jpeg;base64, prefix)
+    const finalDataUrl = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+    return { media: 'image/jpeg', data: finalDataUrl.split(',')[1] };
+  }
+
+  function canvasToBlob(canvas, type, quality) {
+    return new Promise((resolve) => canvas.toBlob((b) => resolve(b), type, quality));
   }
 
   async function pdfFirstPageToBase64(file) {
-    // pdf.js is loaded as an ES module on the page. Pull from the same CDN.
     const mod = await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs');
     mod.GlobalWorkerOptions.workerSrc =
       'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
     const buf = await file.arrayBuffer();
     const pdf = await mod.getDocument({ data: buf }).promise;
     const page = await pdf.getPage(1);
-    const viewport = page.getViewport({ scale: 2 });
+    // Pick a scale that keeps the long edge ~1800 px (same target as photos).
+    const baseViewport = page.getViewport({ scale: 1 });
+    const longEdge = Math.max(baseViewport.width, baseViewport.height);
+    const scale = Math.min(2, 1800 / longEdge);
+    const viewport = page.getViewport({ scale });
     const canvas = document.createElement('canvas');
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-    const dataUrl = canvas.toDataURL('image/png');
-    return { media: 'image/png', data: dataUrl.split(',')[1] };
+    canvas.width  = Math.round(viewport.width);
+    canvas.height = Math.round(viewport.height);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    // Encode as JPEG, dropping quality if the resulting payload is too big.
+    let quality = 0.85;
+    let blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+    while (blob.size > 4 * 1024 * 1024 && quality > 0.4) {
+      quality -= 0.15;
+      blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+    }
+    const dataUrl = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+    return { media: 'image/jpeg', data: dataUrl.split(',')[1] };
   }
 
   async function extractFromFile(file, apiKey) {
