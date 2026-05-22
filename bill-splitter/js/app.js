@@ -1091,17 +1091,32 @@
   /**
    * Render the "Who pays whom" settlement section.
    * Shows: each person's net, then a list of pairwise transfers.
+   *
+   * IMPORTANT: the columns here are about REIMBURSEMENT only. They include
+   * just the items that someone fronted (`paidBy` set). Items split Dutch
+   * at the counter are NOT in the settlement — those amounts each person
+   * already pays directly to the merchant.
    */
   function renderSettlement(b, calc, forExport) {
     const anyPaid = Object.values(calc.paidByPerson || {}).some((v) => v > 0);
     if (!anyPaid) return '';   // nothing to settle — group went Dutch
 
     const people = b.people;
+    // Detect whether there are also Dutch items in the bill, so we can warn
+    // the user that the settlement covers ONLY the items someone fronted.
+    const hasDutchItems = (b.items || []).some((it) => !it.paidBy && Calc.itemTotal(it) > 0);
+
     let rows = '';
     rows += `<table style="margin:0">
-      <thead><tr><th>Person</th><th class="num">Consumed (₹)</th><th class="num">Paid (₹)</th><th class="num">Net (₹)</th></tr></thead><tbody>`;
+      <thead><tr>
+        <th>Person</th>
+        <th class="num">Share to repay (₹)</th>
+        <th class="num">Paid by them (₹)</th>
+        <th class="num">Net (₹)</th>
+      </tr></thead><tbody>`;
     people.forEach((p) => {
-      const consumed = calc.grand.perPerson[p.id] || 0;
+      // Settlement-relevant numbers only (paid-by items + their taxes).
+      const consumed = (calc.settlementConsumedPerPerson || {})[p.id] || 0;
       const paid     = calc.paidByPerson[p.id]   || 0;
       const net      = calc.netPerPerson[p.id]   || 0;
       const netLabel = net >  0.005 ? `<span style="color:#b91c1c">owes ${fmt(net)}</span>`
@@ -1130,9 +1145,16 @@
       ).join('');
     }
 
+    const dutchNote = hasDutchItems
+      ? `<div class="sub-band" style="background:#fffbeb;color:#78350f;font-style:normal">
+           <b>Note:</b> Some items on this bill have no "Paid by" — those are assumed to be split at the counter directly, and are <i>not</i> included in the settlement below. The numbers here cover ONLY the reimbursement needed for items someone fronted.
+         </div>`
+      : '';
+
     return `<div class="rpt" style="margin-top:14px">
       <div class="ttl-band">💸 SETTLEMENT — Who pays whom</div>
-      <div class="sub-band">Each person's consumption is balanced against what they paid out of pocket. Below: minimum number of transfers to settle everyone.</div>
+      <div class="sub-band">Per-person reimbursement. <b>Share to repay</b> = their portion of items someone fronted (incl. tax). <b>Paid by them</b> = how much they fronted. <b>Net</b> = transfer needed.</div>
+      ${dutchNote}
       ${rows}
     </div>
     <div class="settle-card">${transfers}</div>`;

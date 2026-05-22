@@ -386,6 +386,7 @@
       taxTotals,
       grand: { perPerson: grandPer, total: grandTotal },
       paidByPerson,
+      settlementConsumedPerPerson,
       netPerPerson,
       settlement,
     };
