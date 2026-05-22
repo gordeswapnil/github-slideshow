@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The adaptive-icon spec gives 108x108dp canvas; the inner 72x72 area is
+     guaranteed to be visible (the rest may be cropped to a circle/squircle).
+     The ₹ glyph and three split-bars sit inside that safe square. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- ₹ symbol (drawn as paths so we don't depend on font rendering) -->
+    <group android:translateX="38" android:translateY="22">
+        <!-- Top horizontal -->
+        <path android:fillColor="#ffffff" android:pathData="M0,0 h32 v6 h-32 z" />
+        <!-- Second horizontal -->
+        <path android:fillColor="#ffffff" android:pathData="M0,10 h32 v6 h-32 z" />
+        <!-- Vertical strokes of ₹ (the loop simplification) -->
+        <path android:fillColor="#ffffff" android:pathData="M4,0 h8 v34 h-8 z" />
+        <!-- Diagonal slash -->
+        <path android:fillColor="#ffffff" android:pathData="M2,22 l24,22 h-9 l-19,-17 z" />
+    </group>
+
+    <!-- Three split-bars, decreasing opacity, suggesting the "split" -->
+    <path android:fillColor="#ffffff" android:fillAlpha="1.0"
+          android:pathData="M28,72 h52 a3,3 0 0 1 0,6 h-52 a3,3 0 0 1 0,-6 z" />
+    <path android:fillColor="#ffffff" android:fillAlpha="0.75"
+          android:pathData="M28,82 h52 a3,3 0 0 1 0,6 h-52 a3,3 0 0 1 0,-6 z" />
+    <path android:fillColor="#ffffff" android:fillAlpha="0.5"
+          android:pathData="M28,92 h52 a3,3 0 0 1 0,6 h-52 a3,3 0 0 1 0,-6 z" />
+</vector>

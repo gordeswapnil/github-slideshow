@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#d84315"/>
+  <g fill="#fff" font-family="-apple-system, Segoe UI, Roboto, sans-serif" font-weight="800">
+    <text x="256" y="195" font-size="120" text-anchor="middle">₹</text>
+    <rect x="116" y="240" width="280" height="14" rx="7"/>
+    <rect x="116" y="278" width="280" height="14" rx="7" opacity=".75"/>
+    <rect x="116" y="316" width="280" height="14" rx="7" opacity=".5"/>
+    <text x="256" y="430" font-size="56" text-anchor="middle">SPLIT</text>
+  </g>
+</svg>

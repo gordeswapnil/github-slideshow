@@ -1,0 +1,3556 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="theme-color" content="#d84315" />
+  <title>Bill Splitter</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20512%20512%22%3E%0A%20%20%3Crect%20width%3D%22512%22%20height%3D%22512%22%20rx%3D%2296%22%20fill%3D%22%23d84315%22%2F%3E%0A%20%20%3Cg%20fill%3D%22%23fff%22%20font-family%3D%22-apple-system%2C%20Segoe%20UI%2C%20Roboto%2C%20sans-serif%22%20font-weight%3D%22800%22%3E%0A%20%20%20%20%3Ctext%20x%3D%22256%22%20y%3D%22195%22%20font-size%3D%22120%22%20text-anchor%3D%22middle%22%3E%E2%82%B9%3C%2Ftext%3E%0A%20%20%20%20%3Crect%20x%3D%22116%22%20y%3D%22240%22%20width%3D%22280%22%20height%3D%2214%22%20rx%3D%227%22%2F%3E%0A%20%20%20%20%3Crect%20x%3D%22116%22%20y%3D%22278%22%20width%3D%22280%22%20height%3D%2214%22%20rx%3D%227%22%20opacity%3D%22.75%22%2F%3E%0A%20%20%20%20%3Crect%20x%3D%22116%22%20y%3D%22316%22%20width%3D%22280%22%20height%3D%2214%22%20rx%3D%227%22%20opacity%3D%22.5%22%2F%3E%0A%20%20%20%20%3Ctext%20x%3D%22256%22%20y%3D%22430%22%20font-size%3D%2256%22%20text-anchor%3D%22middle%22%3ESPLIT%3C%2Ftext%3E%0A%20%20%3C%2Fg%3E%0A%3C%2Fsvg%3E%0A" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20512%20512%22%3E%0A%20%20%3Crect%20width%3D%22512%22%20height%3D%22512%22%20rx%3D%2296%22%20fill%3D%22%23d84315%22%2F%3E%0A%20%20%3Cg%20fill%3D%22%23fff%22%20font-family%3D%22-apple-system%2C%20Segoe%20UI%2C%20Roboto%2C%20sans-serif%22%20font-weight%3D%22800%22%3E%0A%20%20%20%20%3Ctext%20x%3D%22256%22%20y%3D%22195%22%20font-size%3D%22120%22%20text-anchor%3D%22middle%22%3E%E2%82%B9%3C%2Ftext%3E%0A%20%20%20%20%3Crect%20x%3D%22116%22%20y%3D%22240%22%20width%3D%22280%22%20height%3D%2214%22%20rx%3D%227%22%2F%3E%0A%20%20%20%20%3Crect%20x%3D%22116%22%20y%3D%22278%22%20width%3D%22280%22%20height%3D%2214%22%20rx%3D%227%22%20opacity%3D%22.75%22%2F%3E%0A%20%20%20%20%3Crect%20x%3D%22116%22%20y%3D%22316%22%20width%3D%22280%22%20height%3D%2214%22%20rx%3D%227%22%20opacity%3D%22.5%22%2F%3E%0A%20%20%20%20%3Ctext%20x%3D%22256%22%20y%3D%22430%22%20font-size%3D%2256%22%20text-anchor%3D%22middle%22%3ESPLIT%3C%2Ftext%3E%0A%20%20%3C%2Fg%3E%0A%3C%2Fsvg%3E%0A" />
+  <style>
+/* ===================================================================
+   Bill Splitter — mobile-first stylesheet
+   Palette mirrors the sample output (Shree Caterers reference).
+   =================================================================== */
+
+:root{
+  --bg:#f5f6f8;
+  --surface:#ffffff;
+  --ink:#1f2937;
+  --muted:#6b7280;
+  --line:#e5e7eb;
+  --line-strong:#cbd5e1;
+  --accent:#d84315;       /* primary orange (header) */
+  --accent-dark:#a83310;
+  --accent-soft:#fff1ec;
+  --ok:#16a34a;
+  --warn:#d97706;
+  --err:#dc2626;
+
+  /* per-person palette — order matches sample output */
+  --p1:#1e63d9;  --p1-bg:#e8f0fc;   /* Pravin   blue   */
+  --p2:#6a3fbf;  --p2-bg:#f0eaf9;   /* Vicky    purple */
+  --p3:#1f8a3d;  --p3-bg:#e8f6ec;   /* Mahajan  green  */
+  --p4:#d97706;  --p4-bg:#fdf2e3;   /* Swapnil  orange */
+  --p5:#c2185b;  --p5-bg:#fceaf1;
+  --p6:#0f766e;  --p6-bg:#defaf6;
+  --p7:#4338ca;  --p7-bg:#ebe9fb;
+  --p8:#a16207;  --p8-bg:#fbf4dd;
+
+  --radius:12px;
+  --shadow:0 1px 2px rgba(0,0,0,.04), 0 4px 12px rgba(0,0,0,.05);
+  --nav-h:64px;
+  --bar-h:56px;
+}
+
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body{
+  margin:0; padding:0; background:var(--bg); color:var(--ink);
+  font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen,Ubuntu,Cantarell,"Helvetica Neue",sans-serif;
+  overscroll-behavior-y:contain;
+}
+input,select,textarea,button{ font:inherit; color:inherit; }
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+input[type=number]{ -moz-appearance:textfield; }
+
+/* ---------- App bar ---------- */
+.appbar{
+  position:sticky; top:0; left:0; right:0; height:var(--bar-h);
+  background:var(--accent); color:#fff; z-index:20;
+  display:flex; align-items:center; gap:8px; padding:0 8px;
+  padding-top:env(safe-area-inset-top);
+  box-shadow:0 1px 2px rgba(0,0,0,.1);
+}
+.appbar-title{ font-size:18px; font-weight:600; margin:0; flex:1; text-align:center; letter-spacing:.2px; }
+.iconbtn{
+  background:transparent; border:0; color:#fff; width:40px; height:40px;
+  border-radius:8px; font-size:20px;
+}
+.iconbtn:active{ background:rgba(255,255,255,.15); }
+
+/* ---------- Main / screens ---------- */
+main{
+  min-height:calc(100vh - var(--bar-h) - var(--nav-h));
+  padding:14px 14px calc(var(--nav-h) + 24px);
+  max-width:760px; margin:0 auto;
+}
+.screen{ display:flex; flex-direction:column; gap:14px; animation:fade .18s ease; }
+@keyframes fade{ from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:none} }
+.screen h2{ margin:4px 0 0; font-size:20px; }
+.section-title{ margin:14px 0 -4px; font-size:14px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
+.muted{ color:var(--muted); font-size:13px; margin:0; }
+
+/* ---------- Bottom nav ---------- */
+.bottomnav{
+  position:fixed; bottom:0; left:0; right:0; height:var(--nav-h);
+  background:#fff; border-top:1px solid var(--line);
+  display:grid; grid-template-columns:repeat(5,1fr);
+  z-index:15; padding-bottom:env(safe-area-inset-bottom);
+}
+.navbtn{
+  background:transparent; border:0; padding:6px 2px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:2px; color:var(--muted); font-size:11px;
+}
+.navbtn .navico{ font-size:20px; }
+.navbtn.active{ color:var(--accent); }
+
+/* ---------- Buttons ---------- */
+button.primary,button.ghost{
+  border-radius:10px; padding:11px 16px; font-weight:600; font-size:15px;
+  border:0; cursor:pointer;
+}
+button.primary{ background:var(--accent); color:#fff; }
+button.primary:active{ background:var(--accent-dark); }
+button.ghost{ background:#fff; color:var(--accent); border:1px solid var(--accent); }
+button.ghost:active{ background:var(--accent-soft); }
+button.big{ padding:14px 16px; font-size:16px; flex:1; }
+button[disabled]{ opacity:.5; pointer-events:none; }
+
+/* ---------- Cards / forms ---------- */
+.card{
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+  padding:12px; display:flex; flex-direction:column; gap:10px; box-shadow:var(--shadow);
+}
+.field{ display:flex; flex-direction:column; gap:4px; }
+.field>span{ font-size:12px; color:var(--muted); font-weight:500; }
+.field input,.field select{
+  background:#fff; border:1px solid var(--line-strong); border-radius:8px;
+  padding:10px 12px; font-size:15px; width:100%;
+}
+.field input:focus,.field select:focus{ outline:2px solid var(--accent); outline-offset:-1px; border-color:transparent; }
+.field.inline{ flex-direction:row; align-items:center; justify-content:space-between; }
+.field.inline>span{ flex:1; }
+.field.inline>input{ max-width:120px; text-align:right; }
+.row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+/* ---------- Hero / CTA ---------- */
+.hero{ background:linear-gradient(135deg,var(--accent),#ef6c00); color:#fff; padding:18px; border-radius:var(--radius); }
+.hero h2{ margin:0 0 4px; font-size:22px; }
+.hero p{ margin:0; opacity:.92; font-size:14px; }
+.cta-row{ display:flex; gap:10px; }
+
+.saved-list{ display:flex; flex-direction:column; gap:8px; }
+.saved-row{
+  background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px;
+  display:flex; align-items:center; gap:10px; box-shadow:var(--shadow);
+}
+.saved-row .meta{ flex:1; }
+.saved-row .meta .title{ font-weight:600; }
+.saved-row .meta .sub{ font-size:12px; color:var(--muted); }
+.saved-row .amt{ font-weight:700; }
+.saved-row .del{ background:transparent; border:0; color:var(--muted); font-size:18px; padding:6px; }
+
+/* ---------- Item rows ---------- */
+.seg{ display:flex; background:#fff; border:1px solid var(--line); border-radius:10px; padding:3px; gap:3px; }
+.seg-btn{
+  flex:1; background:transparent; border:0; padding:9px 6px; border-radius:8px;
+  font-size:13px; font-weight:600; color:var(--muted);
+}
+.seg-btn.active{ background:var(--accent); color:#fff; }
+
+.item-list{ display:flex; flex-direction:column; gap:8px; }
+.item-row{
+  background:#fff; border:1px solid var(--line); border-radius:10px;
+  padding:10px; display:flex; flex-direction:column; gap:8px; position:relative;
+}
+.item-row .it-name{ width:100%; padding:8px 10px; border:1px solid var(--line-strong); border-radius:8px; font-weight:600; }
+.item-row-grid{ display:grid; grid-template-columns:1fr 70px 1fr; gap:8px; }
+.item-row-grid label{ display:flex; flex-direction:column; gap:3px; font-size:11px; color:var(--muted); }
+.item-row-grid input{ padding:8px 10px; border:1px solid var(--line-strong); border-radius:8px; text-align:right; width:100%; }
+.delbtn{
+  position:absolute; top:6px; right:6px;
+  background:transparent; border:0; color:var(--muted); width:30px; height:30px; font-size:20px;
+}
+.delbtn:active{ color:var(--err); }
+
+.taxcard{ gap:6px; }
+
+.taxes-list{ display:flex; flex-direction:column; gap:8px; }
+.tax-actions{ display:flex; gap:8px; }
+.tax-actions button{ flex:1; }
+.tip-presets{ display:flex; gap:8px; }
+.tip-presets .tip-preset{ flex:1; }
+.tax-row{
+  background:#fff; border:1px solid var(--line); border-radius:10px;
+  padding:8px; display:grid; grid-template-columns:1fr 80px 1fr 30px; gap:6px; align-items:center;
+}
+.tax-row input, .tax-row select{
+  padding:8px 10px; border:1px solid var(--line-strong); border-radius:8px; width:100%;
+  font-size:13px;
+}
+.tax-row .tax-rate{ text-align:right; }
+.tax-row .delbtn{ position:static; padding:0; width:30px; height:30px; }
+
+/* Per-item "paid by" selector */
+.it-paidby{ display:flex; align-items:center; gap:8px; font-size:12px; }
+.it-paidby > span{ color:var(--muted); font-weight:500; }
+.it-paidby-sel{
+  flex:1; padding:6px 8px; border:1px solid var(--line-strong); border-radius:6px;
+  background:#fff; font-size:13px;
+}
+
+/* Bill-level paid-by card */
+.paid-by-card{
+  background:#fff8f0; border-color:#fed7aa;
+}
+.paid-by-card .field > span{ color:#9a3412; font-weight:600; }
+.paid-by-card #billPaidBy{
+  padding:10px 12px; border:1px solid #fed7aa; border-radius:8px; font-size:15px;
+  background:#fff;
+}
+
+/* Settlement panel */
+.settle-card{
+  background:#fff; border:1px solid var(--line); border-radius:var(--radius);
+  padding:0; box-shadow:var(--shadow); overflow:hidden; margin-top:14px;
+}
+.settle-card .settle-row{
+  padding:11px 14px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:10px;
+}
+.settle-card .settle-row:last-child{ border-bottom:0; }
+.settle-row .arrow{ color:var(--muted); }
+.settle-row .from, .settle-row .to{ font-weight:700; }
+.settle-row .amt{ margin-left:auto; font-weight:800; color:var(--accent); font-variant-numeric:tabular-nums; }
+.settle-empty{ padding:18px; text-align:center; color:var(--muted); }
+
+/* Scan-warning banner */
+.scan-warn-banner{
+  background:#fffbeb; border:1px solid #fbbf24; border-radius:var(--radius);
+  padding:10px 12px; font-size:13px; color:#78350f;
+}
+.scan-warn-banner .scan-warn-head{ font-weight:700; margin-bottom:4px; }
+.scan-warn-banner ul{ margin:4px 0 6px 18px; padding:0; }
+.scan-warn-banner .link-btn{ color:#78350f; text-decoration:underline; }
+
+/* Item category section headers */
+.cat-head{
+  font-size:12px; font-weight:700; color:var(--muted); margin:8px 0 2px;
+  text-transform:uppercase; letter-spacing:.4px;
+}
+
+/* Parcel chip on item row */
+.parcel-chip{
+  background:#fff; border:1px solid var(--line-strong); border-radius:14px;
+  padding:4px 10px; font-size:12px; color:var(--muted); font-weight:600;
+  cursor:pointer; align-self:flex-start;
+}
+.parcel-chip[aria-pressed="true"]{
+  background:#fef3c7; border-color:#d97706; color:#92400e;
+}
+
+/* Item dietary tags */
+.it-tags{ display:flex; gap:6px; flex-wrap:wrap; }
+.tag-btn{
+  background:#fff; border:1px solid var(--line-strong); border-radius:14px;
+  padding:4px 10px; font-size:12px; color:var(--muted); font-weight:600;
+}
+.tag-btn[aria-pressed="true"][data-tag="veg"]    { background:#dcfce7; border-color:#16a34a; color:#166534; }
+.tag-btn[aria-pressed="true"][data-tag="nonveg"] { background:#fee2e2; border-color:#dc2626; color:#991b1b; }
+.tag-btn[aria-pressed="true"][data-tag="any"]    { background:#f3f4f6; border-color:#9ca3af; color:#374151; }
+.tag-btn[aria-pressed="true"][data-tag="liquor"] { background:#fef3c7; border-color:#d97706; color:#92400e; }
+
+/* Person preference pills */
+.person-row{ flex-direction:column; align-items:stretch; padding:10px; gap:8px; }
+.person-main{ display:flex; gap:10px; align-items:center; }
+.person-prefs{ display:flex; gap:8px; padding-left:42px; flex-wrap:wrap; align-items:center; }
+
+/* Diet tri-state segmented pill */
+.diet-pill{
+  display:inline-flex; border:1px solid var(--line-strong); border-radius:14px;
+  background:#fff; padding:2px; gap:2px;
+}
+.diet-opt{
+  background:transparent; border:0; padding:4px 9px; font-size:12px;
+  border-radius:12px; color:var(--muted); font-weight:600; cursor:pointer;
+}
+.diet-opt.active[data-diet="veg"]    { background:#dcfce7; color:#166534; }
+.diet-opt.active[data-diet="nonveg"] { background:#fee2e2; color:#991b1b; }
+.diet-opt.active[data-diet="both"]   { background:#e0e7ff; color:#3730a3; }
+
+.pref-btn{
+  background:#fff; border:1px solid var(--line-strong); border-radius:14px;
+  padding:4px 10px; font-size:12px; color:var(--muted); font-weight:600;
+  display:inline-flex; align-items:center; gap:6px;
+}
+.pref-btn .pref-dot{ width:8px; height:8px; border-radius:50%; background:#cbd5e1; }
+.pref-btn[aria-pressed="true"][data-pref="drink"] { background:#fef3c7; border-color:#d97706; color:#92400e; }
+.pref-btn[aria-pressed="true"][data-pref="drink"] .pref-dot{ background:#d97706; }
+
+/* Allocation: hint + quick actions */
+.alloc-hint{ font-size:12px; color:var(--muted); }
+.alloc-quick{ display:flex; gap:10px; flex-wrap:wrap; }
+.link-btn{
+  background:transparent; border:0; color:var(--accent); padding:2px 0;
+  font-size:13px; font-weight:600; text-decoration:underline; cursor:pointer;
+}
+.alloc-prow .pchip.off{ opacity:.35; }
+
+/* Quantity rule inputs */
+.alloc-prow .pqtyrow{ display:flex; align-items:center; gap:6px; }
+.alloc-prow .qty-step{
+  width:28px; height:28px; border-radius:6px; background:#f3f4f6; border:1px solid var(--line-strong); font-weight:700;
+}
+.alloc-prow .qty-step:active{ background:#e5e7eb; }
+
+.totals-card{
+  background:#fff; border:1px solid var(--line); border-radius:var(--radius);
+  padding:12px; box-shadow:var(--shadow); font-size:14px;
+}
+.totals-card .tline{ display:flex; justify-content:space-between; padding:3px 0; }
+.totals-card .tline.grand{ border-top:1px solid var(--line); margin-top:4px; padding-top:8px; font-weight:700; font-size:16px; }
+
+/* ---------- People ---------- */
+.people-list{ display:flex; flex-direction:column; gap:8px; }
+.person-row{
+  background:#fff; border:1px solid var(--line); border-radius:10px;
+  padding:8px 10px; display:flex; gap:10px; align-items:center; position:relative;
+}
+.color-chip{
+  width:32px; height:32px; border-radius:50%; border:2px solid #fff;
+  box-shadow:0 0 0 1px var(--line-strong); flex:0 0 auto;
+}
+.person-row .pname{ flex:1; padding:8px 10px; border:1px solid var(--line-strong); border-radius:8px; }
+.person-row .delbtn{ position:static; }
+
+/* ---------- Allocate ---------- */
+.alloc-list{ display:flex; flex-direction:column; gap:10px; }
+.alloc-card{
+  background:#fff; border:1px solid var(--line); border-radius:var(--radius);
+  padding:12px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:8px;
+}
+.alloc-head{ display:flex; justify-content:space-between; align-items:baseline; }
+.alloc-head .alloc-name{ font-weight:600; }
+.alloc-head .alloc-amt{ font-weight:700; color:var(--accent); }
+.alloc-rule{ padding:9px 10px; border:1px solid var(--line-strong); border-radius:8px; background:#fff; }
+.alloc-people{ display:flex; flex-direction:column; gap:6px; }
+.alloc-prow{ display:flex; align-items:center; gap:8px; }
+.alloc-prow .pchip{ width:26px; height:26px; border-radius:50%; flex:0 0 auto; box-shadow:0 0 0 1px var(--line-strong); position:relative; cursor:pointer; }
+.alloc-prow .pchip.on::after{ content:"\2713"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:14px; }
+.alloc-prow .pname{ flex:1; font-size:14px; }
+.alloc-prow .pinput{ width:90px; padding:6px 8px; border:1px solid var(--line-strong); border-radius:8px; text-align:right; }
+.alloc-prow .pshare{ font-size:13px; color:var(--muted); width:80px; text-align:right; }
+.alloc-status{ font-size:12px; color:var(--muted); }
+.alloc-status.warn{ color:var(--err); font-weight:600; }
+.alloc-status.ok{ color:var(--ok); }
+
+.running{
+  background:#fff; border:1px solid var(--line); border-radius:var(--radius);
+  padding:12px; box-shadow:var(--shadow);
+}
+.running .rrow{ display:flex; justify-content:space-between; padding:3px 0; }
+.running .rrow .pchip{ width:14px; height:14px; border-radius:50%; display:inline-block; margin-right:8px; vertical-align:middle; }
+
+/* ---------- Result (export-ready) ---------- */
+.result-view{ background:#fff; border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); }
+.export-bar{
+  display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px;
+  position:sticky; bottom:calc(var(--nav-h) + 4px); padding-top:8px;
+}
+.export-bar button{ padding:11px 6px; font-size:13px; }
+
+/* Share format picker modal */
+.share-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.share-opt{
+  background:#fff; border:1px solid var(--line-strong); border-radius:10px;
+  padding:14px 10px; cursor:pointer; display:flex; flex-direction:column;
+  align-items:center; gap:3px; transition:transform .1s;
+}
+.share-opt:active{ transform:scale(.97); background:var(--accent-soft); border-color:var(--accent); }
+.share-opt .share-ico{ font-size:28px; }
+.share-opt .share-lbl{ font-weight:700; color:var(--ink); }
+.share-opt .share-sub{ font-size:11px; color:var(--muted); }
+
+/* ---- Layout that mirrors the sample PDF ---- */
+.rpt{ font-size:13px; line-height:1.35; }
+.rpt table{ width:100%; border-collapse:collapse; }
+.rpt th,.rpt td{ padding:7px 8px; border-bottom:1px solid #e5e7eb; text-align:left; }
+.rpt th{ background:#f1f5f9; font-weight:600; font-size:12px; color:#334155; }
+.rpt td.num,.rpt th.num{ text-align:right; font-variant-numeric:tabular-nums; }
+.rpt .ttl-band{
+  background:var(--accent); color:#fff; padding:10px 12px; font-weight:600; font-size:15px;
+  display:flex; justify-content:space-between; align-items:center;
+}
+.rpt .sub-band{
+  padding:6px 12px; font-size:12px; color:#475569; background:#fafafa;
+  display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between;
+}
+.rpt .grp{ background:#fef3ed; padding:6px 8px; font-weight:600; font-size:12px; color:#9a3412; }
+.rpt .grp.liquor{ background:#fef2f2; color:#991b1b; }
+.rpt .grp.other{ background:#eff6ff; color:#1d4ed8; }
+.rpt .tax-row td{ background:#fffbeb; color:#92400e; font-style:italic; }
+.rpt .grand-row td{ background:#b91c1c; color:#fff; font-weight:700; font-size:14px; padding:11px 8px; }
+.rpt .person-band{ padding:10px 12px; font-weight:700; color:#fff; }
+.rpt .person-total td{ font-weight:700; background:#f8fafc; }
+.rpt .ftr{ padding:8px 12px; font-size:11px; color:var(--muted); font-style:italic; text-align:center; }
+
+/* Per-person color bands */
+.pband-1{ background:var(--p1); } .pcard-1 .person-total td{ background:var(--p1-bg); color:var(--p1); }
+.pband-2{ background:var(--p2); } .pcard-2 .person-total td{ background:var(--p2-bg); color:var(--p2); }
+.pband-3{ background:var(--p3); } .pcard-3 .person-total td{ background:var(--p3-bg); color:var(--p3); }
+.pband-4{ background:var(--p4); } .pcard-4 .person-total td{ background:var(--p4-bg); color:var(--p4); }
+.pband-5{ background:var(--p5); } .pcard-5 .person-total td{ background:var(--p5-bg); color:var(--p5); }
+.pband-6{ background:var(--p6); } .pcard-6 .person-total td{ background:var(--p6-bg); color:var(--p6); }
+.pband-7{ background:var(--p7); } .pcard-7 .person-total td{ background:var(--p7-bg); color:var(--p7); }
+.pband-8{ background:var(--p8); } .pcard-8 .person-total td{ background:var(--p8-bg); color:var(--p8); }
+
+/* Master table column tints (header gets person color) */
+.rpt th.h-1,.rpt td.c-1{ color:var(--p1); }
+.rpt th.h-2,.rpt td.c-2{ color:var(--p2); }
+.rpt th.h-3,.rpt td.c-3{ color:var(--p3); }
+.rpt th.h-4,.rpt td.c-4{ color:var(--p4); }
+.rpt th.h-5,.rpt td.c-5{ color:var(--p5); }
+.rpt th.h-6,.rpt td.c-6{ color:var(--p6); }
+.rpt th.h-7,.rpt td.c-7{ color:var(--p7); }
+.rpt th.h-8,.rpt td.c-8{ color:var(--p8); }
+
+/* ---- Quick pay card ---- */
+.qp{ padding:0; }
+.qp .qp-row{ display:grid; grid-template-columns:1fr auto auto; padding:11px 14px; align-items:center; border-bottom:1px solid var(--line); }
+.qp .qp-row .qp-name{ font-weight:700; }
+.qp .qp-row .qp-amt{ font-variant-numeric:tabular-nums; padding:0 12px; }
+.qp .qp-row .qp-round{ font-variant-numeric:tabular-nums; font-weight:700; }
+.qp .qp-row.qp-total{ background:#b91c1c; color:#fff; border:0; }
+
+/* Usage panel in settings menu */
+.usage-card{
+  background:#fff7ed; border:1px solid #fed7aa; border-radius:10px;
+  padding:10px 12px; display:flex; flex-direction:column; gap:4px;
+}
+.usage-card .usage-head{ font-weight:700; color:#9a3412; font-size:13px; margin-bottom:2px; }
+.usage-card .usage-row{ display:flex; justify-content:space-between; font-size:13px; }
+.usage-bar{
+  height:6px; background:#fed7aa; border-radius:3px; overflow:hidden; margin-top:4px;
+}
+.usage-bar > span{
+  display:block; height:100%; background:var(--accent);
+  transition:width .2s;
+}
+
+/* ---------- Modal ---------- */
+.modal-backdrop{
+  position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:50;
+  display:flex; align-items:center; justify-content:center; padding:18px;
+}
+.modal{
+  background:#fff; border-radius:var(--radius); max-width:420px; width:100%;
+  padding:18px; display:flex; flex-direction:column; gap:12px; max-height:90vh; overflow:auto;
+}
+.modal h3{ margin:0; font-size:18px; }
+.modal .modal-actions{ display:flex; gap:8px; justify-content:flex-end; margin-top:6px; }
+
+/* ---------- Toast ---------- */
+.toast{
+  position:fixed; left:50%; transform:translateX(-50%);
+  bottom:calc(var(--nav-h) + 24px);
+  background:#111827; color:#fff; padding:10px 16px; border-radius:24px;
+  font-size:13px; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s;
+  z-index:40;
+}
+.toast.show{ opacity:.95; }
+
+/* ---------- Color picker swatches ---------- */
+.swatches{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+.swatch{ height:44px; border-radius:8px; border:0; cursor:pointer; }
+
+/* ---------- Misc ---------- */
+.empty{
+  text-align:center; color:var(--muted); font-size:14px;
+  padding:24px 8px; border:1px dashed var(--line-strong); border-radius:10px;
+}
+.spinner{
+  width:36px; height:36px; border-radius:50%;
+  border:3px solid var(--line); border-top-color:var(--accent);
+  animation:spin 1s linear infinite; margin:0 auto;
+}
+@keyframes spin{ to{ transform:rotate(360deg); } }
+
+/* Wide-screen polish */
+@media(min-width:760px){
+  .item-row-grid{ grid-template-columns:1fr 90px 1fr; }
+  .rpt{ font-size:14px; }
+}
+
+/* Print styles for export-quality output */
+@media print{
+  .appbar,.bottomnav,.export-bar,.seg{ display:none !important; }
+  body{ background:#fff; }
+  main{ padding:0; }
+}
+
+</style>
+</head>
+<body>
+
+  <!-- ============== APP SHELL ============== -->
+  <header class="appbar" id="appbar">
+    <button class="iconbtn" id="backBtn" aria-label="Back" hidden>&larr;</button>
+    <h1 class="appbar-title" id="appbarTitle">Bill Splitter</h1>
+    <button class="iconbtn" id="menuBtn" aria-label="Menu">&#9776;</button>
+  </header>
+
+  <main id="main"></main>
+
+  <nav class="bottomnav" id="bottomnav">
+    <button class="navbtn active" data-screen="home"><span class="navico">&#127968;</span><span>Bills</span></button>
+    <button class="navbtn" data-screen="bill"><span class="navico">&#128221;</span><span>Items</span></button>
+    <button class="navbtn" data-screen="people"><span class="navico">&#128101;</span><span>People</span></button>
+    <button class="navbtn" data-screen="allocate"><span class="navico">&#9878;&#65039;</span><span>Allocate</span></button>
+    <button class="navbtn" data-screen="result"><span class="navico">&#11088;</span><span>Result</span></button>
+  </nav>
+
+  <!-- ============== HIDDEN: SCREEN TEMPLATES ============== -->
+
+  <template id="tpl-home">
+    <section class="screen">
+      <div class="hero">
+        <h2>Welcome</h2>
+        <p>Split any restaurant or party bill across people &mdash; with item-level rules, proportional taxes and one-tap export.</p>
+      </div>
+      <div class="cta-row">
+        <button class="primary big" id="newBillBtn">+ New Bill</button>
+        <button class="ghost big" id="scanBillBtn">&#128247; Scan Bill</button>
+      </div>
+      <input type="file" id="scanInput" accept="image/*,application/pdf" hidden />
+      <h3 class="section-title">Saved Bills</h3>
+      <div id="savedList" class="saved-list"></div>
+    </section>
+  </template>
+
+  <template id="tpl-bill">
+    <section class="screen">
+      <h2>Bill Details</h2>
+      <div class="card">
+        <label class="field"><span>Restaurant name</span><input id="restName" placeholder="Shree Caterers" /></label>
+        <label class="field"><span>Sub-title / location</span><input id="restSub" placeholder="Ladies Club" /></label>
+        <div class="row2">
+          <label class="field"><span>Bill No.</span><input id="billNo" placeholder="2605160059" /></label>
+          <label class="field"><span>Date</span><input id="billDate" type="date" /></label>
+        </div>
+        <div class="row2">
+          <label class="field"><span>Table</span><input id="billTable" placeholder="G39" /></label>
+          <label class="field"><span>Hall / Time</span><input id="billHall" placeholder="Garden 9:42 PM" /></label>
+        </div>
+      </div>
+
+      <div class="card paid-by-card" id="billPaidByCard">
+        <label class="field">
+          <span>💸 Who paid this bill at the counter?</span>
+          <select id="billPaidBy">
+            <option value="">— Split at the counter (everyone pays Dutch) —</option>
+          </select>
+        </label>
+        <p class="muted" style="margin:0">If one person paid the whole bill, pick them here. Per-item overrides still work for post-bill items (ice cream etc.).</p>
+      </div>
+
+      <h3 class="section-title">Items</h3>
+      <div class="seg" id="sectionSeg">
+        <button class="seg-btn active" data-section="food">&#127869;&#65039; Food</button>
+        <button class="seg-btn" data-section="liquor">&#129346; Liquor</button>
+        <button class="seg-btn" data-section="other">&#128203; Others</button>
+      </div>
+      <div id="itemList" class="item-list"></div>
+      <button class="primary" id="addItemBtn">+ Add Item</button>
+
+      <h3 class="section-title">Taxes &amp; Charges</h3>
+      <div id="taxesList" class="taxes-list"></div>
+      <div class="tax-actions">
+        <button class="ghost" id="addTaxBtn">+ Add Tax / Charge</button>
+        <button class="ghost" id="addTipBtn">+ Service charge / Tip</button>
+      </div>
+
+      <div class="totals-card" id="totalsCard"></div>
+    </section>
+  </template>
+
+  <template id="tpl-people">
+    <section class="screen">
+      <h2>People</h2>
+      <p class="muted">Add everyone who'll be splitting the bill. Tap a color chip to change it.</p>
+      <div id="peopleList" class="people-list"></div>
+      <button class="primary" id="addPersonBtn">+ Add Person</button>
+    </section>
+  </template>
+
+  <template id="tpl-allocate">
+    <section class="screen">
+      <h2>Allocate</h2>
+      <p class="muted">For each item, choose how it's split.</p>
+      <div id="allocList" class="alloc-list"></div>
+      <div class="running" id="runningTotals"></div>
+    </section>
+  </template>
+
+  <template id="tpl-result">
+    <section class="screen">
+      <h2>Result</h2>
+      <div class="seg" id="resultSeg">
+        <button class="seg-btn active" data-view="master">Master</button>
+        <button class="seg-btn" data-view="person">Per Person</button>
+        <button class="seg-btn" data-view="quickpay">Quick Pay</button>
+      </div>
+      <div id="resultView" class="result-view"></div>
+      <div class="export-bar">
+        <button class="primary" id="exportPdf">&#128196; PDF</button>
+        <button class="primary" id="exportPng">&#128247; PNG</button>
+        <button class="primary" id="exportHtml">&#127760; HTML</button>
+        <button class="ghost" id="exportShare">&#128241; Share</button>
+      </div>
+    </section>
+  </template>
+
+  <!-- ============== HIDDEN: COMPONENTS ============== -->
+
+  <template id="tpl-item-row">
+    <div class="item-row" data-id="">
+      <input class="it-name" placeholder="Item name" />
+      <div class="item-row-grid">
+        <label><span>Rate</span><input class="it-rate" type="number" step="0.01" inputmode="decimal" /></label>
+        <label><span>Qty</span><input class="it-qty" type="number" step="1" inputmode="numeric" value="1" /></label>
+        <label><span>Amount</span><input class="it-amt" type="number" step="0.01" inputmode="decimal" /></label>
+      </div>
+      <div class="it-tags">
+        <button class="tag-btn" data-tag="any" aria-pressed="true">Any</button>
+        <button class="tag-btn" data-tag="veg" aria-pressed="false">Veg</button>
+        <button class="tag-btn" data-tag="nonveg" aria-pressed="false">Non-veg</button>
+      </div>
+      <label class="it-paidby">
+        <span>Paid by</span>
+        <select class="it-paidby-sel">
+          <option value="">— At the counter (settle together) —</option>
+        </select>
+      </label>
+      <button class="delbtn" aria-label="Delete">&times;</button>
+    </div>
+  </template>
+
+  <template id="tpl-tax-row">
+    <div class="tax-row" data-id="">
+      <input class="tax-name" placeholder="Tax / charge name" />
+      <input class="tax-rate" type="number" step="0.01" inputmode="decimal" placeholder="%" />
+      <select class="tax-base">
+        <option value="food">on Food</option>
+        <option value="liquor">on Liquor</option>
+        <option value="other">on Others</option>
+        <option value="all">on Whole bill</option>
+      </select>
+      <button class="delbtn" aria-label="Delete">&times;</button>
+    </div>
+  </template>
+
+  <template id="tpl-person-row">
+    <div class="person-row" data-id="">
+      <div class="person-main">
+        <button class="color-chip" aria-label="Color"></button>
+        <input class="pname" placeholder="Name" />
+        <button class="delbtn" aria-label="Delete">&times;</button>
+      </div>
+      <div class="person-prefs">
+        <div class="diet-pill" data-diet="both">
+          <button class="diet-opt" data-diet="veg">🥬 Veg only</button>
+          <button class="diet-opt active" data-diet="both">🍽 Both</button>
+          <button class="diet-opt" data-diet="nonveg">🍗 Non-veg only</button>
+        </div>
+        <button class="pref-btn pref-drink" data-pref="drink" aria-pressed="true">
+          <span class="pref-dot"></span><span class="pref-label">Drinks</span>
+        </button>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-alloc-card">
+    <div class="alloc-card" data-id="">
+      <div class="alloc-head">
+        <span class="alloc-name"></span>
+        <span class="alloc-amt"></span>
+      </div>
+      <select class="alloc-rule">
+        <option value="equal">Equal &divide; selected people</option>
+        <option value="assigned">Only one person (100%)</option>
+        <option value="quantity">By quantity (qty per person)</option>
+        <option value="amount">Custom amounts (&#8377;)</option>
+        <option value="mixed">Mixed: fixed &#8377; + qty share</option>
+        <option value="percent">Custom percentages</option>
+      </select>
+      <div class="alloc-hint"></div>
+      <div class="alloc-quick" hidden>
+        <button class="link-btn" data-act="all">Select all</button>
+        <button class="link-btn" data-act="none">Clear</button>
+        <button class="link-btn" data-act="suggest" hidden>Use preferences</button>
+        <button class="link-btn" data-act="auto-remainder" hidden>Split remaining equally</button>
+      </div>
+      <div class="alloc-people"></div>
+      <div class="alloc-status"></div>
+    </div>
+  </template>
+
+  <!-- ============== MODALS ============== -->
+  <div id="modalRoot"></div>
+
+  <!-- Bottom toast -->
+  <div id="toast" class="toast"></div>
+
+  <!-- Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs" type="module" defer></script>
+
+  <!-- App -->
+  <script>
+/* ===================================================================
+   store.js — localStorage persistence + in-memory state
+   Schema:
+     bills: [{ id, meta, items, taxes, people, allocations, createdAt }]
+     settings: { apiKey?: string }
+   =================================================================== */
+(function (global) {
+  'use strict';
+
+  const KEY_BILLS    = 'bsp.bills.v1';
+  const KEY_SETTINGS = 'bsp.settings.v1';
+  const KEY_CURRENT  = 'bsp.current.v1';
+  const KEY_USAGE    = 'bsp.usage.v1';     // [{ ts, costInr, costUsd, inTok, outTok }]
+
+  const uid = () =>
+    Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+  function blankBill() {
+    return {
+      id: uid(),
+      createdAt: Date.now(),
+      meta: {
+        restName: '',
+        restSub: '',
+        billNo: '',
+        billDate: '',
+        billTable: '',
+        billHall: '',
+      },
+      // section: 'food' | 'liquor' | 'other'
+      // dietary (food items): 'any' | 'veg' | 'nonveg'
+      // dietary (liquor items): always 'liquor'
+      items: [],
+      // Taxes are an arbitrary list — empty for a new bill, populated either
+      // by OCR from a scanned bill or manually by the user.
+      // Each tax: { id, name, rate, base }
+      //   base: 'food'   → distributed proportionally to each person's food share
+      //         'liquor' → liquor share
+      //         'other'  → other share
+      //         'all'    → total pre-tax share (e.g. service charge on full bill)
+      taxes: [],
+      // person: { id, name, color, prefs: { diet, isDrinker } }
+      people: [],
+      // Bill-level payer (single person who paid the whole bill at the
+      // counter). If null, the bill is treated as Dutch at the counter.
+      // Per-item `paidBy` can override this for specific items (e.g. an
+      // ice-cream someone bought separately after the meal).
+      paidBy: null,
+      // map: itemId -> { rule, values }
+      allocations: {},
+    };
+  }
+
+  /** Migrate a legacy {cgst, sgst, vat} taxes object to the new array form. */
+  function normaliseTaxes(taxes) {
+    if (Array.isArray(taxes)) return taxes;
+    if (!taxes || typeof taxes !== 'object') return [];
+    const out = [];
+    if (+taxes.cgst > 0) out.push({ id: 'cgst', name: 'CGST', rate: +taxes.cgst, base: 'food'   });
+    if (+taxes.sgst > 0) out.push({ id: 'sgst', name: 'SGST', rate: +taxes.sgst, base: 'food'   });
+    if (+taxes.vat  > 0) out.push({ id: 'vat',  name: 'VAT',  rate: +taxes.vat,  base: 'liquor' });
+    return out;
+  }
+
+  /** Default person preferences.
+   *  diet: 'both' (default — eats anything) | 'veg' (pure veg) | 'nonveg' (only non-veg)
+   */
+  function defaultPrefs() {
+    return { diet: 'both', isDrinker: true };
+  }
+
+  /** Migrate legacy { isVeg: bool } to the new { diet } enum, in place. */
+  function normalisePrefs(prefs) {
+    if (!prefs) return defaultPrefs();
+    if (prefs.diet) return prefs;
+    // Old format: isVeg true → 'veg'; isVeg false → 'both' (eats anything)
+    return {
+      diet:      prefs.isVeg ? 'veg' : 'both',
+      isDrinker: prefs.isDrinker !== false,
+    };
+  }
+
+  /** Given an item and the people list, return the set of person ids that
+      are eligible by dietary preference. Used to seed default allocations. */
+  function eligiblePeople(item, people) {
+    const tag = item && item.dietary;
+    return people.filter((p) => {
+      const prefs = normalisePrefs(p.prefs);
+      if (tag === 'liquor') return prefs.isDrinker !== false;
+      // Pure-veg people are excluded from non-veg items
+      if (tag === 'nonveg') return prefs.diet !== 'veg';
+      // Pure non-veg people (rare) are excluded from veg-only items
+      if (tag === 'veg')    return prefs.diet !== 'nonveg';
+      return true; // 'any' / undefined → everyone
+    });
+  }
+
+  function loadBills() {
+    try { return JSON.parse(localStorage.getItem(KEY_BILLS) || '[]'); }
+    catch { return []; }
+  }
+  function saveBills(arr) {
+    localStorage.setItem(KEY_BILLS, JSON.stringify(arr));
+  }
+  function loadSettings() {
+    try { return JSON.parse(localStorage.getItem(KEY_SETTINGS) || '{}'); }
+    catch { return {}; }
+  }
+  function saveSettings(s) {
+    localStorage.setItem(KEY_SETTINGS, JSON.stringify(s));
+  }
+  function loadCurrent() {
+    try { return JSON.parse(localStorage.getItem(KEY_CURRENT) || 'null'); }
+    catch { return null; }
+  }
+  function saveCurrent(bill) {
+    if (!bill) localStorage.removeItem(KEY_CURRENT);
+    else localStorage.setItem(KEY_CURRENT, JSON.stringify(bill));
+  }
+
+  function upsertBill(bill) {
+    const all = loadBills();
+    const idx = all.findIndex((b) => b.id === bill.id);
+    if (idx >= 0) all[idx] = bill;
+    else all.unshift(bill);
+    saveBills(all);
+  }
+  function deleteBill(id) {
+    saveBills(loadBills().filter((b) => b.id !== id));
+  }
+
+  // ---------- API-usage tracking (cost meter + monthly cap) ----------
+
+  function loadUsage() {
+    try { return JSON.parse(localStorage.getItem(KEY_USAGE) || '[]'); }
+    catch { return []; }
+  }
+  function saveUsage(arr) {
+    // Keep at most last 1000 events — bounds storage if user scans daily forever
+    if (arr.length > 1000) arr = arr.slice(-1000);
+    localStorage.setItem(KEY_USAGE, JSON.stringify(arr));
+  }
+  function recordUsage(usage) {
+    if (!usage || !usage.costInr) return;
+    const all = loadUsage();
+    all.push({
+      ts:    Date.now(),
+      costInr: +usage.costInr.toFixed(4),
+      costUsd: +usage.costUsd.toFixed(6),
+      inTok:  usage.inputTokens,
+      outTok: usage.outputTokens,
+    });
+    saveUsage(all);
+  }
+  /** Total INR spent in the current calendar month (local time). */
+  function monthSpend() {
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth();
+    return loadUsage().reduce((s, e) => {
+      const d = new Date(e.ts);
+      return (d.getFullYear() === y && d.getMonth() === m) ? s + (e.costInr || 0) : s;
+    }, 0);
+  }
+  function clearUsage() {
+    localStorage.removeItem(KEY_USAGE);
+  }
+
+  global.Store = {
+    uid,
+    blankBill,
+    defaultPrefs,
+    normalisePrefs,
+    normaliseTaxes,
+    eligiblePeople,
+    loadBills,
+    saveBills,
+    loadSettings,
+    saveSettings,
+    loadCurrent,
+    saveCurrent,
+    upsertBill,
+    deleteBill,
+    loadUsage,
+    recordUsage,
+    monthSpend,
+    clearUsage,
+  };
+})(window);
+
+</script>
+  <script>
+/* ===================================================================
+   calculator.js — pure functions for splitting a bill.
+   No DOM, no storage. Returned object is consumed by the renderer/exporter.
+
+   PHILOSOPHY
+   ----------
+   1. Each item produces a per-person share array that sums (cents-exact) to
+      its line total. Five rules supported: equal / assigned / percent / amount.
+   2. Pre-tax subtotals per person are tallied per section (food / liquor / other).
+   3. Each tax line is distributed proportionally to its base section's share.
+      e.g. Food CGST is split in proportion to each person's Food pre-tax share;
+      Liquor VAT in proportion to Liquor share; Others untaxed by default.
+   4. Rounding residue (from 2dp truncation) is added back onto the person
+      with the largest base — so the per-person totals reconcile exactly to
+      the bill total. This is what the sample PDF means by "minor rounding".
+   =================================================================== */
+(function (global) {
+  'use strict';
+
+  const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+  /** Compute total for an item: prefer explicit amount if rate*qty differs. */
+  function itemTotal(item) {
+    if (typeof item.amount === 'number' && !Number.isNaN(item.amount) && item.amount > 0) {
+      return round2(item.amount);
+    }
+    return round2((item.rate || 0) * (item.qty || 0));
+  }
+
+  /**
+   * Split a single item across people according to its allocation rule.
+   * @returns { [personId]: shareInRupees }   — sums to itemTotal(item)
+   */
+  function splitItem(item, alloc, people) {
+    const total = itemTotal(item);
+    const shares = Object.fromEntries(people.map((p) => [p.id, 0]));
+    if (total <= 0) return shares;
+
+    const a = alloc || { rule: 'equal', values: {} };
+    const rule = a.rule || 'equal';
+    const values = a.values || {};
+
+    if (rule === 'equal') {
+      const ids = people.map((p) => p.id).filter((id) => values[id]);
+      const list = ids.length ? ids : people.map((p) => p.id); // default: everyone
+      const each = total / list.length;
+      list.forEach((id) => (shares[id] = round2(each)));
+      reconcile(shares, list, total);
+      return shares;
+    }
+
+    if (rule === 'assigned') {
+      const id = Object.keys(values).find((k) => values[k]);
+      if (id && shares.hasOwnProperty(id)) shares[id] = total;
+      return shares;
+    }
+
+    if (rule === 'percent') {
+      const sumPct = Object.values(values).reduce((s, v) => s + (+v || 0), 0) || 100;
+      const ids = [];
+      Object.entries(values).forEach(([id, pct]) => {
+        if (shares.hasOwnProperty(id) && +pct > 0) {
+          shares[id] = round2(total * (+pct / sumPct));
+          ids.push(id);
+        }
+      });
+      reconcile(shares, ids, total);
+      return shares;
+    }
+
+    if (rule === 'amount') {
+      Object.entries(values).forEach(([id, amt]) => {
+        if (shares.hasOwnProperty(id)) shares[id] = round2(+amt || 0);
+      });
+      // amount rule trusts the user; no reconciliation. (Validation flags mismatch.)
+      return shares;
+    }
+
+    if (rule === 'quantity') {
+      // values = { personId: qty }. Per-person amount = (qty / totalQty) * total.
+      // If user entered no qty at all, fall back to equal split for safety.
+      const totalQty = +item.qty || 0;
+      const sumQty = Object.values(values).reduce((s, v) => s + (+v || 0), 0);
+      const base = totalQty > 0 ? totalQty : sumQty;
+      if (base <= 0) {
+        const each = total / people.length;
+        people.forEach((p) => (shares[p.id] = round2(each)));
+        reconcile(shares, people.map((p) => p.id), total);
+        return shares;
+      }
+      const ids = [];
+      Object.entries(values).forEach(([id, qty]) => {
+        if (shares.hasOwnProperty(id) && +qty > 0) {
+          shares[id] = round2(total * (+qty / base));
+          ids.push(id);
+        }
+      });
+      reconcile(shares, ids, total);
+      return shares;
+    }
+
+    if (rule === 'mixed') {
+      // Hybrid of amount + quantity:
+      //   values  = { personId: qty }      (qty share per person)
+      //   amounts = { personId: ₹fixed }   (fixed amount per person)
+      // Fixed amounts are paid first; the remainder of the line total is
+      // distributed in proportion to qty values.
+      const amounts = a.amounts || {};
+      const fixedSum = Object.values(amounts).reduce((s, v) => s + (+v || 0), 0);
+      const remainder = round2(total - fixedSum);
+      // First: assign fixed amounts
+      Object.entries(amounts).forEach(([id, amt]) => {
+        if (shares.hasOwnProperty(id)) shares[id] = round2(+amt || 0);
+      });
+      // Then: split the remainder by qty (if any qty entered and remainder positive)
+      const qtySum = Object.values(values).reduce((s, v) => s + (+v || 0), 0);
+      if (qtySum > 0 && remainder > 0.005) {
+        const ids = [];
+        Object.entries(values).forEach(([id, qty]) => {
+          if (shares.hasOwnProperty(id) && +qty > 0) {
+            shares[id] = round2(shares[id] + remainder * (+qty / qtySum));
+            ids.push(id);
+          }
+        });
+        // Reconcile remainder rounding only across the qty-bearing payers
+        const distributedSum = ids.reduce((s, id) => s + (shares[id] - (+amounts[id] || 0)), 0);
+        const diff = round2(remainder - distributedSum);
+        if (Math.abs(diff) >= 0.005 && ids.length) {
+          let biggest = ids[0];
+          ids.forEach((id) => { if ((+values[id] || 0) > (+values[biggest] || 0)) biggest = id; });
+          shares[biggest] = round2(shares[biggest] + diff);
+        }
+      }
+      return shares;
+    }
+
+    return shares;
+  }
+
+  /** Push rounding residue onto the largest share so the sum is exact. */
+  function reconcile(shares, ids, target) {
+    if (!ids.length) return;
+    const sum = ids.reduce((s, id) => s + shares[id], 0);
+    const diff = round2(target - sum);
+    if (Math.abs(diff) < 0.005) return;
+    // give residue to the largest payer for the most natural look
+    let biggest = ids[0];
+    ids.forEach((id) => { if (shares[id] > shares[biggest]) biggest = id; });
+    shares[biggest] = round2(shares[biggest] + diff);
+  }
+
+  /** Human-readable label for a rule (used in the master table's "Split Rule" column). */
+  function ruleLabel(item, alloc, people, shares) {
+    if (!alloc) return 'Equal ÷ ' + people.length;
+    const rule = alloc.rule;
+    if (rule === 'equal') {
+      const selected = people.filter((p) => alloc.values && alloc.values[p.id]);
+      const n = selected.length || people.length;
+      if (n === people.length) return 'Equal ÷ ' + n;
+      return 'Equal ÷ ' + n + ' (' + selected.map((p) => p.name).join(', ') + ')';
+    }
+    if (rule === 'assigned') {
+      const id = alloc.values && Object.keys(alloc.values).find((k) => alloc.values[k]);
+      const who = people.find((p) => p.id === id);
+      return '100% → ' + (who ? who.name : '?');
+    }
+    if (rule === 'percent') {
+      return Object.entries(alloc.values || {})
+        .filter(([, v]) => +v > 0)
+        .map(([id, v]) => {
+          const who = people.find((p) => p.id === id);
+          return (who ? who.name : '?') + ': ' + v + '%';
+        })
+        .join(' + ');
+    }
+    if (rule === 'amount') {
+      return Object.entries(shares || {})
+        .filter(([, v]) => v > 0)
+        .map(([id, v]) => {
+          const who = people.find((p) => p.id === id);
+          return (who ? who.name : '?') + ': ₹' + (+v).toFixed(0);
+        })
+        .join(' | ');
+    }
+    if (rule === 'quantity') {
+      return Object.entries(alloc.values || {})
+        .filter(([, v]) => +v > 0)
+        .map(([id, v]) => {
+          const who = people.find((p) => p.id === id);
+          return (who ? who.name : '?') + ': ' + v;
+        })
+        .join(' + ') + ' qty';
+    }
+    if (rule === 'mixed') {
+      const parts = [];
+      const amounts = alloc.amounts || {};
+      people.forEach((p) => {
+        const q = +(alloc.values || {})[p.id] || 0;
+        const a = +amounts[p.id] || 0;
+        if (q > 0 || a > 0) {
+          const bits = [];
+          if (a > 0) bits.push('₹' + a.toFixed(0));
+          if (q > 0) bits.push('qty ' + q);
+          parts.push(p.name + ': ' + bits.join('+'));
+        }
+      });
+      return parts.join(' | ') || '—';
+    }
+    return '—';
+  }
+
+  /**
+   * Distribute a tax amount across people proportional to a per-person base.
+   * @param tax    target total (₹) to distribute
+   * @param base   { personId: baseAmount }
+   * @returns      { personId: tax share }
+   */
+  function distributeTax(tax, base) {
+    const ids = Object.keys(base);
+    const sum = ids.reduce((s, id) => s + (base[id] || 0), 0);
+    const out = Object.fromEntries(ids.map((id) => [id, 0]));
+    if (sum <= 0 || tax <= 0) return out;
+    ids.forEach((id) => { out[id] = round2(tax * (base[id] / sum)); });
+    // reconcile to exact tax total
+    const inSum = ids.reduce((s, id) => s + out[id], 0);
+    const diff  = round2(tax - inSum);
+    if (Math.abs(diff) >= 0.005) {
+      let biggest = ids[0];
+      ids.forEach((id) => { if (base[id] > base[biggest]) biggest = id; });
+      out[biggest] = round2(out[biggest] + diff);
+    }
+    return out;
+  }
+
+  /**
+   * Master compute function.
+   * @returns {
+   *   people, items, taxes,
+   *   itemShares: { [itemId]: { [personId]: amount } },
+   *   itemRules:  { [itemId]: ruleLabelString },
+   *   itemTotals: { [itemId]: number },
+   *   preTaxBySection: { food, liquor, other, total } by person,
+   *   taxByPerson: { foodCgst, foodSgst, liquorVat } by person,
+   *   taxTotals:   { food, liquorVat, foodCgst, foodSgst, foodTotal, liquorTotal, otherTotal },
+   *   grand: { perPerson: {pid: total}, total }
+   * }
+   */
+  function compute(bill) {
+    const people = bill.people || [];
+    const items  = bill.items  || [];
+    // Taxes are always an array now; tolerate legacy object form by leaning on
+    // Store.normaliseTaxes when it's available.
+    const taxes  = Array.isArray(bill.taxes) ? bill.taxes
+                  : (window.Store && window.Store.normaliseTaxes) ? window.Store.normaliseTaxes(bill.taxes)
+                  : [];
+
+    const itemShares = {};
+    const itemRules  = {};
+    const itemTotals = {};
+
+    // Pre-tax subtotals by person, segmented by section
+    const baseFood   = Object.fromEntries(people.map((p) => [p.id, 0]));
+    const baseLiquor = Object.fromEntries(people.map((p) => [p.id, 0]));
+    const baseOther  = Object.fromEntries(people.map((p) => [p.id, 0]));
+
+    items.forEach((it) => {
+      const alloc  = bill.allocations[it.id];
+      const shares = splitItem(it, alloc, people);
+      itemShares[it.id] = shares;
+      itemTotals[it.id] = itemTotal(it);
+      itemRules[it.id]  = ruleLabel(it, alloc, people, shares);
+      const bucket = it.section === 'liquor' ? baseLiquor : it.section === 'other' ? baseOther : baseFood;
+      people.forEach((p) => { bucket[p.id] = round2(bucket[p.id] + shares[p.id]); });
+    });
+
+    const foodSubtotal   = sum(baseFood);
+    const liquorSubtotal = sum(baseLiquor);
+    const otherSubtotal  = sum(baseOther);
+    const baseAll        = Object.fromEntries(people.map((p) => [p.id,
+      round2((baseFood[p.id] || 0) + (baseLiquor[p.id] || 0) + (baseOther[p.id] || 0))
+    ]));
+
+    // -----------------------------------------------------------
+    // Generic tax distribution: each tax line is applied to its own
+    // base (food / liquor / other / all), proportional to each person's
+    // share of that base.
+    // -----------------------------------------------------------
+    function baseFor(t) {
+      switch (t && t.base) {
+        case 'food':   return baseFood;
+        case 'liquor': return baseLiquor;
+        case 'other':  return baseOther;
+        case 'all':    return baseAll;
+        default:       return baseFood;
+      }
+    }
+    function baseSubtotalFor(t) {
+      switch (t && t.base) {
+        case 'food':   return foodSubtotal;
+        case 'liquor': return liquorSubtotal;
+        case 'other':  return otherSubtotal;
+        case 'all':    return foodSubtotal + liquorSubtotal + otherSubtotal;
+        default:       return foodSubtotal;
+      }
+    }
+
+    // taxByPerson[personId][taxId]  = share of that tax for that person
+    // taxTotals[taxId]              = total of that tax
+    const taxByPerson = Object.fromEntries(people.map((p) => [p.id, {}]));
+    const taxTotals   = {};
+    taxes.forEach((t) => {
+      const subtotal = baseSubtotalFor(t);
+      const total    = round2(subtotal * (+t.rate || 0) / 100);
+      taxTotals[t.id] = total;
+      const distributed = distributeTax(total, baseFor(t));
+      people.forEach((p) => { taxByPerson[p.id][t.id] = distributed[p.id] || 0; });
+    });
+
+    const grandPer = {};
+    people.forEach((p) => {
+      let g = (baseFood[p.id] || 0) + (baseLiquor[p.id] || 0) + (baseOther[p.id] || 0);
+      taxes.forEach((t) => { g += taxByPerson[p.id][t.id] || 0; });
+      grandPer[p.id] = round2(g);
+    });
+    const grandTotal = round2(sum(grandPer));
+
+    // -----------------------------------------------------------
+    // Paid-by / Settlement.
+    //
+    // Items with an explicit `paidBy` create a reimbursement loop:
+    //   - the payer fronted the full (item + applicable tax)
+    //   - every consumer (including the payer) owes their tax-inclusive
+    //     share to that payer
+    //
+    // Items WITHOUT `paidBy` are assumed split at the counter — each
+    // person pays their share directly to the merchant; no reimbursement
+    // is generated for them.
+    //
+    // settlementConsumedPerPerson  = consumer's share, but only for
+    //                                items that have a payer (gross of tax)
+    // paidByPerson                 = total fronted by each payer (gross of tax)
+    // net = settlementConsumedPerPerson − paidByPerson
+    //   net > 0  → owes that much to the group of payers
+    //   net < 0  → group owes them that much (they fronted more than they ate)
+    // -----------------------------------------------------------
+    // Sum of all tax rates that apply to a given section, used to grow each
+    // item's "what the payer actually fronted" amount.
+    function rateSumFor(section) {
+      let r = 0;
+      taxes.forEach((t) => {
+        if (t.base === section || t.base === 'all') r += +t.rate || 0;
+      });
+      return r / 100;
+    }
+    const taxFactorFor = (section) => 1 + rateSumFor(section);
+    const paidByPerson              = Object.fromEntries(people.map((p) => [p.id, 0]));
+    const settlementConsumedPerPerson = Object.fromEntries(people.map((p) => [p.id, 0]));
+    // effective payer = item.paidBy (override) ?? bill.paidBy (bill-level)
+    const billPaidBy = bill.paidBy || null;
+    items.forEach((it) => {
+      const payer = it.paidBy || billPaidBy;
+      if (!payer) return;                          // Dutch item, skip
+      const tf      = taxFactorFor(it.section);
+      const gross   = itemTotal(it) * tf;
+      if (paidByPerson.hasOwnProperty(payer)) {
+        paidByPerson[payer] = round2(paidByPerson[payer] + gross);
+      }
+      const shares = itemShares[it.id] || {};
+      people.forEach((p) => {
+        settlementConsumedPerPerson[p.id] = round2(
+          settlementConsumedPerPerson[p.id] + (shares[p.id] || 0) * tf
+        );
+      });
+    });
+    const netPerPerson = Object.fromEntries(people.map((p) => [
+      p.id,
+      round2((settlementConsumedPerPerson[p.id] || 0) - (paidByPerson[p.id] || 0)),
+    ]));
+    const settlement = computeSettlement(people, netPerPerson);
+
+    return {
+      people, items, taxes,
+      itemShares, itemRules, itemTotals,
+      preTaxBySection: {
+        food: baseFood, liquor: baseLiquor, other: baseOther,
+        totals: { food: foodSubtotal, liquor: liquorSubtotal, other: otherSubtotal },
+      },
+      taxByPerson,
+      taxTotals,
+      grand: { perPerson: grandPer, total: grandTotal },
+      paidByPerson,
+      settlementConsumedPerPerson,
+      netPerPerson,
+      settlement,
+    };
+  }
+
+  function sum(map) {
+    return Object.values(map).reduce((s, v) => s + v, 0);
+  }
+
+  /**
+   * Greedy settlement: given each person's net (positive = owes, negative =
+   * is owed), produce a list of pairwise transfers that zero everyone out.
+   * Algorithm: repeatedly pair the largest debtor with the largest creditor
+   * and transfer min(|debt|, |credit|). Produces at most N-1 transfers for
+   * N people — the minimum possible without splitting cents oddly.
+   */
+  function computeSettlement(people, netPerPerson) {
+    const epsilon = 0.5;
+    // Build mutable lists of debtors (>0) and creditors (<0)
+    const debtors   = [];
+    const creditors = [];
+    people.forEach((p) => {
+      const n = netPerPerson[p.id] || 0;
+      if (n >  epsilon) debtors.push({ id: p.id, name: p.name, amount: n });
+      if (n < -epsilon) creditors.push({ id: p.id, name: p.name, amount: -n });
+    });
+    debtors.sort((a, b)   => b.amount - a.amount);
+    creditors.sort((a, b) => b.amount - a.amount);
+
+    const transfers = [];
+    let i = 0, j = 0;
+    while (i < debtors.length && j < creditors.length) {
+      const pay = Math.min(debtors[i].amount, creditors[j].amount);
+      transfers.push({
+        fromId: debtors[i].id,   from: debtors[i].name,
+        toId:   creditors[j].id, to:   creditors[j].name,
+        amount: round2(pay),
+      });
+      debtors[i].amount   = round2(debtors[i].amount   - pay);
+      creditors[j].amount = round2(creditors[j].amount - pay);
+      if (debtors[i].amount   < epsilon) i++;
+      if (creditors[j].amount < epsilon) j++;
+    }
+    return transfers;
+  }
+
+  /** Validation — returns array of human-readable warnings. */
+  function validate(bill) {
+    const out = [];
+    // Surface OCR-side warnings as informational items so the user sees them
+    // again on the Result screen even if they dismissed the banner.
+    if (Array.isArray(bill._scanWarnings)) {
+      bill._scanWarnings.forEach((w) => out.push('Scan: ' + w));
+    }
+    if (!bill.people || bill.people.length === 0) out.push('Add at least one person.');
+    if (!bill.items  || bill.items.length  === 0) out.push('Add at least one item.');
+    (bill.items || []).forEach((it) => {
+      const t = itemTotal(it);
+      if (t <= 0) out.push('Item "' + (it.name || 'untitled') + '" has zero amount.');
+      const a = bill.allocations[it.id];
+      if (a && a.rule === 'amount') {
+        const s = round2(Object.values(a.values || {}).reduce((s, v) => s + (+v || 0), 0));
+        if (Math.abs(s - t) >= 0.5) {
+          out.push('"' + (it.name || 'item') + '": custom amounts sum to ₹' + s.toFixed(2) +
+                   ' but item total is ₹' + t.toFixed(2) + '.');
+        }
+      }
+      if (a && a.rule === 'percent') {
+        const s = Object.values(a.values || {}).reduce((s, v) => s + (+v || 0), 0);
+        if (s > 0 && Math.abs(s - 100) >= 0.5) {
+          out.push('"' + (it.name || 'item') + '": percentages sum to ' + s + '% (need 100%).');
+        }
+      }
+      if (a && a.rule === 'assigned') {
+        const n = Object.values(a.values || {}).filter(Boolean).length;
+        if (n === 0) out.push('"' + (it.name || 'item') + '": no person assigned.');
+      }
+      if (a && a.rule === 'quantity') {
+        const totalQty = +it.qty || 0;
+        const s = Object.values(a.values || {}).reduce((s, v) => s + (+v || 0), 0);
+        if (totalQty > 0 && Math.abs(s - totalQty) >= 0.001) {
+          out.push('"' + (it.name || 'item') + '": quantities sum to ' + s + ' but item qty is ' + totalQty + '.');
+        }
+        if (totalQty <= 0 && s <= 0) {
+          out.push('"' + (it.name || 'item') + '": no quantities entered.');
+        }
+      }
+      if (a && a.rule === 'mixed') {
+        const fixedSum = Object.values(a.amounts || {}).reduce((s, v) => s + (+v || 0), 0);
+        const qtySum   = Object.values(a.values  || {}).reduce((s, v) => s + (+v || 0), 0);
+        if (fixedSum > t + 0.5) {
+          out.push('"' + (it.name || 'item') + '": fixed amounts (₹' + fixedSum.toFixed(2) +
+                   ') exceed item total ₹' + t.toFixed(2) + '.');
+        }
+        if (fixedSum < t - 0.5 && qtySum <= 0) {
+          out.push('"' + (it.name || 'item') + '": ₹' + round2(t - fixedSum).toFixed(2) +
+                   ' is unallocated — set a qty for the sharers or raise the fixed amounts.');
+        }
+        if (fixedSum === 0 && qtySum === 0) {
+          out.push('"' + (it.name || 'item') + '": no qty or amount entered.');
+        }
+      }
+    });
+    return out;
+  }
+
+  global.Calc = { round2, itemTotal, compute, validate, splitItem, ruleLabel };
+})(window);
+
+</script>
+  <script>
+/* ===================================================================
+   ocr.js — extract bill data from photo / PDF using Claude vision API.
+   User provides an Anthropic API key (stored in localStorage). The app
+   calls the Messages API directly from the browser; no backend.
+
+   For PDF inputs, the first page is rendered to a PNG via pdf.js, then
+   passed as an image.
+
+   The model is asked to return strict JSON matching our bill schema.
+   =================================================================== */
+(function (global) {
+  'use strict';
+
+  const MODEL = 'claude-haiku-4-5';   // fast + cheap; plenty for OCR
+  const ENDPOINT = 'https://api.anthropic.com/v1/messages';
+  const TIMEOUT_MS = 45000;
+
+  // Anthropic public pricing for claude-haiku-4-5 (USD per million tokens).
+  // Used only for the in-app cost meter; kept in one place so it's easy to
+  // update if pricing changes.
+  const PRICE_INPUT_PER_MTOK_USD  = 1.00;
+  const PRICE_OUTPUT_PER_MTOK_USD = 5.00;
+  const USD_TO_INR = 85;   // rough; user can override in settings later
+
+  function computeUsage(json) {
+    const u = (json && json.usage) || {};
+    const inputTokens  = +u.input_tokens  || 0;
+    const outputTokens = +u.output_tokens || 0;
+    const usd =
+      (inputTokens  / 1e6) * PRICE_INPUT_PER_MTOK_USD +
+      (outputTokens / 1e6) * PRICE_OUTPUT_PER_MTOK_USD;
+    return {
+      inputTokens, outputTokens,
+      costUsd: usd,
+      costInr: usd * USD_TO_INR,
+    };
+  }
+
+  const SCHEMA_PROMPT = `You are a bill-extraction engine. Read the attached restaurant/party bill image and return STRICT JSON only — no prose, no markdown fences.
+
+Use this exact shape:
+{
+  "meta": {
+    "restName": "string",
+    "restSub": "string (sub-title or location, may be empty)",
+    "billNo": "string",
+    "billDate": "YYYY-MM-DD",
+    "billTable": "string",
+    "billHall": "string (hall name + time, e.g. 'Garden 9:42 PM')",
+    "restaurantType": "veg" | "nonveg" | "both" | "bar",
+    "cuisine": "string (e.g. 'Indian', 'Chinese', 'Continental', 'Cafe')",
+    "currency": "string (e.g. 'INR', 'USD' — default 'INR')"
+  },
+  "items": [
+    { "name": "string",
+      "rate": number,
+      "qty": number,
+      "amount": number,
+      "section": "food" | "liquor" | "other",
+      "dietary": "veg" | "nonveg" | "any" | "liquor",
+      "category": "starter" | "main" | "dessert" | "beverage" | "drink" | "accompaniment" | "extra",
+      "isParcel": boolean }
+  ],
+  "taxes": [
+    { "name": "string (e.g. CGST, SGST, VAT, Service Charge)", "rate": number, "base": "food" | "liquor" | "other" | "all" }
+  ],
+  "warnings": [ "string" ],
+  "hasServiceCharge": boolean
+}
+
+CRITICAL RULES — item extraction
+
+1. MULTI-LINE ITEM NAMES. Restaurant receipts often wrap long item names across
+   two or three text lines because of narrow columns. A single item is ALWAYS
+   identified by the line that contains its qty AND its price; lines immediately
+   above or below that — which contain ONLY text (no qty, no price) — belong to
+   that item's name.
+
+   Examples of wrapped names that MUST be combined into one item:
+     "Sabudana"             ↘
+     "Khichadi  1 100 100"  → one item: name "Sabudana Khichadi", qty 1, rate 100, amount 100
+     "Maysur Masala"        ↘
+     "Dosa      1 130 130"  → one item: name "Maysur Masala Dosa", qty 1, rate 130, amount 130
+     "Kesari Bhath"         ↘
+     "(sheera)  1 100 100"  → one item: name "Kesari Bhath (sheera)", qty 1, rate 100, amount 100
+
+   NEVER emit an item whose qty or rate is invented from an adjacent row.
+
+2. SANITY CHECK. After extracting items, sum their amounts. The sum MUST equal
+   the bill's printed subtotal (pre-tax total). If they don't match, you have
+   either split a wrapped name OR missed an item — re-read the receipt before
+   answering.
+
+3. SECTION ASSIGNMENT. Food → "food"; alcoholic drinks → "liquor"; service /
+   guest charges / tips → "other".
+
+4. NUMBERS. Plain JSON numbers, no commas, no currency symbols.
+
+5. TAX FIELDS. The "taxes" array contains ONLY the taxes/charges that the bill
+   actually prints. Do NOT add taxes that aren't on the receipt.
+   - "rate" is a percentage (2.5, not 0.025). If only an amount is shown,
+     compute rate as amount ÷ subtotal × 100.
+   - "base" is the section the tax is computed on. CGST/SGST/GST on a food
+     subtotal → "food". VAT/excise on alcohol → "liquor". A service charge on
+     the entire bill → "all". A tax on the non-food/non-liquor subtotal → "other".
+   - If the bill has NO taxes (rare), return "taxes": [].
+
+6. RESTAURANT TYPE INFERENCE — use the restaurant's name and content to set
+   meta.restaurantType and each item's dietary tag intelligently:
+   - "VEG", "PURE VEG", "SHAKAHARI", "SATTVIC", "JAIN" in the restaurant name
+     → restaurantType: "veg". EVERY food item's dietary MUST be "veg".
+     The bill cannot contain liquor — do not emit any liquor items.
+   - "NON-VEG", "MUTTON", "CHICKEN" obvious in the restaurant name
+     → restaurantType: "nonveg". Tag each food item by its own type
+     (chicken/mutton/fish/egg → "nonveg"; explicit veg dishes → "veg";
+     ambiguous like dal/rice/roti → "any").
+   - "BAR", "WINES", "DISTILLERY" prominent → restaurantType: "bar".
+     Items in the LIQUOR section get dietary "liquor". Food items same logic
+     as above for nonveg.
+   - Otherwise → restaurantType: "both". Tag items individually.
+   For every individual food item, when in doubt between veg/any, prefer "veg"
+   if the dish is unambiguously vegetarian (idli, dosa, sambar, dal, paneer,
+   khichadi, etc.). Use "nonveg" only for clearly non-veg dishes.
+
+7. ITEM CATEGORY — tag each item with what KIND of dish it is, so the UI can
+   group related items:
+   - starter        : appetizers, soups, salads, papad, masala papad, pakoda, samosa
+   - main           : biryani, curry, dal, rice, roti, naan, sabji, thali, dosa,
+                      idli, khichadi, pasta, sandwich, burger — the bulk dish
+   - dessert        : ice cream, kulfi, halwa, kheer, gulab jamun, kesari bhath, etc.
+   - beverage       : water, soft drinks, juice, tea, coffee, lassi, butter milk
+   - drink          : alcoholic only (overrides if item is in liquor section)
+   - accompaniment  : pickle, raita, chutney, side salad
+   - extra          : guest charges, paan, mints, anything that doesn't fit
+
+8. PARCEL / TAKEAWAY DETECTION — set isParcel: true if the item line contains
+   "PARCEL", "TO GO", "TAKE AWAY", "TAKEAWAY", "PACKED", or similar markers.
+   These items typically belong to one person; the app will default such items
+   to a single-person assignment.
+
+9. MATH VALIDATION — before emitting your response, sum the item amounts and
+   verify it equals the printed subtotal (pre-tax). If they DIFFER by more
+   than 1 unit of currency, re-read the bill. If you still cannot reconcile,
+   add a clear warning string to "warnings" describing the discrepancy
+   (e.g. "Items sum to ₹453 but bill prints subtotal ₹455. Likely a missed
+   item — please verify."). The "warnings" array MUST be empty when the
+   numbers reconcile.
+
+10. SERVICE CHARGE — set hasServiceCharge: true if the bill prints any line
+    matching "Service Charge", "Service Tax", "Tip", "Gratuity", "Service Fee".
+    Whether or not it's there, the user can add one in-app afterwards. If a
+    service charge IS present, include it as one of the taxes (base "all" if
+    on the whole bill, "food" if explicitly only on food).
+
+11. CURRENCY — set meta.currency to the 3-letter ISO code (INR, USD, EUR,
+    GBP, AED, etc.) based on the printed currency symbol or locale.
+    Default to "INR" only if you genuinely cannot determine it.
+
+12. Omit any field you genuinely cannot read; never invent values. Output ONE
+    JSON object and nothing else.`;
+
+  async function fileToImageBase64(file) {
+    if (file.type === 'application/pdf') {
+      return await pdfFirstPageToBase64(file);
+    }
+    // For ordinary photos we MUST downscale and re-encode:
+    //   - Anthropic's vision endpoint rejects images > 5 MB base64
+    //   - Modern phone cameras routinely produce 4-10 MB JPEGs even for a
+    //     simple receipt photo
+    //   - For OCR of a receipt, ~1800 px on the long edge is plenty; text
+    //     is comfortably above the resolving threshold
+    return await imageToCompressedBase64(file);
+  }
+
+  /** Resize + re-encode an image File so the API payload stays under 4 MB. */
+  async function imageToCompressedBase64(file) {
+    const MAX_LONG_EDGE = 1800;
+    const TARGET_BYTES  = 4 * 1024 * 1024; // 4 MB leaves headroom for base64 expansion + JSON envelope
+
+    // Step 1: load into an Image element
+    const dataUrl = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+    const img = await new Promise((resolve, reject) => {
+      const im = new Image();
+      im.onload  = () => resolve(im);
+      im.onerror = reject;
+      im.src = dataUrl;
+    });
+
+    // Step 2: pick target dimensions
+    let w = img.naturalWidth || img.width;
+    let h = img.naturalHeight || img.height;
+    const longEdge = Math.max(w, h);
+    if (longEdge > MAX_LONG_EDGE) {
+      const scale = MAX_LONG_EDGE / longEdge;
+      w = Math.round(w * scale);
+      h = Math.round(h * scale);
+    }
+
+    // Step 3: draw to canvas
+    const canvas = document.createElement('canvas');
+    canvas.width  = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    // White background — many JPEGs have implicit transparency that becomes
+    // black on canvas; white is much friendlier for OCR contrast.
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+
+    // Step 4: encode as JPEG at decreasing quality until under target size
+    let quality = 0.85;
+    let blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+    while (blob.size > TARGET_BYTES && quality > 0.4) {
+      quality -= 0.15;
+      blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+    }
+
+    // Step 5: blob → base64 (strip the data:image/jpeg;base64, prefix)
+    const finalDataUrl = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+    return { media: 'image/jpeg', data: finalDataUrl.split(',')[1] };
+  }
+
+  function canvasToBlob(canvas, type, quality) {
+    return new Promise((resolve) => canvas.toBlob((b) => resolve(b), type, quality));
+  }
+
+  async function pdfFirstPageToBase64(file) {
+    const mod = await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs');
+    mod.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
+    const buf = await file.arrayBuffer();
+    const pdf = await mod.getDocument({ data: buf }).promise;
+    const page = await pdf.getPage(1);
+    // Pick a scale that keeps the long edge ~1800 px (same target as photos).
+    const baseViewport = page.getViewport({ scale: 1 });
+    const longEdge = Math.max(baseViewport.width, baseViewport.height);
+    const scale = Math.min(2, 1800 / longEdge);
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    canvas.width  = Math.round(viewport.width);
+    canvas.height = Math.round(viewport.height);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    // Encode as JPEG, dropping quality if the resulting payload is too big.
+    let quality = 0.85;
+    let blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+    while (blob.size > 4 * 1024 * 1024 && quality > 0.4) {
+      quality -= 0.15;
+      blob = await canvasToBlob(canvas, 'image/jpeg', quality);
+    }
+    const dataUrl = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+    return { media: 'image/jpeg', data: dataUrl.split(',')[1] };
+  }
+
+  async function extractFromFile(file, apiKey) {
+    if (!apiKey) throw new Error('Add your Anthropic API key in the menu to enable scanning.');
+    const img = await fileToImageBase64(file);
+
+    const body = {
+      model: MODEL,
+      max_tokens: 2048,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: img.media, data: img.data } },
+          { type: 'text',  text: SCHEMA_PROMPT },
+        ],
+      }],
+    };
+
+    // Inside the Android APK we hand the call to the Java bridge to bypass
+    // WebView CORS restrictions on cross-origin browser fetch. In a plain
+    // browser (or PWA) we fall back to fetch.
+    const useBridge = (typeof window !== 'undefined'
+        && window.HisaabNative
+        && typeof window.HisaabNative.callAnthropic === 'function');
+    const { text, raw } = useBridge
+      ? await callViaBridge(apiKey, body)
+      : await callViaFetch(apiKey, body);
+
+    const parsed = parseJsonLoose(text);
+    // Attach usage metadata so the caller can track cost without re-fetching.
+    parsed._usage = computeUsage(raw);
+    return parsed;
+  }
+
+  /** Browser fetch path (PWA / single-file build / dev).
+   *  Retries 429 / 502 / 503 / 504 / 529 up to 3 times with 2/4/8s backoff. */
+  async function callViaFetch(apiKey, body) {
+    const backoff = [0, 2000, 4000, 8000];
+    let lastErr = null;
+    let lastRes = null;
+    for (let attempt = 0; attempt < backoff.length; attempt++) {
+      if (backoff[attempt] > 0) await new Promise((r) => setTimeout(r, backoff[attempt]));
+      const ctl = new AbortController();
+      const to  = setTimeout(() => ctl.abort(), TIMEOUT_MS);
+      try {
+        const res = await fetch(ENDPOINT, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true',
+          },
+          body: JSON.stringify(body),
+          signal: ctl.signal,
+        });
+        clearTimeout(to);
+        if (res.ok) {
+          const json = await res.json();
+          return {
+            raw: json,
+            text: (json.content || []).map((c) => c.text || '').join('').trim(),
+          };
+        }
+        // HTTP error — retry transient codes, surface immediately otherwise
+        lastRes = { status: res.status, body: await res.text() };
+        if (!isTransientHttp(res.status) || attempt === backoff.length - 1) {
+          throw friendlyHttpError(lastRes.status, lastRes.body);
+        }
+      } catch (e) {
+        clearTimeout(to);
+        if (e instanceof Error && e.message && (e.message.includes('Claude API') || e.message.includes('temporarily'))) {
+          throw e;
+        }
+        if (e.name === 'AbortError') {
+          if (attempt === backoff.length - 1) {
+            throw new Error('Scan timed out after ' + (TIMEOUT_MS / 1000) + 's. Check your internet connection.');
+          }
+          continue;
+        }
+        lastErr = e;
+        if (attempt === backoff.length - 1) {
+          throw new Error('Network call to Claude failed (' + (e.message || e.name) + ').');
+        }
+      }
+    }
+    throw lastErr || new Error('Scan failed after several retries.');
+  }
+
+  function isTransientHttp(code) {
+    return code === 429 || code === 502 || code === 503 || code === 504 || code === 529;
+  }
+
+  function friendlyHttpError(status, bodyText) {
+    if (status === 529 || status === 503) {
+      return new Error("Anthropic's servers are overloaded right now. Tried 4 times. Please retry in a minute.");
+    }
+    if (status === 429) {
+      return new Error('Rate limited by Anthropic — too many requests. Wait a minute and try again.');
+    }
+    if (status === 401 || status === 403) {
+      return new Error('Anthropic rejected the API key (' + status + '). Check it in Settings.');
+    }
+    return new Error('Claude API error ' + status + ': ' + (bodyText || '').slice(0, 300));
+  }
+
+  /** Android-only path via the WebAppInterface Java bridge. */
+  function callViaBridge(apiKey, body) {
+    return new Promise((resolve, reject) => {
+      if (!window.HisaabBridge) {
+        window.HisaabBridge = {
+          _pending: Object.create(null),
+          _resolve(id, resultJson) {
+            const cb = this._pending[id];
+            if (!cb) return;
+            delete this._pending[id];
+            try {
+              const r = JSON.parse(resultJson);
+              cb(r);
+            } catch (e) {
+              cb({ status: -1, error: 'Bridge returned malformed JSON' });
+            }
+          },
+        };
+      }
+      const cbId = 'cb_' + Math.random().toString(36).slice(2);
+      const timer = setTimeout(() => {
+        if (window.HisaabBridge._pending[cbId]) {
+          delete window.HisaabBridge._pending[cbId];
+          reject(new Error('Scan timed out after ' + (TIMEOUT_MS / 1000) + 's.'));
+        }
+      }, TIMEOUT_MS);
+
+      window.HisaabBridge._pending[cbId] = (r) => {
+        clearTimeout(timer);
+        if (r.status < 0) {
+          reject(new Error('Network error: ' + (r.error || 'unknown')));
+          return;
+        }
+        if (r.status < 200 || r.status >= 300) {
+          // The native bridge has already retried transient errors, so this
+          // is the final result. Just present a friendly message.
+          reject(friendlyHttpError(r.status, r.body || ''));
+          return;
+        }
+        try {
+          const j = JSON.parse(r.body);
+          resolve({
+            raw: j,
+            text: (j.content || []).map((c) => c.text || '').join('').trim(),
+          });
+        } catch (e) {
+          reject(new Error('Could not parse Claude response: ' + e.message));
+        }
+      };
+
+      try {
+        window.HisaabNative.callAnthropic(apiKey, JSON.stringify(body), cbId);
+      } catch (e) {
+        clearTimeout(timer);
+        delete window.HisaabBridge._pending[cbId];
+        reject(new Error('Failed to invoke native bridge: ' + (e.message || e)));
+      }
+    });
+  }
+
+  /** Strip code fences / extract first JSON object. */
+  function parseJsonLoose(s) {
+    let t = s.trim();
+    t = t.replace(/^```(?:json)?\s*/i, '').replace(/```$/, '').trim();
+    const start = t.indexOf('{');
+    const end   = t.lastIndexOf('}');
+    if (start >= 0 && end > start) t = t.slice(start, end + 1);
+    return JSON.parse(t);
+  }
+
+  global.OCR = { extractFromFile };
+})(window);
+
+</script>
+  <script>
+/* ===================================================================
+   exporter.js — render the result to a stand-alone HTML payload, then
+   convert to PDF (via html2pdf) or PNG (via html2canvas) on demand.
+
+   In the Android APK we route the final blob through the native bridge:
+     - "save" → window.HisaabNative.saveToDownloads → public Downloads folder
+     - "share" → window.HisaabNative.shareFile → Android share sheet
+   In a plain browser / PWA we fall back to a normal <a download> click.
+
+   The exported HTML is fully self-contained (inline CSS) so it opens
+   correctly in any browser and looks identical to the sample.
+   =================================================================== */
+(function (global) {
+  'use strict';
+
+  function exportCss() {
+    return `
+      *{ box-sizing:border-box; }
+      body{ margin:0; padding:24px; font:14px/1.45 -apple-system,Segoe UI,Roboto,sans-serif; color:#1f2937; background:#fff; }
+      .rpt{ max-width:820px; margin:0 auto; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden; }
+      .rpt table{ width:100%; border-collapse:collapse; }
+      .rpt th,.rpt td{ padding:8px 10px; border-bottom:1px solid #e5e7eb; text-align:left; vertical-align:top; }
+      .rpt th{ background:#f1f5f9; font-weight:600; font-size:12px; color:#334155; }
+      .rpt td.num,.rpt th.num{ text-align:right; font-variant-numeric:tabular-nums; }
+      .rpt .ttl-band{ background:#d84315; color:#fff; padding:12px 14px; font-weight:700; font-size:16px; text-align:center; }
+      .rpt .sub-band{ padding:8px 14px; font-size:12px; color:#475569; background:#fafafa; text-align:center; font-style:italic; }
+      .rpt .grp{ background:#fef3ed; padding:7px 10px; font-weight:700; font-size:12px; color:#9a3412; }
+      .rpt .grp.liquor{ background:#fef2f2; color:#991b1b; }
+      .rpt .grp.other{ background:#eff6ff; color:#1d4ed8; }
+      .rpt .tax-row td{ background:#fffbeb; color:#92400e; font-style:italic; }
+      .rpt .grand-row td{ background:#b91c1c; color:#fff; font-weight:800; font-size:14px; padding:12px 10px; }
+      .rpt .person-band{ padding:11px 14px; font-weight:800; color:#fff; }
+      .rpt .person-total td{ font-weight:800; background:#f8fafc; }
+      .rpt .ftr{ padding:9px 14px; font-size:11px; color:#6b7280; font-style:italic; text-align:center; }
+      .rpt + .rpt{ margin-top:18px; }
+      .qp .qp-row{ display:grid; grid-template-columns:1fr 130px 100px; padding:11px 14px; align-items:center; border-bottom:1px solid #e5e7eb; }
+      .qp .qp-row .qp-name{ font-weight:700; }
+      .qp .qp-row .qp-amt,.qp .qp-row .qp-round{ font-variant-numeric:tabular-nums; text-align:right; }
+      .qp .qp-row.qp-total{ background:#b91c1c; color:#fff; border:0; font-weight:800; }
+      .qp .qp-head{ background:#f1f5f9; font-size:12px; color:#334155; font-weight:700; padding:8px 14px; display:grid; grid-template-columns:1fr 130px 100px; }
+      .qp .qp-head>div:not(:first-child){ text-align:right; }
+      @page{ size:A4; margin:14mm; }
+    `;
+  }
+
+  function buildStandaloneHtml(bill, calc, renderFns) {
+    const masterHtml = renderFns.renderMaster(bill, calc, { forExport: true });
+    const personHtml = renderFns.renderPerPerson(bill, calc, { forExport: true });
+    const quickHtml  = renderFns.renderQuickPay(bill, calc, { forExport: true });
+    return `<!doctype html><html><head><meta charset="utf-8" />
+<title>${escapeHtml(bill.meta.restName || 'Bill Split')} — Split</title>
+<style>${exportCss()}</style></head>
+<body>
+  ${masterHtml}
+  ${personHtml}
+  ${quickHtml}
+</body></html>`;
+  }
+
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, (c) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
+    );
+  }
+
+  function fileBaseName(bill) {
+    const name = (bill.meta.restName || 'bill').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+    const no   = (bill.meta.billNo || bill.id || '').toString().slice(-8);
+    return [name, 'split', no].filter(Boolean).join('-');
+  }
+
+  function hasBridge() {
+    return typeof window !== 'undefined'
+      && window.HisaabNative
+      && typeof window.HisaabNative.saveToDownloads === 'function';
+  }
+
+  function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => {
+        const url = r.result || '';
+        const comma = url.indexOf(',');
+        resolve(comma >= 0 ? url.slice(comma + 1) : '');
+      };
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+  }
+
+  /** Setup the JS side of the bridge promise resolver if not yet set. */
+  function ensureBridge() {
+    if (window.HisaabBridge) return;
+    window.HisaabBridge = {
+      _pending: Object.create(null),
+      _resolve(id, resultJson) {
+        const cb = this._pending[id];
+        if (!cb) return;
+        delete this._pending[id];
+        try { cb(JSON.parse(resultJson)); }
+        catch (e) { cb({ ok: false, error: 'Bridge malformed JSON' }); }
+      },
+    };
+  }
+
+  /** Save a blob via the native bridge (Downloads folder) or, in a browser,
+   *  fall back to the standard <a download> click. */
+  async function saveBlob(blob, filename, mimeType) {
+    if (hasBridge()) {
+      ensureBridge();
+      const base64 = await blobToBase64(blob);
+      return new Promise((resolve, reject) => {
+        const id = 'sv_' + Math.random().toString(36).slice(2);
+        window.HisaabBridge._pending[id] = (r) => {
+          if (r.ok) resolve(r);
+          else reject(new Error(r.error || 'Save failed'));
+        };
+        try { window.HisaabNative.saveToDownloads(filename, mimeType, base64, id); }
+        catch (e) { reject(new Error('Bridge call failed: ' + (e.message || e))); }
+      });
+    }
+    // Browser fallback
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 200);
+    return { ok: true, path: filename };
+  }
+
+  /** Open Android's share sheet for the given blob. In a browser falls
+   *  back to Web Share API when available, else a normal download. */
+  async function shareBlob(blob, filename, mimeType) {
+    if (hasBridge() && typeof window.HisaabNative.shareFile === 'function') {
+      const base64 = await blobToBase64(blob);
+      window.HisaabNative.shareFile(filename, mimeType, base64);
+      return { ok: true };
+    }
+    // Browser: try Web Share with files
+    if (navigator.canShare && navigator.share) {
+      try {
+        const file = new File([blob], filename, { type: mimeType });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: filename });
+          return { ok: true };
+        }
+      } catch (_) { /* user cancelled */ }
+    }
+    // Last resort: download
+    return saveBlob(blob, filename, mimeType);
+  }
+
+  // ===================================================================
+  //                     File-builder helpers
+  // ===================================================================
+
+  function buildHtmlBlob(bill, calc, renderFns) {
+    const html = buildStandaloneHtml(bill, calc, renderFns);
+    return new Blob([html], { type: 'text/html' });
+  }
+
+  /** Render the full report into a hidden div, return the holder. Caller
+   *  must remove() it after html2canvas / html2pdf finishes. */
+  function makeHolder(bill, calc, renderFns) {
+    const html = buildStandaloneHtml(bill, calc, renderFns);
+    const holder = document.createElement('div');
+    holder.style.position = 'fixed';
+    holder.style.left = '-99999px';
+    holder.style.top = '0';
+    holder.style.width = '820px';
+    holder.style.background = '#fff';
+    holder.innerHTML = html;
+    document.body.appendChild(holder);
+    return holder;
+  }
+
+  async function buildPdfBlob(bill, calc, renderFns) {
+    if (!global.html2pdf) throw new Error('PDF library not loaded — check your internet connection.');
+    const holder = makeHolder(bill, calc, renderFns);
+    try {
+      const worker = global.html2pdf().set({
+        margin:      [10, 10, 10, 10],
+        image:       { type: 'jpeg', quality: 0.95 },
+        html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: true },
+        jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak:   { mode: ['avoid-all', 'css', 'legacy'] },
+      }).from(holder);
+      return await worker.outputPdf('blob');
+    } finally {
+      holder.remove();
+    }
+  }
+
+  async function buildPngBlob(bill, calc, renderFns) {
+    let h2c = global.html2canvas;
+    if (!h2c) {
+      try {
+        const mod = await import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/+esm');
+        h2c = mod.default || mod;
+      } catch (_) {}
+    }
+    if (!h2c) throw new Error('Image library not loaded — check your internet connection.');
+    const holder = makeHolder(bill, calc, renderFns);
+    try {
+      const canvas = await h2c(holder, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+      return await new Promise((resolve) => canvas.toBlob((b) => resolve(b), 'image/png'));
+    } finally {
+      holder.remove();
+    }
+  }
+
+  // ===================================================================
+  //                  Public actions: save / share
+  // ===================================================================
+
+  async function exportHtml(bill, calc, renderFns) {
+    const blob = buildHtmlBlob(bill, calc, renderFns);
+    return saveBlob(blob, fileBaseName(bill) + '.html', 'text/html');
+  }
+
+  async function exportPdf(bill, calc, renderFns) {
+    const blob = await buildPdfBlob(bill, calc, renderFns);
+    return saveBlob(blob, fileBaseName(bill) + '.pdf', 'application/pdf');
+  }
+
+  async function exportPng(bill, calc, renderFns) {
+    const blob = await buildPngBlob(bill, calc, renderFns);
+    return saveBlob(blob, fileBaseName(bill) + '.png', 'image/png');
+  }
+
+  async function shareHtml(bill, calc, renderFns) {
+    const blob = buildHtmlBlob(bill, calc, renderFns);
+    return shareBlob(blob, fileBaseName(bill) + '.html', 'text/html');
+  }
+  async function sharePdf(bill, calc, renderFns) {
+    const blob = await buildPdfBlob(bill, calc, renderFns);
+    return shareBlob(blob, fileBaseName(bill) + '.pdf', 'application/pdf');
+  }
+  async function sharePng(bill, calc, renderFns) {
+    const blob = await buildPngBlob(bill, calc, renderFns);
+    return shareBlob(blob, fileBaseName(bill) + '.png', 'image/png');
+  }
+
+  function buildTextSummary(bill, calc) {
+    const lines = [];
+    lines.push(bill.meta.restName || 'Bill Split');
+    if (bill.meta.billNo) lines.push('Bill: ' + bill.meta.billNo);
+    if (bill.meta.billDate) lines.push('Date: ' + bill.meta.billDate);
+    lines.push('');
+    bill.people.forEach((p) => {
+      const amt = (calc.grand.perPerson[p.id] || 0).toFixed(2);
+      lines.push(p.name + ': ₹' + amt + '  (≈ ₹' + Math.round(calc.grand.perPerson[p.id] || 0) + ')');
+    });
+    lines.push('—');
+    lines.push('Total: ₹' + calc.grand.total.toFixed(2));
+    return lines.join('\n');
+  }
+
+  /** Quick text-only share via the native bridge (or Web Share / clipboard). */
+  async function shareText(bill, calc) {
+    const text = buildTextSummary(bill, calc);
+    if (hasBridge() && typeof window.HisaabNative.shareText === 'function') {
+      window.HisaabNative.shareText(text, bill.meta.restName || 'Bill Split');
+      return 'shared';
+    }
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Bill Split', text }); return 'shared'; }
+      catch (_) { return 'cancelled'; }
+    }
+    await navigator.clipboard.writeText(text);
+    return 'copied';
+  }
+
+  global.Exporter = {
+    exportHtml, exportPdf, exportPng,
+    shareHtml,  sharePdf,  sharePng,  shareText,
+    buildStandaloneHtml, buildTextSummary,
+  };
+})(window);
+
+</script>
+  <script>
+/* ===================================================================
+   app.js — UI controller. No frameworks; small templating helpers.
+   ===================================================================
+   Screens:  home  bill  people  allocate  result
+   State lives in Store.loadCurrent() / saveCurrent().
+   =================================================================== */
+(function () {
+  'use strict';
+
+  const $  = (sel, root = document) => root.querySelector(sel);
+  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+  const fmt = (n) => (typeof n === 'number' ? n.toFixed(2) : '0.00');
+  const fmtINR = (n) => '₹' + fmt(n);
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  // 8-slot palette (matches CSS vars); cycles beyond 8 with HSL fallback.
+  const PALETTE = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'];
+  const PALETTE_HEX = {
+    p1: '#1e63d9', p2: '#6a3fbf', p3: '#1f8a3d', p4: '#d97706',
+    p5: '#c2185b', p6: '#0f766e', p7: '#4338ca', p8: '#a16207',
+  };
+  const PALETTE_BG = {
+    p1: '#e8f0fc', p2: '#f0eaf9', p3: '#e8f6ec', p4: '#fdf2e3',
+    p5: '#fceaf1', p6: '#defaf6', p7: '#ebe9fb', p8: '#fbf4dd',
+  };
+
+  function colorFor(slot, fallbackIndex = 0) {
+    if (slot && PALETTE_HEX[slot]) return PALETTE_HEX[slot];
+    // beyond 8 people, generate from index
+    const h = (fallbackIndex * 47) % 360;
+    return `hsl(${h} 65% 42%)`;
+  }
+  function bgFor(slot, fallbackIndex = 0) {
+    if (slot && PALETTE_BG[slot]) return PALETTE_BG[slot];
+    const h = (fallbackIndex * 47) % 360;
+    return `hsl(${h} 65% 92%)`;
+  }
+  function slotIndex(slot, fallbackIndex = 0) {
+    const idx = PALETTE.indexOf(slot);
+    return idx >= 0 ? idx + 1 : (fallbackIndex % 8) + 1;
+  }
+
+  // ============== Global app state =============
+
+  const App = {
+    bill: null,          // active bill
+    screen: 'home',      // current screen id
+    section: 'food',     // current section tab on Bill screen
+    resultView: 'master',
+  };
+
+  function setBill(b) { App.bill = b; Store.saveCurrent(b); }
+  function persist()  { if (App.bill) { Store.saveCurrent(App.bill); Store.upsertBill(App.bill); } }
+
+  // ============== Toasts =============
+
+  function toast(msg, ms = 1800) {
+    const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), ms);
+  }
+
+  // ============== Modal =============
+
+  function openModal(content) {
+    const root = $('#modalRoot');
+    const back = document.createElement('div'); back.className = 'modal-backdrop';
+    const box  = document.createElement('div'); box.className = 'modal';
+    box.innerHTML = content;
+    back.appendChild(box);
+    root.appendChild(back);
+    back.addEventListener('click', (e) => { if (e.target === back) back.remove(); });
+    return { back, box, close: () => back.remove() };
+  }
+
+  /** Promise-returning yes/no confirmation modal. */
+  function confirmModal(title, body, okLabel, cancelLabel) {
+    return new Promise((resolve) => {
+      const m = openModal(`
+        <h3>${esc(title)}</h3>
+        <p style="margin:0">${esc(body)}</p>
+        <div class="modal-actions">
+          <button class="ghost" id="cmCancel">${esc(cancelLabel || 'Cancel')}</button>
+          <button class="primary" id="cmOk">${esc(okLabel || 'OK')}</button>
+        </div>`);
+      $('#cmCancel', m.box).addEventListener('click', () => { m.close(); resolve(false); });
+      $('#cmOk',     m.box).addEventListener('click', () => { m.close(); resolve(true); });
+    });
+  }
+
+  // ============== Routing =============
+
+  function go(screen) {
+    if (screen !== 'home' && !App.bill) {
+      // any screen except home needs an active bill
+      App.bill = Store.blankBill();
+      setBill(App.bill);
+    }
+    App.screen = screen;
+    $$('.navbtn').forEach((b) => b.classList.toggle('active', b.dataset.screen === screen));
+    const tplId = 'tpl-' + screen;
+    const node  = $('#' + tplId).content.firstElementChild.cloneNode(true);
+    $('#main').replaceChildren(node);
+    $('#backBtn').hidden = screen === 'home';
+    $('#appbarTitle').textContent = ({
+      home: 'Bill Splitter', bill: 'Bill Details', people: 'People',
+      allocate: 'Allocate', result: 'Result',
+    })[screen] || 'Bill Splitter';
+    ({
+      home: bindHome, bill: bindBill, people: bindPeople,
+      allocate: bindAllocate, result: bindResult,
+    })[screen]();
+  }
+
+  // ============================================================
+  // HOME
+  // ============================================================
+  function bindHome() {
+    $('#newBillBtn').addEventListener('click', () => {
+      App.bill = Store.blankBill();
+      // seed: empty people list — user will add
+      setBill(App.bill);
+      go('bill');
+    });
+    $('#scanBillBtn').addEventListener('click', () => $('#scanInput').click());
+    $('#scanInput').addEventListener('change', onScanFile);
+
+    const list = $('#savedList');
+    const bills = Store.loadBills();
+    if (bills.length === 0) {
+      list.innerHTML = '<div class="empty">No saved bills yet. Tap <b>+ New Bill</b> to begin, or <b>Scan Bill</b> to import a photo or PDF.</div>';
+      return;
+    }
+    list.innerHTML = '';
+    bills.forEach((b) => {
+      const calc = Calc.compute(b);
+      const row  = document.createElement('div');
+      row.className = 'saved-row';
+      const date = b.meta.billDate || new Date(b.createdAt).toISOString().slice(0, 10);
+      row.innerHTML = `
+        <div class="meta">
+          <div class="title">${esc(b.meta.restName || 'Untitled')}</div>
+          <div class="sub">${esc(date)} · ${b.people.length} ppl · ${b.items.length} items</div>
+        </div>
+        <div class="amt">${fmtINR(calc.grand.total)}</div>
+        <button class="del" aria-label="Delete">&times;</button>`;
+      row.addEventListener('click', (e) => {
+        if (e.target.classList.contains('del')) {
+          if (confirm('Delete this bill?')) { Store.deleteBill(b.id); bindHome(); }
+          return;
+        }
+        setBill(b); go('bill');
+      });
+      list.appendChild(row);
+    });
+  }
+
+  async function onScanFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = ''; // reset
+    const settings = Store.loadSettings();
+    if (!settings.apiKey) {
+      promptForApiKey(() => onScanFileResume(file));
+      return;
+    }
+    await onScanFileResume(file);
+  }
+
+  async function onScanFileResume(file) {
+    const settings = Store.loadSettings();
+    // Budget cap check — refuse to scan if it would exceed the monthly budget.
+    const cap = +settings.monthlyBudgetInr || 0;
+    const spent = Store.monthSpend();
+    if (cap > 0 && spent >= cap) {
+      const proceed = await confirmModal(
+        '⚠️ Monthly scan budget reached',
+        `You've spent ₹${spent.toFixed(2)} of your ₹${cap.toFixed(2)} budget this month. ` +
+        `Each scan costs roughly ₹0.50. Scan anyway?`,
+        'Scan anyway', 'Cancel'
+      );
+      if (!proceed) return;
+    }
+    const m = openModal(`<h3>Scanning bill…</h3><div class="spinner"></div><p class="muted" style="text-align:center;margin:0">Reading items from your image. This may take 10–20 seconds.</p>`);
+    try {
+      const parsed = await OCR.extractFromFile(file, settings.apiKey);
+      const bill = Store.blankBill();
+      bill.meta = Object.assign(bill.meta, parsed.meta || {});
+      const restType = (parsed.meta && parsed.meta.restaurantType) || 'both';
+      bill.items = (parsed.items || []).map((it) => {
+        const section = ['food', 'liquor', 'other'].includes(it.section) ? it.section : 'food';
+        let dietary = it.dietary;
+        if (section === 'liquor') dietary = 'liquor';
+        else if (restType === 'veg') dietary = 'veg';
+        else if (!['veg', 'nonveg', 'any'].includes(dietary)) dietary = 'any';
+        const category = ['starter','main','dessert','beverage','drink','accompaniment','extra'].includes(it.category)
+          ? it.category : (section === 'liquor' ? 'drink' : section === 'other' ? 'extra' : 'main');
+        return {
+          id: Store.uid(),
+          name: String(it.name || ''),
+          rate: +it.rate || 0,
+          qty:  +it.qty  || 1,
+          amount: +it.amount || 0,
+          section,
+          dietary,
+          category,
+          isParcel: !!it.isParcel,
+        };
+      }).filter((it) => !(restType === 'veg' && it.section === 'liquor'));
+      const taxesIn = Array.isArray(parsed.taxes)
+        ? parsed.taxes
+        : Store.normaliseTaxes(parsed.taxes);
+      bill.taxes = taxesIn
+        .filter((t) => +t.rate > 0)
+        .map((t) => ({
+          id:   Store.uid(),
+          name: String(t.name || 'Tax'),
+          rate: +t.rate || 0,
+          base: ['food', 'liquor', 'other', 'all'].includes(t.base) ? t.base : 'food',
+        }));
+      // Stash scan-only metadata for the Bill screen banner
+      bill._scanWarnings    = Array.isArray(parsed.warnings) ? parsed.warnings.slice() : [];
+      bill._hasServiceCharge = !!parsed.hasServiceCharge;
+      // Auto-allocate parcels to a single (placeholder) person at allocation time.
+      // We can't pick a person yet (people list is empty after scan); the Allocate
+      // screen will surface a hint per-parcel.
+      setBill(bill);
+      m.close();
+      // Record API usage (cost meter) — _usage attached by ocr.js
+      if (parsed._usage) {
+        Store.recordUsage(parsed._usage);
+      }
+      let toastMsg = 'Scanned ' + bill.items.length + ' items';
+      if (bill._scanWarnings.length) toastMsg += ' · ' + bill._scanWarnings.length + ' warning(s)';
+      if (parsed._usage) {
+        toastMsg += ' · cost ₹' + parsed._usage.costInr.toFixed(2);
+      }
+      toast(toastMsg + ' — review and continue.');
+      go('bill');
+    } catch (err) {
+      m.close();
+      alert('Scan failed: ' + (err.message || err));
+    }
+  }
+
+  function promptForApiKey(after) {
+    const settings = Store.loadSettings();
+    const m = openModal(`
+      <h3>Add Anthropic API key</h3>
+      <p class="muted" style="margin:0">Scanning uses Claude's vision API. Your key is stored only on this device (localStorage).
+      Get one at <b>console.anthropic.com</b>.</p>
+      <label class="field"><span>API key</span><input id="apiKeyInput" type="password" placeholder="sk-ant-…" value="${esc(settings.apiKey || '')}" /></label>
+      <div class="modal-actions">
+        <button class="ghost" id="cancelKey">Cancel</button>
+        <button class="primary" id="saveKey">Save</button>
+      </div>`);
+    $('#cancelKey', m.box).addEventListener('click', m.close);
+    $('#saveKey', m.box).addEventListener('click', () => {
+      const v = $('#apiKeyInput', m.box).value.trim();
+      if (!v) return toast('Enter a key first.');
+      Store.saveSettings(Object.assign(settings, { apiKey: v }));
+      m.close();
+      if (typeof after === 'function') after();
+    });
+  }
+
+  // ============================================================
+  // BILL (items + tax)
+  // ============================================================
+  function bindBill() {
+    const b = App.bill;
+    // Migrate legacy {cgst,sgst,vat} object to array form
+    b.taxes = Store.normaliseTaxes(b.taxes);
+
+    $('#restName').value  = b.meta.restName || '';
+    $('#restSub').value   = b.meta.restSub  || '';
+    $('#billNo').value    = b.meta.billNo   || '';
+    $('#billDate').value  = b.meta.billDate || '';
+    $('#billTable').value = b.meta.billTable|| '';
+    $('#billHall').value  = b.meta.billHall || '';
+
+    const writeMeta = (k, v) => { b.meta[k] = v; persist(); refreshTotals(); };
+    $('#restName').addEventListener('input',  (e) => writeMeta('restName',  e.target.value));
+    $('#restSub').addEventListener('input',   (e) => writeMeta('restSub',   e.target.value));
+    $('#billNo').addEventListener('input',    (e) => writeMeta('billNo',    e.target.value));
+    $('#billDate').addEventListener('change', (e) => writeMeta('billDate',  e.target.value));
+    $('#billTable').addEventListener('input', (e) => writeMeta('billTable', e.target.value));
+    $('#billHall').addEventListener('input',  (e) => writeMeta('billHall',  e.target.value));
+
+    $$('#sectionSeg .seg-btn').forEach((btn) => btn.addEventListener('click', () => {
+      $$('#sectionSeg .seg-btn').forEach((x) => x.classList.toggle('active', x === btn));
+      App.section = btn.dataset.section;
+      renderItems();
+    }));
+    $('#addItemBtn').addEventListener('click', addItem);
+    $('#addTaxBtn').addEventListener('click', () => {
+      b.taxes.push({ id: Store.uid(), name: '', rate: 0, base: 'food' });
+      persist(); renderTaxes(); refreshTotals();
+      setTimeout(() => {
+        const last = $$('#taxesList .tax-row').pop();
+        if (last) last.querySelector('.tax-name').focus();
+      }, 40);
+    });
+    $('#addTipBtn').addEventListener('click', () => promptTip());
+    renderScanWarnings();
+    renderBillPaidBy();
+    renderItems();
+    renderTaxes();
+    refreshTotals();
+  }
+
+  function renderBillPaidBy() {
+    const sel = $('#billPaidBy'); if (!sel) return;
+    const b = App.bill;
+    sel.innerHTML = '<option value="">— Split at the counter (everyone pays Dutch) —</option>';
+    (b.people || []).forEach((p) => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name || '(unnamed)';
+      sel.appendChild(opt);
+    });
+    sel.value = b.paidBy || '';
+    // Keep handler attached (re-render is safe; we always re-add)
+    sel.onchange = () => {
+      b.paidBy = sel.value || null;
+      persist();
+      // Item per-row dropdowns inherit from this; re-render items section
+      renderItems();
+    };
+  }
+
+  function promptTip() {
+    const existing = (App.bill.taxes || []).find((t) =>
+      /tip|service|gratuity/i.test(t.name || ''));
+    const presets = [5, 10, 15];
+    const m = openModal(`
+      <h3>Add service charge / tip</h3>
+      <p class="muted" style="margin:0">${App.bill._hasServiceCharge
+        ? 'A service charge already appears on the bill — adding another will charge the group twice.'
+        : 'Adds a charge on the whole bill, split proportionally.'}</p>
+      <div class="tip-presets">
+        ${presets.map((p) => `<button class="ghost tip-preset" data-pct="${p}">${p}%</button>`).join('')}
+      </div>
+      <label class="field"><span>Custom %</span><input id="tipPct" type="number" step="0.5" min="0" placeholder="e.g. 12.5" /></label>
+      <div class="modal-actions">
+        <button class="ghost" id="closeTip">Cancel</button>
+        <button class="primary" id="applyTip">Apply</button>
+      </div>`);
+    function apply(pct) {
+      if (!(pct > 0)) return toast('Enter a positive percentage.');
+      if (existing) { existing.rate = +pct; existing.base = 'all'; }
+      else App.bill.taxes.push({ id: Store.uid(), name: 'Service / Tip', rate: +pct, base: 'all' });
+      persist(); renderTaxes(); refreshTotals(); m.close();
+      toast('Added ' + pct + '% service / tip.');
+    }
+    $$('.tip-preset', m.box).forEach((b) =>
+      b.addEventListener('click', () => apply(+b.dataset.pct)));
+    $('#applyTip', m.box).addEventListener('click', () => apply(+$('#tipPct', m.box).value));
+    $('#closeTip', m.box).addEventListener('click', m.close);
+  }
+
+  function renderScanWarnings() {
+    const main = $('#main');
+    const existing = $('.scan-warn-banner', main);
+    if (existing) existing.remove();
+    const b = App.bill;
+    if (!b._scanWarnings || b._scanWarnings.length === 0) return;
+    const banner = document.createElement('div');
+    banner.className = 'scan-warn-banner';
+    banner.innerHTML = `
+      <div class="scan-warn-head">⚠️ Scan warnings — please verify</div>
+      <ul>${b._scanWarnings.map((w) => '<li>' + esc(w) + '</li>').join('')}</ul>
+      <button class="link-btn" id="dismissWarn">Dismiss</button>`;
+    // Insert just below the page heading
+    const screen = $('.screen', main);
+    const h2 = screen.querySelector('h2');
+    screen.insertBefore(banner, h2.nextSibling);
+    $('#dismissWarn', banner).addEventListener('click', () => {
+      b._scanWarnings = []; persist(); banner.remove();
+    });
+  }
+
+  function renderTaxes() {
+    const wrap = $('#taxesList'); if (!wrap) return;
+    wrap.innerHTML = '';
+    if (!App.bill.taxes || App.bill.taxes.length === 0) {
+      const e = document.createElement('div');
+      e.className = 'empty';
+      e.textContent = 'No taxes on this bill yet. Tap "+ Add Tax / Charge" if your bill has GST, VAT, service charge, etc.';
+      wrap.appendChild(e);
+      return;
+    }
+    App.bill.taxes.forEach((t) => wrap.appendChild(taxRow(t)));
+  }
+
+  function taxRow(t) {
+    const node = $('#tpl-tax-row').content.firstElementChild.cloneNode(true);
+    node.dataset.id = t.id;
+    const nameI = $('.tax-name', node);
+    const rateI = $('.tax-rate', node);
+    const baseS = $('.tax-base', node);
+    nameI.value = t.name || '';
+    rateI.value = t.rate ?? '';
+    baseS.value = t.base || 'food';
+    nameI.addEventListener('input',  () => { t.name = nameI.value;          persist(); });
+    rateI.addEventListener('input',  () => { t.rate = +rateI.value || 0;    persist(); refreshTotals(); });
+    baseS.addEventListener('change', () => { t.base = baseS.value;          persist(); refreshTotals(); });
+    $('.delbtn', node).addEventListener('click', () => {
+      App.bill.taxes = App.bill.taxes.filter((x) => x.id !== t.id);
+      persist(); renderTaxes(); refreshTotals();
+    });
+    return node;
+  }
+
+  function renderItems() {
+    const wrap = $('#itemList'); wrap.innerHTML = '';
+    const list = App.bill.items.filter((i) => i.section === App.section);
+    if (list.length === 0) {
+      const e = document.createElement('div');
+      e.className = 'empty';
+      e.textContent = 'No items in this section yet. Tap "+ Add Item".';
+      wrap.appendChild(e);
+      return;
+    }
+    // Group by category for readability
+    const order = ['starter', 'main', 'accompaniment', 'dessert', 'beverage', 'drink', 'extra'];
+    const labels = {
+      starter:'🥗 Starters', main:'🍛 Mains', accompaniment:'🌿 Sides',
+      dessert:'🍨 Desserts', beverage:'🥤 Beverages', drink:'🍺 Drinks',
+      extra:'📋 Extras',
+    };
+    const byCat = {};
+    list.forEach((it) => {
+      const c = it.category || 'main';
+      (byCat[c] = byCat[c] || []).push(it);
+    });
+    order.forEach((cat) => {
+      const items = byCat[cat] || [];
+      if (items.length === 0) return;
+      const head = document.createElement('div');
+      head.className = 'cat-head';
+      head.textContent = labels[cat] || cat;
+      wrap.appendChild(head);
+      items.forEach((it) => wrap.appendChild(itemRow(it)));
+    });
+  }
+
+  function itemRow(it) {
+    const node = $('#tpl-item-row').content.firstElementChild.cloneNode(true);
+    node.dataset.id = it.id;
+    const nameI = $('.it-name', node); const rateI = $('.it-rate', node);
+    const qtyI  = $('.it-qty', node);  const amtI  = $('.it-amt', node);
+    nameI.value = it.name || '';
+    rateI.value = it.rate ?? '';
+    qtyI.value  = it.qty  ?? 1;
+    amtI.value  = it.amount || (Calc.itemTotal(it) || '');
+
+    nameI.addEventListener('input', () => { it.name = nameI.value; persist(); });
+    const recomputeAmt = () => {
+      const auto = (+rateI.value || 0) * (+qtyI.value || 0);
+      if (!it._amountTouched) { amtI.value = auto ? Calc.round2(auto) : ''; it.amount = 0; }
+      else it.amount = +amtI.value || 0;
+      it.rate = +rateI.value || 0; it.qty = +qtyI.value || 0;
+      persist(); refreshTotals();
+    };
+    rateI.addEventListener('input', recomputeAmt);
+    qtyI.addEventListener('input',  recomputeAmt);
+    amtI.addEventListener('input', () => {
+      it._amountTouched = true; it.amount = +amtI.value || 0;
+      persist(); refreshTotals();
+    });
+
+    // Parcel chip — toggleable
+    const ttagsParent = $('.it-tags', node).parentNode;
+    const parcelChip = document.createElement('button');
+    parcelChip.className = 'parcel-chip';
+    parcelChip.type = 'button';
+    parcelChip.setAttribute('aria-pressed', it.isParcel ? 'true' : 'false');
+    parcelChip.innerHTML = '📦 Parcel';
+    parcelChip.addEventListener('click', () => {
+      it.isParcel = !it.isParcel;
+      parcelChip.setAttribute('aria-pressed', it.isParcel ? 'true' : 'false');
+      // When marking as parcel, reset allocation so the smart default re-applies
+      delete App.bill.allocations[it.id];
+      persist();
+    });
+    ttagsParent.insertBefore(parcelChip, $('.it-tags', node));
+
+    // Dietary tags — Food/Other items get any/veg/nonveg; Liquor items
+    // always show a single 'liquor' tag (not user-toggleable).
+    const tagsWrap = $('.it-tags', node);
+    if (it.section === 'liquor') {
+      tagsWrap.innerHTML = '<button class="tag-btn" data-tag="liquor" aria-pressed="true">🥃 Liquor</button>';
+      it.dietary = 'liquor';
+    } else {
+      if (!it.dietary || it.dietary === 'liquor') it.dietary = 'any';
+      $$('.tag-btn', tagsWrap).forEach((btn) => {
+        const isOn = btn.dataset.tag === it.dietary;
+        btn.setAttribute('aria-pressed', isOn ? 'true' : 'false');
+        btn.addEventListener('click', () => {
+          it.dietary = btn.dataset.tag;
+          $$('.tag-btn', tagsWrap).forEach((b) =>
+            b.setAttribute('aria-pressed', b.dataset.tag === it.dietary ? 'true' : 'false'));
+          // Invalidate this item's allocation so smart default re-applies on Allocate screen
+          delete App.bill.allocations[it.id];
+          persist();
+        });
+      });
+    }
+
+    // Per-item "Paid by" — used as an OVERRIDE only. By default an item
+    // inherits the bill-level payer (set on the Bill Details screen).
+    // Most users will leave this on "Inherits from bill"; override only
+    // for the rare post-bill ice-cream-bought-separately case.
+    const paidSel = $('.it-paidby-sel', node);
+    const billPayer = App.bill.people.find((p) => p.id === App.bill.paidBy);
+    const inheritLabel = billPayer
+      ? '— Inherits from bill: ' + (billPayer.name || 'unnamed') + ' —'
+      : '— Inherits from bill (currently Dutch) —';
+    paidSel.innerHTML = '<option value="">' + esc(inheritLabel) + '</option>';
+    App.bill.people.forEach((p) => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = 'Override: ' + (p.name || 'unnamed');
+      paidSel.appendChild(opt);
+    });
+    paidSel.value = it.paidBy || '';
+    paidSel.addEventListener('change', () => {
+      it.paidBy = paidSel.value || null;
+      persist();
+    });
+
+    $('.delbtn', node).addEventListener('click', () => {
+      App.bill.items = App.bill.items.filter((x) => x.id !== it.id);
+      delete App.bill.allocations[it.id];
+      persist(); renderItems(); refreshTotals();
+    });
+    return node;
+  }
+
+  function addItem() {
+    const it = {
+      id: Store.uid(), name: '', rate: 0, qty: 1, amount: 0,
+      section: App.section,
+      dietary: App.section === 'liquor' ? 'liquor' : 'any',
+    };
+    App.bill.items.push(it);
+    persist(); renderItems(); refreshTotals();
+    setTimeout(() => {
+      const last = $$('#itemList .item-row').pop();
+      if (last) last.querySelector('.it-name').focus();
+    }, 50);
+  }
+
+  function refreshTotals() {
+    if (!$('#totalsCard')) return;
+    const b = App.bill;
+    b.taxes = Store.normaliseTaxes(b.taxes);
+    const food   = sumSection(b, 'food');
+    const liquor = sumSection(b, 'liquor');
+    const other  = sumSection(b, 'other');
+    const all    = food + liquor + other;
+    const baseFor = (t) =>
+      t.base === 'liquor' ? liquor :
+      t.base === 'other'  ? other :
+      t.base === 'all'    ? all :
+                            food;
+    let taxRows = '';
+    let taxSum  = 0;
+    b.taxes.forEach((t) => {
+      const amt = Calc.round2(baseFor(t) * (+t.rate || 0) / 100);
+      taxSum += amt;
+      const label = (t.name || 'Tax') + ' ' + (+t.rate || 0) + '%';
+      taxRows += `<div class="tline"><span>${esc(label)} <i style="color:#94a3b8">(on ${t.base})</i></span><span>${fmtINR(amt)}</span></div>`;
+    });
+    const grand = Calc.round2(all + taxSum);
+    $('#totalsCard').innerHTML = `
+      <div class="tline"><span>Food subtotal</span><span>${fmtINR(food)}</span></div>
+      <div class="tline"><span>Liquor subtotal</span><span>${fmtINR(liquor)}</span></div>
+      <div class="tline"><span>Others subtotal</span><span>${fmtINR(other)}</span></div>
+      ${taxRows}
+      <div class="tline grand"><span>Grand Total</span><span>${fmtINR(grand)}</span></div>`;
+  }
+  function sumSection(b, sec) {
+    return Calc.round2((b.items || [])
+      .filter((i) => i.section === sec)
+      .reduce((s, i) => s + Calc.itemTotal(i), 0));
+  }
+
+  // ============================================================
+  // PEOPLE
+  // ============================================================
+  function bindPeople() {
+    $('#addPersonBtn').addEventListener('click', addPerson);
+    renderPeople();
+  }
+  function renderPeople() {
+    const wrap = $('#peopleList'); wrap.innerHTML = '';
+    if (App.bill.people.length === 0) {
+      const e = document.createElement('div');
+      e.className = 'empty';
+      e.textContent = 'No people added yet. Tap "+ Add Person".';
+      wrap.appendChild(e);
+      return;
+    }
+    App.bill.people.forEach((p, i) => wrap.appendChild(personRow(p, i)));
+  }
+  function personRow(p, i) {
+    const node = $('#tpl-person-row').content.firstElementChild.cloneNode(true);
+    node.dataset.id = p.id;
+    const chip = $('.color-chip', node);
+    chip.style.background = colorFor(p.color, i);
+    const nameI = $('.pname', node);
+    nameI.value = p.name || '';
+    nameI.addEventListener('input', () => { p.name = nameI.value; persist(); });
+    chip.addEventListener('click', () => pickColor(p, () => renderPeople()));
+    $('.delbtn', node).addEventListener('click', () => {
+      App.bill.people = App.bill.people.filter((x) => x.id !== p.id);
+      // remove this person from every allocation
+      Object.values(App.bill.allocations).forEach((a) => { if (a && a.values) delete a.values[p.id]; });
+      persist(); renderPeople();
+    });
+
+    // Preferences (diet tri-state + drinker toggle).
+    // Migrate legacy { isVeg } to the new { diet } enum on first render.
+    p.prefs = Store.normalisePrefs(p.prefs);
+    const pillWrap = $('.diet-pill', node);
+    const setDiet = (val) => {
+      p.prefs.diet = val;
+      $$('.diet-opt', pillWrap).forEach((b) =>
+        b.classList.toggle('active', b.dataset.diet === val));
+      pillWrap.dataset.diet = val;
+      persist();
+    };
+    setDiet(p.prefs.diet || 'both');
+    $$('.diet-opt', pillWrap).forEach((b) =>
+      b.addEventListener('click', () => setDiet(b.dataset.diet)));
+
+    const drinkBtn = $('.pref-btn[data-pref="drink"]', node);
+    drinkBtn.setAttribute('aria-pressed', p.prefs.isDrinker ? 'true' : 'false');
+    drinkBtn.addEventListener('click', () => {
+      p.prefs.isDrinker = !p.prefs.isDrinker;
+      drinkBtn.setAttribute('aria-pressed', p.prefs.isDrinker ? 'true' : 'false');
+      persist();
+    });
+    return node;
+  }
+  function addPerson() {
+    const i = App.bill.people.length;
+    const p = { id: Store.uid(), name: '', color: PALETTE[i % PALETTE.length], prefs: Store.defaultPrefs() };
+    App.bill.people.push(p);
+    persist(); renderPeople();
+    setTimeout(() => {
+      const last = $$('#peopleList .person-row').pop();
+      if (last) last.querySelector('.pname').focus();
+    }, 50);
+  }
+  function pickColor(p, after) {
+    const m = openModal(`
+      <h3>Pick a color</h3>
+      <div class="swatches">
+        ${PALETTE.map((slot) => `<button class="swatch" data-slot="${slot}" style="background:${PALETTE_HEX[slot]}"></button>`).join('')}
+      </div>
+      <div class="modal-actions"><button class="ghost" id="closePick">Close</button></div>`);
+    $('#closePick', m.box).addEventListener('click', m.close);
+    $$('.swatch', m.box).forEach((b) => b.addEventListener('click', () => {
+      p.color = b.dataset.slot; persist(); m.close(); after && after();
+    }));
+  }
+
+  // ============================================================
+  // ALLOCATE
+  // ============================================================
+  function bindAllocate() {
+    if (App.bill.people.length === 0) {
+      $('#allocList').innerHTML = '<div class="empty">Add people first.</div>';
+      $('#runningTotals').innerHTML = '';
+      return;
+    }
+    if (App.bill.items.length === 0) {
+      $('#allocList').innerHTML = '<div class="empty">Add items first.</div>';
+      $('#runningTotals').innerHTML = '';
+      return;
+    }
+    renderAllocCards();
+    renderRunningTotals();
+  }
+
+  function renderAllocCards() {
+    const wrap = $('#allocList'); wrap.innerHTML = '';
+    App.bill.items.forEach((it) => wrap.appendChild(allocCard(it)));
+  }
+
+  // Build a sensible default allocation for an item using person preferences.
+  function defaultAllocationFor(it) {
+    const eligible = Store.eligiblePeople(it, App.bill.people).map((p) => p.id);
+    const ids = eligible.length > 0 ? eligible : App.bill.people.map((p) => p.id);
+    // Parcels default to single-person assignment — the user just picks who.
+    if (it.isParcel) {
+      return { rule: 'assigned', values: { [ids[0]]: 1 } };
+    }
+    return { rule: 'equal', values: Object.fromEntries(ids.map((id) => [id, 1])) };
+  }
+
+  function allocCard(it) {
+    const node = $('#tpl-alloc-card').content.firstElementChild.cloneNode(true);
+    node.dataset.id = it.id;
+    const tag = it.dietary && it.dietary !== 'any'
+      ? ' · ' + ({ veg: 'VEG', nonveg: 'NON-VEG', liquor: 'LIQUOR' }[it.dietary] || '')
+      : '';
+    $('.alloc-name', node).textContent = (it.name || '(untitled)') + '  · ' + (it.section).toUpperCase() + tag;
+    $('.alloc-amt',  node).textContent = fmtINR(Calc.itemTotal(it));
+    const ruleSel    = $('.alloc-rule',   node);
+    const hintEl     = $('.alloc-hint',   node);
+    const quickEl    = $('.alloc-quick',  node);
+    const peopleWrap = $('.alloc-people', node);
+    const status     = $('.alloc-status', node);
+
+    if (!App.bill.allocations[it.id]) {
+      App.bill.allocations[it.id] = defaultAllocationFor(it);
+    }
+    const alloc = App.bill.allocations[it.id];
+    ruleSel.value = alloc.rule;
+
+    ruleSel.addEventListener('change', () => {
+      alloc.rule = ruleSel.value;
+      // reset values sensibly when rule changes — but seed by preferences
+      const eligible = Store.eligiblePeople(it, App.bill.people).map((p) => p.id);
+      const useIds = eligible.length > 0 ? eligible : App.bill.people.map((p) => p.id);
+      if (alloc.rule === 'equal')    alloc.values = Object.fromEntries(useIds.map((id) => [id, 1]));
+      if (alloc.rule === 'assigned') alloc.values = { [useIds[0]]: 1 };
+      if (alloc.rule === 'percent')  alloc.values = Object.fromEntries(useIds.map((id) => [id, +(100 / useIds.length).toFixed(2)]));
+      if (alloc.rule === 'amount') {
+        const total = Calc.itemTotal(it);
+        const each  = Calc.round2(total / useIds.length);
+        alloc.values = Object.fromEntries(useIds.map((id) => [id, each]));
+      }
+      if (alloc.rule === 'quantity') {
+        // Pre-fill quantities so they sum to item.qty, distributed equally among eligible
+        const qty = +it.qty || useIds.length;
+        const each = qty / useIds.length;
+        alloc.values = Object.fromEntries(useIds.map((id) => [id, +each.toFixed(2)]));
+      }
+      if (alloc.rule === 'mixed') {
+        // Pre-fill: no fixed amounts, qty distributed equally among eligible
+        const qty = +it.qty || useIds.length;
+        const each = qty / useIds.length;
+        alloc.values  = Object.fromEntries(useIds.map((id) => [id, +each.toFixed(2)]));
+        alloc.amounts = Object.fromEntries(App.bill.people.map((p) => [p.id, 0]));
+      }
+      persist(); renderRule(); renderRunningTotals();
+    });
+
+    // Quick-action buttons
+    $$('.link-btn', quickEl).forEach((btn) => btn.addEventListener('click', () => {
+      const act = btn.dataset.act;
+      if (act === 'all')    App.bill.people.forEach((p) => (alloc.values[p.id] = 1));
+      if (act === 'none')   App.bill.people.forEach((p) => (alloc.values[p.id] = 0));
+      if (act === 'suggest') {
+        const eligible = new Set(Store.eligiblePeople(it, App.bill.people).map((p) => p.id));
+        App.bill.people.forEach((p) => (alloc.values[p.id] = eligible.has(p.id) ? 1 : 0));
+      }
+      if (act === 'auto-remainder') {
+        // Quantity / Mixed rules: spread the unallocated qty equally among
+        // people whose qty input is currently 0.
+        const totalQty = +it.qty || 0;
+        const assigned = App.bill.people.reduce((s, p) => s + (+alloc.values[p.id] || 0), 0);
+        const remaining = Math.max(0, totalQty - assigned);
+        const empty = App.bill.people.filter((p) => !(+alloc.values[p.id] > 0));
+        if (empty.length === 0) { toast('Everyone already has a qty — clear one first.'); return; }
+        const each = remaining / empty.length;
+        empty.forEach((p) => (alloc.values[p.id] = +each.toFixed(2)));
+      }
+      persist(); renderRule(); renderRunningTotals();
+    }));
+
+    renderRule();
+
+    function renderRule() {
+      ruleSel.value = alloc.rule;
+      // Hint + quick-action visibility per rule
+      const showAllNone = (alloc.rule === 'equal');
+      const showSuggest = showAllNone && it.dietary && it.dietary !== 'any';
+      const showRem     = (alloc.rule === 'quantity' || alloc.rule === 'mixed');
+      quickEl.hidden = !(showAllNone || showRem);
+      $('.link-btn[data-act="all"]',  quickEl).hidden = !showAllNone;
+      $('.link-btn[data-act="none"]', quickEl).hidden = !showAllNone;
+      $('.link-btn[data-act="suggest"]', quickEl).hidden = !showSuggest;
+      $('.link-btn[data-act="auto-remainder"]', quickEl).hidden = !showRem;
+
+      hintEl.textContent = ({
+        equal:    'Tap a person below to include / exclude them from this split.',
+        assigned: 'Tap the person who paid 100% of this item.',
+        quantity: 'Enter how many ' + ((+it.qty) || 'units') + ' each person had. Sum must equal ' + (it.qty || '?') + '.',
+        percent:  'Enter each person\'s share %. Must total 100%.',
+        amount:   'Enter each person\'s exact ₹ amount. Must total ' + fmtINR(Calc.itemTotal(it)) + '.',
+        mixed:    'Per-person fixed ₹ + qty share. Fixed amounts are paid first; the remainder is split by qty.',
+      })[alloc.rule] || '';
+
+      peopleWrap.innerHTML = '';
+      App.bill.people.forEach((p, i) => {
+        const row = document.createElement('div');
+        row.className = 'alloc-prow';
+        const chip = document.createElement('span'); chip.className = 'pchip';
+        chip.style.background = colorFor(p.color, i);
+        const name = document.createElement('span'); name.className = 'pname'; name.textContent = p.name || '(no name)';
+        row.appendChild(chip); row.appendChild(name);
+
+        if (alloc.rule === 'equal') {
+          const on = !!alloc.values[p.id];
+          chip.classList.toggle('on', on); chip.classList.toggle('off', !on);
+          chip.addEventListener('click', () => {
+            alloc.values[p.id] = on ? 0 : 1;
+            persist(); renderRule(); renderRunningTotals();
+          });
+          const share = document.createElement('span'); share.className = 'pshare';
+          const shares = Calc.splitItem(it, alloc, App.bill.people);
+          share.textContent = on ? fmtINR(shares[p.id] || 0) : '—';
+          row.appendChild(share);
+        }
+        else if (alloc.rule === 'assigned') {
+          const onId = Object.keys(alloc.values).find((k) => alloc.values[k]);
+          const on = onId === p.id;
+          chip.classList.toggle('on', on); chip.classList.toggle('off', !on);
+          chip.addEventListener('click', () => {
+            alloc.values = { [p.id]: 1 };
+            persist(); renderRule(); renderRunningTotals();
+          });
+          const share = document.createElement('span'); share.className = 'pshare';
+          share.textContent = on ? fmtINR(Calc.itemTotal(it)) : '—';
+          row.appendChild(share);
+        }
+        else if (alloc.rule === 'percent') {
+          const input = document.createElement('input');
+          input.className = 'pinput'; input.type = 'number'; input.step = '0.5';
+          input.value = alloc.values[p.id] || 0;
+          input.addEventListener('input', () => {
+            alloc.values[p.id] = +input.value || 0;
+            persist(); renderRunningTotals(); updateAllocStatus();
+          });
+          row.appendChild(input);
+          const suffix = document.createElement('span'); suffix.className = 'pshare'; suffix.textContent = '%';
+          row.appendChild(suffix);
+        }
+        else if (alloc.rule === 'amount') {
+          const input = document.createElement('input');
+          input.className = 'pinput'; input.type = 'number'; input.step = '0.5'; input.inputMode = 'decimal';
+          input.value = alloc.values[p.id] || 0;
+          input.addEventListener('input', () => {
+            alloc.values[p.id] = +input.value || 0;
+            persist(); renderRunningTotals(); updateAllocStatus();
+          });
+          row.appendChild(input);
+        }
+        else if (alloc.rule === 'quantity') {
+          const qrow = document.createElement('span'); qrow.className = 'pqtyrow';
+          const minus = document.createElement('button'); minus.className = 'qty-step'; minus.textContent = '−';
+          const input = document.createElement('input');
+          input.className = 'pinput'; input.type = 'number'; input.step = '1'; input.min = '0'; input.inputMode = 'decimal';
+          input.style.width = '60px';
+          input.value = alloc.values[p.id] || 0;
+          const plus  = document.createElement('button'); plus.className  = 'qty-step'; plus.textContent  = '+';
+          minus.addEventListener('click', () => { input.value = Math.max(0, (+input.value || 0) - 1); input.dispatchEvent(new Event('input')); });
+          plus.addEventListener( 'click', () => { input.value = (+input.value || 0) + 1;             input.dispatchEvent(new Event('input')); });
+          input.addEventListener('input', () => {
+            alloc.values[p.id] = +input.value || 0;
+            // Recompute the share preview
+            const shares = Calc.splitItem(it, alloc, App.bill.people);
+            shareLabel.textContent = (+input.value > 0) ? fmtINR(shares[p.id] || 0) : '—';
+            persist(); renderRunningTotals(); updateAllocStatus();
+          });
+          qrow.appendChild(minus); qrow.appendChild(input); qrow.appendChild(plus);
+          row.appendChild(qrow);
+          const shareLabel = document.createElement('span'); shareLabel.className = 'pshare';
+          const shares = Calc.splitItem(it, alloc, App.bill.people);
+          shareLabel.textContent = (+alloc.values[p.id] > 0) ? fmtINR(shares[p.id] || 0) : '—';
+          row.appendChild(shareLabel);
+        }
+        else if (alloc.rule === 'mixed') {
+          if (!alloc.amounts) alloc.amounts = {};
+          // Two inputs: ₹ fixed (left)  and  qty (right). Plus a per-person share preview.
+          const fixed = document.createElement('input');
+          fixed.className = 'pinput'; fixed.type = 'number'; fixed.step = '0.5'; fixed.inputMode = 'decimal';
+          fixed.style.width = '78px'; fixed.placeholder = '₹';
+          fixed.value = alloc.amounts[p.id] || '';
+          const qty = document.createElement('input');
+          qty.className = 'pinput'; qty.type = 'number'; qty.step = '1'; qty.min = '0'; qty.inputMode = 'decimal';
+          qty.style.width = '60px'; qty.placeholder = 'qty';
+          qty.value = alloc.values[p.id] || '';
+          const recalc = () => {
+            alloc.amounts[p.id] = +fixed.value || 0;
+            alloc.values[p.id]  = +qty.value   || 0;
+            const shares = Calc.splitItem(it, alloc, App.bill.people);
+            shareLabel.textContent = (shares[p.id] || 0) > 0 ? fmtINR(shares[p.id]) : '—';
+            persist(); renderRunningTotals(); updateAllocStatus();
+          };
+          fixed.addEventListener('input', recalc);
+          qty.addEventListener('input', recalc);
+          const wrap2 = document.createElement('span'); wrap2.className = 'pqtyrow';
+          wrap2.appendChild(fixed);
+          const plus = document.createElement('span'); plus.textContent = '+'; plus.style.color = '#94a3b8'; plus.style.fontWeight = '700';
+          wrap2.appendChild(plus);
+          wrap2.appendChild(qty);
+          row.appendChild(wrap2);
+          const shareLabel = document.createElement('span'); shareLabel.className = 'pshare';
+          const shares = Calc.splitItem(it, alloc, App.bill.people);
+          shareLabel.textContent = (shares[p.id] || 0) > 0 ? fmtINR(shares[p.id]) : '—';
+          row.appendChild(shareLabel);
+        }
+        peopleWrap.appendChild(row);
+      });
+      updateAllocStatus();
+    }
+
+    function updateAllocStatus() {
+      const total = Calc.itemTotal(it);
+      if (alloc.rule === 'percent') {
+        const s = Object.values(alloc.values || {}).reduce((s, v) => s + (+v || 0), 0);
+        status.classList.toggle('warn', Math.abs(s - 100) >= 0.5);
+        status.classList.toggle('ok',   Math.abs(s - 100) <  0.5);
+        status.textContent = 'Sum: ' + s + '% ' + (Math.abs(s - 100) < 0.5 ? '✓' : '(should be 100%)');
+      } else if (alloc.rule === 'amount') {
+        const s = Calc.round2(Object.values(alloc.values || {}).reduce((s, v) => s + (+v || 0), 0));
+        status.classList.toggle('warn', Math.abs(s - total) >= 0.5);
+        status.classList.toggle('ok',   Math.abs(s - total) <  0.5);
+        status.textContent = 'Sum: ' + fmtINR(s) + ' / ' + fmtINR(total) + (Math.abs(s - total) < 0.5 ? ' ✓' : ' (must match item total)');
+      } else if (alloc.rule === 'quantity') {
+        const totalQty = +it.qty || 0;
+        const s = Object.values(alloc.values || {}).reduce((s, v) => s + (+v || 0), 0);
+        const ok = totalQty > 0 && Math.abs(s - totalQty) < 0.001;
+        status.classList.toggle('warn', !ok);
+        status.classList.toggle('ok',   ok);
+        status.textContent = 'Allocated: ' + s + ' / ' + totalQty + (ok ? ' ✓' : ' (must match item qty)');
+      } else if (alloc.rule === 'mixed') {
+        const fixedSum = Object.values(alloc.amounts || {}).reduce((s, v) => s + (+v || 0), 0);
+        const qtySum   = Object.values(alloc.values  || {}).reduce((s, v) => s + (+v || 0), 0);
+        const remainder = Calc.round2(total - fixedSum);
+        let msg = 'Fixed: ' + fmtINR(fixedSum) + ' · Remainder: ' + fmtINR(remainder);
+        if (remainder > 0.5 && qtySum > 0) msg += ' (split across ' + qtySum + ' qty units)';
+        if (fixedSum > total + 0.5)          { status.classList.add('warn'); status.classList.remove('ok'); msg = 'Fixed amounts exceed total ' + fmtINR(total); }
+        else if (remainder > 0.5 && qtySum <= 0) { status.classList.add('warn'); status.classList.remove('ok'); msg += ' — set qty for sharers'; }
+        else                                  { status.classList.add('ok');   status.classList.remove('warn'); msg += ' ✓'; }
+        status.textContent = msg;
+      } else if (alloc.rule === 'equal') {
+        const n = Object.values(alloc.values || {}).filter((v) => v).length;
+        status.textContent = n === 0 ? 'No one selected.' : 'Equal split across ' + n + ' ' + (n === 1 ? 'person' : 'people');
+        status.classList.toggle('warn', n === 0); status.classList.remove('ok');
+      } else {
+        status.textContent = ''; status.classList.remove('warn', 'ok');
+      }
+    }
+
+    return node;
+  }
+
+  function renderRunningTotals() {
+    const wrap = $('#runningTotals'); if (!wrap) return;
+    const calc = Calc.compute(App.bill);
+    let html = '';
+    App.bill.people.forEach((p, i) => {
+      html += `<div class="rrow"><span><span class="pchip" style="background:${colorFor(p.color, i)}"></span>${esc(p.name || '(no name)')}</span><b>${fmtINR(calc.grand.perPerson[p.id] || 0)}</b></div>`;
+    });
+    html += `<div class="rrow" style="border-top:1px solid #e5e7eb;margin-top:6px;padding-top:8px;"><b>Grand Total</b><b>${fmtINR(calc.grand.total)}</b></div>`;
+    wrap.innerHTML = html;
+  }
+
+  // ============================================================
+  // RESULT (render + export)
+  // ============================================================
+  function bindResult() {
+    const warnings = Calc.validate(App.bill);
+    if (warnings.length > 0) {
+      $('#resultView').innerHTML = '<div class="empty"><b>Fix the following:</b><br/>' + warnings.map(esc).join('<br/>') + '</div>';
+      return;
+    }
+    $$('#resultSeg .seg-btn').forEach((btn) => btn.addEventListener('click', () => {
+      $$('#resultSeg .seg-btn').forEach((x) => x.classList.toggle('active', x === btn));
+      App.resultView = btn.dataset.view; renderResult();
+    }));
+    renderResult();
+    $('#exportPdf').addEventListener('click',  () => doSaveToDownloads('pdf'));
+    $('#exportPng').addEventListener('click',  () => doSaveToDownloads('png'));
+    $('#exportHtml').addEventListener('click', () => doSaveToDownloads('html'));
+    $('#exportShare').addEventListener('click', () => openShareFormatPicker());
+  }
+
+  /** Build the chosen format and save it to the device's Downloads folder
+   *  (or trigger a browser download in non-APK contexts). */
+  async function doSaveToDownloads(kind) {
+    const calc = Calc.compute(App.bill);
+    const fns  = { renderMaster, renderPerPerson, renderQuickPay };
+    try {
+      toast('Building ' + kind.toUpperCase() + '…');
+      if      (kind === 'pdf')  await Exporter.exportPdf (App.bill, calc, fns);
+      else if (kind === 'png')  await Exporter.exportPng (App.bill, calc, fns);
+      else if (kind === 'html') await Exporter.exportHtml(App.bill, calc, fns);
+      // The native bridge shows its own toast ("Saved to Downloads/..."), so
+      // we skip a duplicate here. Browser fallback uses a normal download
+      // which is also visible.
+    } catch (e) {
+      alert('Save failed: ' + (e.message || e));
+    }
+  }
+
+  /** Share-button modal: pick a format, then hand it to Android's share sheet. */
+  function openShareFormatPicker() {
+    const m = openModal(`
+      <h3>Share bill split</h3>
+      <p class="muted" style="margin:0">Pick a format. Android's share menu will open so you can send to WhatsApp, Drive, Gmail, anywhere.</p>
+      <div class="share-grid">
+        <button class="share-opt" data-fmt="pdf">
+          <span class="share-ico">📄</span><span class="share-lbl">PDF</span>
+          <span class="share-sub">Full report</span>
+        </button>
+        <button class="share-opt" data-fmt="png">
+          <span class="share-ico">🖼️</span><span class="share-lbl">Image</span>
+          <span class="share-sub">PNG screenshot</span>
+        </button>
+        <button class="share-opt" data-fmt="html">
+          <span class="share-ico">🌐</span><span class="share-lbl">HTML</span>
+          <span class="share-sub">Opens in any browser</span>
+        </button>
+        <button class="share-opt" data-fmt="text">
+          <span class="share-ico">📝</span><span class="share-lbl">Text</span>
+          <span class="share-sub">Plain summary</span>
+        </button>
+      </div>
+      <div class="modal-actions"><button class="ghost" id="cancelShare">Cancel</button></div>`);
+    $('#cancelShare', m.box).addEventListener('click', m.close);
+    $$('.share-opt', m.box).forEach((b) =>
+      b.addEventListener('click', () => { m.close(); doShare(b.dataset.fmt); }));
+  }
+
+  async function doShare(kind) {
+    const calc = Calc.compute(App.bill);
+    const fns  = { renderMaster, renderPerPerson, renderQuickPay };
+    try {
+      if      (kind === 'pdf')  await Exporter.sharePdf (App.bill, calc, fns);
+      else if (kind === 'png')  await Exporter.sharePng (App.bill, calc, fns);
+      else if (kind === 'html') await Exporter.shareHtml(App.bill, calc, fns);
+      else if (kind === 'text') {
+        const r = await Exporter.shareText(App.bill, calc);
+        if (r === 'copied') toast('Summary copied to clipboard.');
+      }
+    } catch (e) {
+      alert('Share failed: ' + (e.message || e));
+    }
+  }
+
+  function renderResult() {
+    const calc = Calc.compute(App.bill);
+    const view = App.resultView;
+    if (view === 'master')   $('#resultView').innerHTML = renderMaster(App.bill, calc);
+    if (view === 'person')   $('#resultView').innerHTML = renderPerPerson(App.bill, calc);
+    if (view === 'quickpay') $('#resultView').innerHTML = renderQuickPay(App.bill, calc);
+  }
+
+  // ============== Renderers (also used by Exporter) ==============
+
+  function metaLine(b) {
+    const bits = [];
+    if (b.meta.billNo)    bits.push('Bill: ' + b.meta.billNo);
+    if (b.meta.billDate)  bits.push('Date: ' + b.meta.billDate);
+    if (b.meta.billTable) bits.push('Table: ' + b.meta.billTable);
+    if (b.meta.billHall)  bits.push(b.meta.billHall);
+    return bits.join('  |  ');
+  }
+
+  function renderMaster(b, calc, opts) {
+    const forExport = !!(opts && opts.forExport);
+    const people = b.people;
+    const npeople = people.length;
+    const groups = { food: [], liquor: [], other: [] };
+    b.items.forEach((it) => groups[it.section || 'food'].push(it));
+
+    const colsHeader = people.map((p, i) =>
+      `<th class="num h-${slotIndex(p.color, i)}" style="${forExport ? `color:${colorFor(p.color, i)}` : ''}">${esc(p.name || ('P' + (i + 1)))} (₹)</th>`
+    ).join('');
+
+    let html = '';
+    html += `<div class="ttl-band">${esc(b.meta.restName || 'BILL')}${b.meta.restSub ? ' — ' + esc(b.meta.restSub) : ''} &middot; Bill Split (${npeople} People)</div>`;
+    html += `<div class="sub-band"><span>${people.map((p) => esc(p.name || '?')).join(' | ')}</span><span>${esc(metaLine(b))}</span></div>`;
+    html += `<table><thead><tr>
+      <th>Item</th><th class="num">Rate</th><th class="num">Qty</th><th class="num">Total (₹)</th>
+      ${colsHeader}
+      <th>Split Rule</th>
+    </tr></thead><tbody>`;
+
+    function groupRows(title, list, klass) {
+      if (list.length === 0) return '';
+      let s = `<tr><td colspan="${4 + npeople + 1}" class="grp ${klass || ''}">${title}</td></tr>`;
+      list.forEach((it) => {
+        const shares = calc.itemShares[it.id] || {};
+        const tot    = calc.itemTotals[it.id] || 0;
+        s += `<tr>
+          <td>${esc(it.name)}</td>
+          <td class="num">${fmt(it.rate)}</td>
+          <td class="num">${it.qty}</td>
+          <td class="num">${fmt(tot)}</td>
+          ${people.map((p, i) => `<td class="num" style="${forExport ? `color:${colorFor(p.color, i)}` : ''}">${shares[p.id] ? fmt(shares[p.id]) : '-'}</td>`).join('')}
+          <td><i style="color:#6b7280">${esc(calc.itemRules[it.id] || '')}</i></td>
+        </tr>`;
+      });
+      return s;
+    }
+
+    html += groupRows('🍽 FOOD (Pre-tax)',    groups.food, 'food');
+    html += groupRows('🥃 LIQUOR (Pre-tax)',  groups.liquor, 'liquor');
+    html += groupRows('📋 OTHERS',            groups.other, 'other');
+
+    // Tax rows — one row per tax line on the bill
+    const tx = calc.taxByPerson;
+    (b.taxes || []).forEach((t) => {
+      const label = (t.name || 'Tax') + ' @ ' + (+t.rate || 0) + '% on ' + t.base;
+      html += `<tr class="tax-row">
+        <td colspan="3">${esc(label)}</td>
+        <td class="num">${fmt(calc.taxTotals[t.id] || 0)}</td>
+        ${people.map((p) => `<td class="num">${fmt(tx[p.id][t.id] || 0)}</td>`).join('')}
+        <td><i style="color:#6b7280">Proportional to ${t.base} share</i></td>
+      </tr>`;
+    });
+
+    // Grand total row
+    html += `<tr class="grand-row">
+      <td colspan="3">★ GRAND TOTAL (₹)</td>
+      <td class="num">${fmt(calc.grand.total)}</td>
+      ${people.map((p) => `<td class="num">${fmt(calc.grand.perPerson[p.id])}</td>`).join('')}
+      <td>Total: ₹${fmt(calc.grand.total)}</td>
+    </tr>`;
+
+    html += `</tbody></table>`;
+    html += `<div class="ftr">Note: Tax shares are proportional to each person's pre-tax section share. Minor rounding in individual shares is normal.</div>`;
+    const wrapped = `<div class="rpt">${html}</div>`;
+    // Append settlement panel if anyone fronted cash
+    return wrapped + renderSettlement(b, calc, forExport);
+  }
+
+  function renderPerPerson(b, calc, opts) {
+    const forExport = !!(opts && opts.forExport);
+    const people = b.people;
+    let html = '';
+    html += `<div class="rpt"><div class="ttl-band">BILL SPLIT — PER PERSON SUMMARY</div>`;
+    html += `<div class="sub-band"><span>${esc((b.meta.restName || '') + (b.meta.restSub ? ' · ' + b.meta.restSub : ''))}</span><span>${esc(metaLine(b))}</span></div></div>`;
+
+    people.forEach((p, i) => {
+      const idx = slotIndex(p.color, i);
+      const hex = colorFor(p.color, i);
+      const bgx = bgFor(p.color, i);
+
+      let rows = '';
+      let subtotalPre = 0;
+      b.items.forEach((it) => {
+        const share = (calc.itemShares[it.id] || {})[p.id] || 0;
+        if (share <= 0) return;
+        subtotalPre += share;
+        const ruleNote = noteForRule(b.allocations[it.id], it, p);
+        rows += `<tr>
+          <td>${esc(it.name)}</td>
+          <td class="num">${fmt(share)}</td>
+          <td><i style="color:#6b7280">${esc(ruleNote)}</i></td>
+        </tr>`;
+      });
+      const tx = calc.taxByPerson[p.id] || {};
+      (b.taxes || []).forEach((t) => {
+        const v = tx[t.id] || 0;
+        if (v > 0) {
+          const label = (t.name || 'Tax') + ' ' + (+t.rate || 0) + '%';
+          rows += `<tr><td>${esc(label)}</td><td class="num">${fmt(v)}</td><td><i style="color:#6b7280">on ${t.base}</i></td></tr>`;
+        }
+      });
+      const tot = calc.grand.perPerson[p.id] || 0;
+
+      const bandStyle = forExport ? `background:${hex}` : '';
+      const totStyle  = forExport ? `background:${bgx};color:${hex}` : '';
+
+      html += `<div class="rpt pcard-${idx}" style="margin-top:14px">
+        <div class="person-band pband-${idx}" style="${bandStyle}">👤 ${esc((p.name || 'Person').toUpperCase())}</div>
+        <table>
+          <thead><tr><th>Charge</th><th class="num">Amount (₹)</th><th>Notes</th></tr></thead>
+          <tbody>
+            ${rows || '<tr><td colspan="3" style="color:#94a3b8;text-align:center">No charges</td></tr>'}
+            <tr class="person-total"><td style="${totStyle}">TOTAL — ${esc(p.name || 'Person')}</td><td class="num" style="${totStyle}">${fmt(tot)}</td><td style="${totStyle}"></td></tr>
+          </tbody>
+        </table>
+      </div>`;
+    });
+
+    // Grand-total footer card
+    html += `<div class="rpt" style="margin-top:14px"><table><tr class="grand-row">
+      <td>★ GRAND TOTAL</td><td class="num">${fmt(calc.grand.total)}</td>
+    </tr></table></div>`;
+
+    // Settlement panel — only show when someone fronted cash
+    html += renderSettlement(b, calc, forExport);
+    return html;
+  }
+
+  /**
+   * Render the "Who pays whom" settlement section.
+   * Shows: each person's net, then a list of pairwise transfers.
+   *
+   * IMPORTANT: the columns here are about REIMBURSEMENT only. They include
+   * just the items that someone fronted (`paidBy` set). Items split Dutch
+   * at the counter are NOT in the settlement — those amounts each person
+   * already pays directly to the merchant.
+   */
+  function renderSettlement(b, calc, forExport) {
+    const anyPaid = Object.values(calc.paidByPerson || {}).some((v) => v > 0);
+    if (!anyPaid) return '';   // nothing to settle — group went Dutch
+
+    const people = b.people;
+    // Detect whether there are also Dutch items in the bill, so we can warn
+    // the user that the settlement covers ONLY the items someone fronted.
+    const hasDutchItems = (b.items || []).some((it) => !it.paidBy && Calc.itemTotal(it) > 0);
+
+    let rows = '';
+    rows += `<table style="margin:0">
+      <thead><tr>
+        <th>Person</th>
+        <th class="num">Share to repay (₹)</th>
+        <th class="num">Paid by them (₹)</th>
+        <th class="num">Net (₹)</th>
+      </tr></thead><tbody>`;
+    people.forEach((p) => {
+      // Settlement-relevant numbers only (paid-by items + their taxes).
+      const consumed = (calc.settlementConsumedPerPerson || {})[p.id] || 0;
+      const paid     = calc.paidByPerson[p.id]   || 0;
+      const net      = calc.netPerPerson[p.id]   || 0;
+      const netLabel = net >  0.005 ? `<span style="color:#b91c1c">owes ${fmt(net)}</span>`
+                     : net < -0.005 ? `<span style="color:#16a34a">+${fmt(-net)} to receive</span>`
+                                    : `<span style="color:#6b7280">settled</span>`;
+      rows += `<tr>
+        <td><b>${esc(p.name || '?')}</b></td>
+        <td class="num">${fmt(consumed)}</td>
+        <td class="num">${fmt(paid)}</td>
+        <td class="num">${netLabel}</td>
+      </tr>`;
+    });
+    rows += `</tbody></table>`;
+
+    let transfers = '';
+    if (!calc.settlement || calc.settlement.length === 0) {
+      transfers = `<div class="settle-empty">No transfers needed — everyone is settled.</div>`;
+    } else {
+      transfers = calc.settlement.map((t) =>
+        `<div class="settle-row">
+           <span class="from">${esc(t.from || '?')}</span>
+           <span class="arrow">→ pays →</span>
+           <span class="to">${esc(t.to || '?')}</span>
+           <span class="amt">${fmtINR(t.amount)}</span>
+         </div>`
+      ).join('');
+    }
+
+    const dutchNote = hasDutchItems
+      ? `<div class="sub-band" style="background:#fffbeb;color:#78350f;font-style:normal">
+           <b>Note:</b> Some items on this bill have no "Paid by" — those are assumed to be split at the counter directly, and are <i>not</i> included in the settlement below. The numbers here cover ONLY the reimbursement needed for items someone fronted.
+         </div>`
+      : '';
+
+    return `<div class="rpt" style="margin-top:14px">
+      <div class="ttl-band">💸 SETTLEMENT — Who pays whom</div>
+      <div class="sub-band">Per-person reimbursement. <b>Share to repay</b> = their portion of items someone fronted (incl. tax). <b>Paid by them</b> = how much they fronted. <b>Net</b> = transfer needed.</div>
+      ${dutchNote}
+      ${rows}
+    </div>
+    <div class="settle-card">${transfers}</div>`;
+  }
+
+  function noteForRule(alloc, it, p) {
+    if (!alloc) return 'Equal ÷ all';
+    if (alloc.rule === 'equal') {
+      const selected = Object.keys(alloc.values || {}).filter((k) => alloc.values[k]).length;
+      return 'Equal ÷ ' + selected;
+    }
+    if (alloc.rule === 'assigned') return 'Assigned';
+    if (alloc.rule === 'percent')  return 'Custom %';
+    if (alloc.rule === 'amount')   return 'Custom split';
+    if (alloc.rule === 'quantity') {
+      const q = +(alloc.values || {})[p.id] || 0;
+      const total = +it.qty || 0;
+      return 'Qty ' + q + ' of ' + total;
+    }
+    if (alloc.rule === 'mixed') {
+      const q = +(alloc.values  || {})[p.id] || 0;
+      const a = +(alloc.amounts || {})[p.id] || 0;
+      const bits = [];
+      if (a > 0) bits.push('₹' + a.toFixed(0) + ' fixed');
+      if (q > 0) bits.push('qty ' + q);
+      return bits.join(' + ') || '—';
+    }
+    return '';
+  }
+
+  function renderQuickPay(b, calc, opts) {
+    const forExport = !!(opts && opts.forExport);
+    const people = b.people;
+    const anyPaid = Object.values(calc.paidByPerson || {}).some((v) => v > 0);
+
+    let html = `<div class="rpt"><div class="ttl-band">💳 QUICK PAY CARD — ${esc(b.meta.restName || '')}</div>`;
+    html += `<div class="sub-band">${b.meta.billNo ? 'No: ' + esc(b.meta.billNo) : ''} ${b.meta.billTable ? '| Table ' + esc(b.meta.billTable) : ''} ${b.meta.billDate ? '| ' + esc(b.meta.billDate) : ''} | Grand Total: ${fmtINR(calc.grand.total)}</div>`;
+
+    if (!anyPaid) {
+      // Original simple display — group went Dutch
+      html += `<div class="qp">
+        <div class="qp-head"><div>Name</div><div>Amount to Pay (₹)</div><div>Rounded</div></div>`;
+      people.forEach((p, i) => {
+        const amt = calc.grand.perPerson[p.id] || 0;
+        const bgx = bgFor(p.color, i);
+        const hex = colorFor(p.color, i);
+        const rowStyle = forExport ? `background:${bgx};color:${hex}` : '';
+        html += `<div class="qp-row" style="${rowStyle}">
+          <div class="qp-name">${esc(p.name || ('P' + (i + 1)))}</div>
+          <div class="qp-amt">${fmt(amt)}</div>
+          <div class="qp-round">${Math.round(amt).toLocaleString('en-IN')}</div>
+        </div>`;
+      });
+      html += `<div class="qp-row qp-total">
+        <div class="qp-name">TOTAL</div>
+        <div class="qp-amt">${fmt(calc.grand.total)}</div>
+        <div class="qp-round">${Math.round(calc.grand.total).toLocaleString('en-IN')}</div>
+      </div>`;
+      html += `</div></div>`;
+      return html;
+    }
+
+    // Net display — someone fronted cash; show each person's net position
+    html += `<div class="qp">
+      <div class="qp-head"><div>Name</div><div>Net (₹)</div><div>Status</div></div>`;
+    people.forEach((p, i) => {
+      const net = calc.netPerPerson[p.id] || 0;
+      const bgx = bgFor(p.color, i);
+      const hex = colorFor(p.color, i);
+      const rowStyle = forExport ? `background:${bgx};color:${hex}` : '';
+      let status;
+      if      (net >  0.005) status = '<b style="color:#b91c1c">PAY</b>';
+      else if (net < -0.005) status = '<b style="color:#16a34a">RECEIVE</b>';
+      else                   status = '<span style="color:#6b7280">settled</span>';
+      html += `<div class="qp-row" style="${rowStyle}">
+        <div class="qp-name">${esc(p.name || ('P' + (i + 1)))}</div>
+        <div class="qp-amt">${fmt(Math.abs(net))}</div>
+        <div class="qp-round">${status}</div>
+      </div>`;
+    });
+    html += `</div></div>`;
+    // Transfer instructions
+    html += renderSettlement(b, calc, forExport);
+    return html;
+  }
+
+  // ============================================================
+  // Menu (API key, clear data)
+  // ============================================================
+  function openMenu() {
+    const settings = Store.loadSettings();
+    const monthSpent = Store.monthSpend();
+    const cap = +settings.monthlyBudgetInr || 0;
+    const usageEvents = Store.loadUsage();
+    const monthCount = (() => {
+      const now = new Date(), y = now.getFullYear(), m = now.getMonth();
+      return usageEvents.filter((e) => {
+        const d = new Date(e.ts);
+        return d.getFullYear() === y && d.getMonth() === m;
+      }).length;
+    })();
+    const m = openModal(`
+      <h3>Settings</h3>
+
+      <div class="usage-card">
+        <div class="usage-head">📊 Scan usage this month</div>
+        <div class="usage-row"><span>Scans</span><b>${monthCount}</b></div>
+        <div class="usage-row"><span>Total cost</span><b>₹${monthSpent.toFixed(2)}</b></div>
+        ${cap > 0
+          ? `<div class="usage-row"><span>Monthly cap</span><b>₹${cap.toFixed(2)}</b></div>
+             <div class="usage-bar"><span style="width:${Math.min(100, (monthSpent/cap)*100).toFixed(1)}%"></span></div>`
+          : `<p class="muted" style="margin:4px 0 0;font-size:11px">No cap set — set one below to block scans beyond a budget.</p>`}
+      </div>
+      <label class="field"><span>Monthly scan budget (₹, 0 = no cap)</span>
+        <input id="capInr" type="number" min="0" step="10" value="${cap}" />
+      </label>
+
+      <button class="primary" id="setKey">Set Anthropic API key</button>
+      <button class="ghost"   id="clrUsage">Reset usage history</button>
+      <button class="ghost"   id="clrCurrent">Discard current bill</button>
+      <button class="ghost"   id="clrAll" style="border-color:#dc2626;color:#dc2626">Clear all data</button>
+      <div class="modal-actions"><button class="ghost" id="closeMenu">Close</button></div>
+      <p class="muted" style="font-size:11px;margin:0">Bills are stored locally on this device. API key (if set) is used only to call Anthropic from your browser. Approx. ₹0.25–0.65 per scan with Haiku 4.5.</p>`);
+    $('#closeMenu', m.box).addEventListener('click', m.close);
+    $('#setKey', m.box).addEventListener('click', () => { m.close(); promptForApiKey(); });
+    $('#capInr', m.box).addEventListener('input', (e) => {
+      const v = +e.target.value || 0;
+      Store.saveSettings(Object.assign(settings, { monthlyBudgetInr: v }));
+    });
+    $('#clrUsage', m.box).addEventListener('click', () => {
+      if (confirm('Reset scan-usage history? (Bills are not affected.)')) {
+        Store.clearUsage(); m.close(); openMenu();
+      }
+    });
+    $('#clrCurrent', m.box).addEventListener('click', () => {
+      if (confirm('Discard the current bill (saved bills remain)?')) {
+        Store.saveCurrent(null); App.bill = null; m.close(); go('home');
+      }
+    });
+    $('#clrAll', m.box).addEventListener('click', () => {
+      if (confirm('Delete ALL bills and settings from this device?')) {
+        localStorage.clear(); App.bill = null; m.close(); go('home');
+      }
+    });
+  }
+
+  // ============================================================
+  // Boot
+  // ============================================================
+  window.addEventListener('DOMContentLoaded', () => {
+    $$('.navbtn').forEach((b) => b.addEventListener('click', () => go(b.dataset.screen)));
+    $('#backBtn').addEventListener('click', () => go('home'));
+    $('#menuBtn').addEventListener('click', openMenu);
+
+    App.bill = Store.loadCurrent();
+    go(App.bill ? 'home' : 'home');
+
+    // Register PWA service worker (optional; ignored when not served over https)
+    /* SW disabled in single-file build */
+  });
+})();
+
+</script>
+</body>
+</html>

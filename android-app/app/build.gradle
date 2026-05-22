@@ -1,0 +1,61 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.gordeswapnil.billsplitter'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.gordeswapnil.billsplitter"
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    signingConfigs {
+        release {
+            // The committed release.keystore signs every build with the same
+            // key — so each new APK installs over the previous one without
+            // forcing an uninstall.
+            //
+            // The password is hard-coded for personal-sideload convenience.
+            // If you later go to Play Store, rotate this keystore and move
+            // the password to a CI secret (set KEYSTORE_PASSWORD / KEY_PASSWORD
+            // env vars, and KEYSTORE_PATH to an injected file).
+            def ksFile    = System.getenv("KEYSTORE_PATH")     ?: project.findProperty("KEYSTORE_PATH")     ?: "../release.keystore"
+            def ksPw      = System.getenv("KEYSTORE_PASSWORD") ?: project.findProperty("KEYSTORE_PASSWORD") ?: "hisaab-personal-2026"
+            def aliasName = System.getenv("KEY_ALIAS")         ?: project.findProperty("KEY_ALIAS")         ?: "hisaab"
+            def keyPw     = System.getenv("KEY_PASSWORD")      ?: project.findProperty("KEY_PASSWORD")      ?: "hisaab-personal-2026"
+
+            storeFile     = file(ksFile)
+            storePassword = ksPw
+            keyAlias      = aliasName
+            keyPassword   = keyPw
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+            signingConfig signingConfigs.release
+        }
+        debug {
+            // Android Gradle Plugin signs debug builds with the auto-generated debug keystore.
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-debug"
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.11.0'
+    implementation 'androidx.core:core:1.13.1'   // FileProvider for share sheet
+}

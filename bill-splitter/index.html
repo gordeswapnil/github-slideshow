@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="theme-color" content="#d84315" />
+  <title>Bill Splitter</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+  <link rel="apple-touch-icon" href="icons/icon.svg" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- ============== APP SHELL ============== -->
+  <header class="appbar" id="appbar">
+    <button class="iconbtn" id="backBtn" aria-label="Back" hidden>&larr;</button>
+    <h1 class="appbar-title" id="appbarTitle">Bill Splitter</h1>
+    <button class="iconbtn" id="menuBtn" aria-label="Menu">&#9776;</button>
+  </header>
+
+  <main id="main"></main>
+
+  <nav class="bottomnav" id="bottomnav">
+    <button class="navbtn active" data-screen="home"><span class="navico">&#127968;</span><span>Bills</span></button>
+    <button class="navbtn" data-screen="bill"><span class="navico">&#128221;</span><span>Items</span></button>
+    <button class="navbtn" data-screen="people"><span class="navico">&#128101;</span><span>People</span></button>
+    <button class="navbtn" data-screen="allocate"><span class="navico">&#9878;&#65039;</span><span>Allocate</span></button>
+    <button class="navbtn" data-screen="result"><span class="navico">&#11088;</span><span>Result</span></button>
+  </nav>
+
+  <!-- ============== HIDDEN: SCREEN TEMPLATES ============== -->
+
+  <template id="tpl-home">
+    <section class="screen">
+      <div class="hero">
+        <h2>Welcome</h2>
+        <p>Split any restaurant or party bill across people &mdash; with item-level rules, proportional taxes and one-tap export.</p>
+      </div>
+      <div class="cta-row">
+        <button class="primary big" id="newBillBtn">+ New Bill</button>
+        <button class="ghost big" id="scanBillBtn">&#128247; Scan Bill</button>
+      </div>
+      <input type="file" id="scanInput" accept="image/*,application/pdf" hidden />
+      <h3 class="section-title">Saved Bills</h3>
+      <div id="savedList" class="saved-list"></div>
+    </section>
+  </template>
+
+  <template id="tpl-bill">
+    <section class="screen">
+      <h2>Bill Details</h2>
+      <div class="card">
+        <label class="field"><span>Restaurant name</span><input id="restName" placeholder="Shree Caterers" /></label>
+        <label class="field"><span>Sub-title / location</span><input id="restSub" placeholder="Ladies Club" /></label>
+        <div class="row2">
+          <label class="field"><span>Bill No.</span><input id="billNo" placeholder="2605160059" /></label>
+          <label class="field"><span>Date</span><input id="billDate" type="date" /></label>
+        </div>
+        <div class="row2">
+          <label class="field"><span>Table</span><input id="billTable" placeholder="G39" /></label>
+          <label class="field"><span>Hall / Time</span><input id="billHall" placeholder="Garden 9:42 PM" /></label>
+        </div>
+      </div>
+
+      <div class="card paid-by-card" id="billPaidByCard">
+        <label class="field">
+          <span>💸 Who paid this bill at the counter?</span>
+          <select id="billPaidBy">
+            <option value="">— Split at the counter (everyone pays Dutch) —</option>
+          </select>
+        </label>
+        <p class="muted" style="margin:0">If one person paid the whole bill, pick them here. Per-item overrides still work for post-bill items (ice cream etc.).</p>
+      </div>
+
+      <h3 class="section-title">Items</h3>
+      <div class="seg" id="sectionSeg">
+        <button class="seg-btn active" data-section="food">&#127869;&#65039; Food</button>
+        <button class="seg-btn" data-section="liquor">&#129346; Liquor</button>
+        <button class="seg-btn" data-section="other">&#128203; Others</button>
+      </div>
+      <div id="itemList" class="item-list"></div>
+      <button class="primary" id="addItemBtn">+ Add Item</button>
+
+      <h3 class="section-title">Taxes &amp; Charges</h3>
+      <div id="taxesList" class="taxes-list"></div>
+      <div class="tax-actions">
+        <button class="ghost" id="addTaxBtn">+ Add Tax / Charge</button>
+        <button class="ghost" id="addTipBtn">+ Service charge / Tip</button>
+      </div>
+
+      <div class="totals-card" id="totalsCard"></div>
+    </section>
+  </template>
+
+  <template id="tpl-people">
+    <section class="screen">
+      <h2>People</h2>
+      <p class="muted">Add everyone who'll be splitting the bill. Tap a color chip to change it.</p>
+      <div id="peopleList" class="people-list"></div>
+      <button class="primary" id="addPersonBtn">+ Add Person</button>
+    </section>
+  </template>
+
+  <template id="tpl-allocate">
+    <section class="screen">
+      <h2>Allocate</h2>
+      <p class="muted">For each item, choose how it's split.</p>
+      <div id="allocList" class="alloc-list"></div>
+      <div class="running" id="runningTotals"></div>
+    </section>
+  </template>
+
+  <template id="tpl-result">
+    <section class="screen">
+      <h2>Result</h2>
+      <div class="seg" id="resultSeg">
+        <button class="seg-btn active" data-view="master">Master</button>
+        <button class="seg-btn" data-view="person">Per Person</button>
+        <button class="seg-btn" data-view="quickpay">Quick Pay</button>
+      </div>
+      <div id="resultView" class="result-view"></div>
+      <div class="export-bar">
+        <button class="primary" id="exportPdf">&#128196; PDF</button>
+        <button class="primary" id="exportPng">&#128247; PNG</button>
+        <button class="primary" id="exportHtml">&#127760; HTML</button>
+        <button class="ghost" id="exportShare">&#128241; Share</button>
+      </div>
+    </section>
+  </template>
+
+  <!-- ============== HIDDEN: COMPONENTS ============== -->
+
+  <template id="tpl-item-row">
+    <div class="item-row" data-id="">
+      <input class="it-name" placeholder="Item name" />
+      <div class="item-row-grid">
+        <label><span>Rate</span><input class="it-rate" type="number" step="0.01" inputmode="decimal" /></label>
+        <label><span>Qty</span><input class="it-qty" type="number" step="1" inputmode="numeric" value="1" /></label>
+        <label><span>Amount</span><input class="it-amt" type="number" step="0.01" inputmode="decimal" /></label>
+      </div>
+      <div class="it-tags">
+        <button class="tag-btn" data-tag="any" aria-pressed="true">Any</button>
+        <button class="tag-btn" data-tag="veg" aria-pressed="false">Veg</button>
+        <button class="tag-btn" data-tag="nonveg" aria-pressed="false">Non-veg</button>
+      </div>
+      <label class="it-paidby">
+        <span>Paid by</span>
+        <select class="it-paidby-sel">
+          <option value="">— At the counter (settle together) —</option>
+        </select>
+      </label>
+      <button class="delbtn" aria-label="Delete">&times;</button>
+    </div>
+  </template>
+
+  <template id="tpl-tax-row">
+    <div class="tax-row" data-id="">
+      <input class="tax-name" placeholder="Tax / charge name" />
+      <input class="tax-rate" type="number" step="0.01" inputmode="decimal" placeholder="%" />
+      <select class="tax-base">
+        <option value="food">on Food</option>
+        <option value="liquor">on Liquor</option>
+        <option value="other">on Others</option>
+        <option value="all">on Whole bill</option>
+      </select>
+      <button class="delbtn" aria-label="Delete">&times;</button>
+    </div>
+  </template>
+
+  <template id="tpl-person-row">
+    <div class="person-row" data-id="">
+      <div class="person-main">
+        <button class="color-chip" aria-label="Color"></button>
+        <input class="pname" placeholder="Name" />
+        <button class="delbtn" aria-label="Delete">&times;</button>
+      </div>
+      <div class="person-prefs">
+        <div class="diet-pill" data-diet="both">
+          <button class="diet-opt" data-diet="veg">🥬 Veg only</button>
+          <button class="diet-opt active" data-diet="both">🍽 Both</button>
+          <button class="diet-opt" data-diet="nonveg">🍗 Non-veg only</button>
+        </div>
+        <button class="pref-btn pref-drink" data-pref="drink" aria-pressed="true">
+          <span class="pref-dot"></span><span class="pref-label">Drinks</span>
+        </button>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-alloc-card">
+    <div class="alloc-card" data-id="">
+      <div class="alloc-head">
+        <span class="alloc-name"></span>
+        <span class="alloc-amt"></span>
+      </div>
+      <select class="alloc-rule">
+        <option value="equal">Equal &divide; selected people</option>
+        <option value="assigned">Only one person (100%)</option>
+        <option value="quantity">By quantity (qty per person)</option>
+        <option value="amount">Custom amounts (&#8377;)</option>
+        <option value="mixed">Mixed: fixed &#8377; + qty share</option>
+        <option value="percent">Custom percentages</option>
+      </select>
+      <div class="alloc-hint"></div>
+      <div class="alloc-quick" hidden>
+        <button class="link-btn" data-act="all">Select all</button>
+        <button class="link-btn" data-act="none">Clear</button>
+        <button class="link-btn" data-act="suggest" hidden>Use preferences</button>
+        <button class="link-btn" data-act="auto-remainder" hidden>Split remaining equally</button>
+      </div>
+      <div class="alloc-people"></div>
+      <div class="alloc-status"></div>
+    </div>
+  </template>
+
+  <!-- ============== MODALS ============== -->
+  <div id="modalRoot"></div>
+
+  <!-- Bottom toast -->
+  <div id="toast" class="toast"></div>
+
+  <!-- Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs" type="module" defer></script>
+
+  <!-- App -->
+  <script src="js/store.js" defer></script>
+  <script src="js/calculator.js" defer></script>
+  <script src="js/ocr.js" defer></script>
+  <script src="js/exporter.js" defer></script>
+  <script src="js/app.js" defer></script>
+</body>
+</html>
