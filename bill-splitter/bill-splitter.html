@@ -191,6 +191,16 @@ button[disabled]{ opacity:.5; pointer-events:none; }
   background:#fff; font-size:13px;
 }
 
+/* Bill-level paid-by card */
+.paid-by-card{
+  background:#fff8f0; border-color:#fed7aa;
+}
+.paid-by-card .field > span{ color:#9a3412; font-weight:600; }
+.paid-by-card #billPaidBy{
+  padding:10px 12px; border:1px solid #fed7aa; border-radius:8px; font-size:15px;
+  background:#fff;
+}
+
 /* Settlement panel */
 .settle-card{
   background:#fff; border:1px solid var(--line); border-radius:var(--radius);
@@ -497,6 +507,16 @@ button[disabled]{ opacity:.5; pointer-events:none; }
         </div>
       </div>
 
+      <div class="card paid-by-card" id="billPaidByCard">
+        <label class="field">
+          <span>💸 Who paid this bill at the counter?</span>
+          <select id="billPaidBy">
+            <option value="">— Split at the counter (everyone pays Dutch) —</option>
+          </select>
+        </label>
+        <p class="muted" style="margin:0">If one person paid the whole bill, pick them here. Per-item overrides still work for post-bill items (ice cream etc.).</p>
+      </div>
+
       <h3 class="section-title">Items</h3>
       <div class="seg" id="sectionSeg">
         <button class="seg-btn active" data-section="food">&#127869;&#65039; Food</button>
@@ -692,6 +712,11 @@ button[disabled]{ opacity:.5; pointer-events:none; }
       taxes: [],
       // person: { id, name, color, prefs: { diet, isDrinker } }
       people: [],
+      // Bill-level payer (single person who paid the whole bill at the
+      // counter). If null, the bill is treated as Dutch at the counter.
+      // Per-item `paidBy` can override this for specific items (e.g. an
+      // ice-cream someone bought separately after the meal).
+      paidBy: null,
       // map: itemId -> { rule, values }
       allocations: {},
     };
@@ -1152,12 +1177,15 @@ button[disabled]{ opacity:.5; pointer-events:none; }
     const taxFactorFor = (section) => 1 + rateSumFor(section);
     const paidByPerson              = Object.fromEntries(people.map((p) => [p.id, 0]));
     const settlementConsumedPerPerson = Object.fromEntries(people.map((p) => [p.id, 0]));
+    // effective payer = item.paidBy (override) ?? bill.paidBy (bill-level)
+    const billPaidBy = bill.paidBy || null;
     items.forEach((it) => {
-      if (!it.paidBy) return;
+      const payer = it.paidBy || billPaidBy;
+      if (!payer) return;                          // Dutch item, skip
       const tf      = taxFactorFor(it.section);
       const gross   = itemTotal(it) * tf;
-      if (paidByPerson.hasOwnProperty(it.paidBy)) {
-        paidByPerson[it.paidBy] = round2(paidByPerson[it.paidBy] + gross);
+      if (paidByPerson.hasOwnProperty(payer)) {
+        paidByPerson[payer] = round2(paidByPerson[payer] + gross);
       }
       const shares = itemShares[it.id] || {};
       people.forEach((p) => {
@@ -2029,9 +2057,30 @@ CRITICAL RULES — item extraction
     });
     $('#addTipBtn').addEventListener('click', () => promptTip());
     renderScanWarnings();
+    renderBillPaidBy();
     renderItems();
     renderTaxes();
     refreshTotals();
+  }
+
+  function renderBillPaidBy() {
+    const sel = $('#billPaidBy'); if (!sel) return;
+    const b = App.bill;
+    sel.innerHTML = '<option value="">— Split at the counter (everyone pays Dutch) —</option>';
+    (b.people || []).forEach((p) => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name || '(unnamed)';
+      sel.appendChild(opt);
+    });
+    sel.value = b.paidBy || '';
+    // Keep handler attached (re-render is safe; we always re-add)
+    sel.onchange = () => {
+      b.paidBy = sel.value || null;
+      persist();
+      // Item per-row dropdowns inherit from this; re-render items section
+      renderItems();
+    };
   }
 
   function promptTip() {
@@ -2213,15 +2262,20 @@ CRITICAL RULES — item extraction
       });
     }
 
-    // "Paid by" selector — who fronted the cash. Empty = group settles
-    // at the counter (no reimbursement needed). Each person becomes an
-    // option. Re-rendered whenever people change.
+    // Per-item "Paid by" — used as an OVERRIDE only. By default an item
+    // inherits the bill-level payer (set on the Bill Details screen).
+    // Most users will leave this on "Inherits from bill"; override only
+    // for the rare post-bill ice-cream-bought-separately case.
     const paidSel = $('.it-paidby-sel', node);
-    paidSel.innerHTML = '<option value="">— At the counter (settle together) —</option>';
+    const billPayer = App.bill.people.find((p) => p.id === App.bill.paidBy);
+    const inheritLabel = billPayer
+      ? '— Inherits from bill: ' + (billPayer.name || 'unnamed') + ' —'
+      : '— Inherits from bill (currently Dutch) —';
+    paidSel.innerHTML = '<option value="">' + esc(inheritLabel) + '</option>';
     App.bill.people.forEach((p) => {
       const opt = document.createElement('option');
       opt.value = p.id;
-      opt.textContent = p.name || '(unnamed)';
+      opt.textContent = 'Override: ' + (p.name || 'unnamed');
       paidSel.appendChild(opt);
     });
     paidSel.value = it.paidBy || '';

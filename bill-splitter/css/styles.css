@@ -181,6 +181,16 @@ button[disabled]{ opacity:.5; pointer-events:none; }
   background:#fff; font-size:13px;
 }
 
+/* Bill-level paid-by card */
+.paid-by-card{
+  background:#fff8f0; border-color:#fed7aa;
+}
+.paid-by-card .field > span{ color:#9a3412; font-weight:600; }
+.paid-by-card #billPaidBy{
+  padding:10px 12px; border:1px solid #fed7aa; border-radius:8px; font-size:15px;
+  background:#fff;
+}
+
 /* Settlement panel */
 .settle-card{
   background:#fff; border:1px solid var(--line); border-radius:var(--radius);

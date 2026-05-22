@@ -46,34 +46,25 @@ jobs:
           cp bill-splitter.html ../android-app/app/src/main/assets/bill-splitter.html
           ls -la ../android-app/app/src/main/assets/
 
-      - name: Generate release keystore
+      - name: Resolve signing keystore
         working-directory: android-app
         run: |
-          # If repo secrets KEYSTORE_BASE64 / KEYSTORE_PASSWORD / KEY_PASSWORD exist,
-          # use them — this keeps the signing key consistent across builds so the
-          # app can be upgraded. Otherwise generate a fresh keystore for this run
-          # only, save it as an artifact, and warn the user.
+          # Prefer a CI secret (rotated keystore) if set. Otherwise use the
+          # committed release.keystore — same signature across every build,
+          # so APKs install over each other without forcing uninstall.
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            echo "Using keystore from secrets"
-            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
+            echo "Using keystore from KEYSTORE_BASE64 secret"
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore-from-secret.jks
+            echo "KEYSTORE_PATH=$(pwd)/keystore-from-secret.jks" >> $GITHUB_ENV
             echo "KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
             echo "KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}"           >> $GITHUB_ENV
           else
-            echo "::warning::No KEYSTORE_BASE64 secret set — generating a one-off keystore for this build. Save the keystore.jks artifact if you want to update the app later."
-            PW=$(openssl rand -hex 24)
-            keytool -genkeypair -v \
-              -keystore keystore.jks \
-              -alias hisaab \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -storepass "$PW" -keypass "$PW" \
-              -dname "CN=Hisaab Bill Splitter, OU=Personal, O=gordeswapnil, L=N/A, S=N/A, C=IN"
-            echo "KEYSTORE_PASSWORD=$PW" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=$PW"      >> $GITHUB_ENV
-            # Save the password alongside the keystore artifact so the user can use it later
-            echo "$PW" > keystore-password.txt
+            echo "Using committed release.keystore (personal-sideload mode)"
+            echo "KEYSTORE_PATH=$(pwd)/release.keystore"      >> $GITHUB_ENV
+            echo "KEYSTORE_PASSWORD=hisaab-personal-2026"     >> $GITHUB_ENV
+            echo "KEY_PASSWORD=hisaab-personal-2026"          >> $GITHUB_ENV
           fi
-          echo "KEYSTORE_PATH=$(pwd)/keystore.jks" >> $GITHUB_ENV
-          echo "KEY_ALIAS=hisaab"                  >> $GITHUB_ENV
+          echo "KEY_ALIAS=hisaab" >> $GITHUB_ENV
 
       - name: Build debug APK
         working-directory: android-app
@@ -93,10 +84,7 @@ jobs:
           cp android-app/app/build/outputs/apk/debug/app-debug.apk             out/Hisaab-debug.apk
           cp android-app/app/build/outputs/apk/release/app-release.apk         out/Hisaab-release.apk
           cp android-app/app/build/outputs/bundle/release/app-release.aab      out/Hisaab-release.aab
-          cp android-app/keystore.jks                                          out/keystore.jks       || true
-          cp android-app/keystore-password.txt                                 out/keystore-password.txt || true
           ls -la out/
-          # Show APK info
           echo "--- APK details ---"
           $ANDROID_HOME/build-tools/*/aapt dump badging out/Hisaab-release.apk 2>/dev/null | head -20 || true
 
@@ -116,12 +104,3 @@ jobs:
           path: out/Hisaab-release.aab
           if-no-files-found: error
 
-      - name: Upload keystore (SAVE THIS — needed for app updates)
-        uses: actions/upload-artifact@v4
-        with:
-          name: Hisaab-keystore-PRIVATE
-          path: |
-            out/keystore.jks
-            out/keystore-password.txt
-          if-no-files-found: warn
-          retention-days: 90

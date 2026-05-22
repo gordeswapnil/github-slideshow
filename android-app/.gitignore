@@ -2,9 +2,12 @@
 build/
 local.properties
 *.jks
-*.keystore
 .idea/
 *.iml
 captures/
 .externalNativeBuild
 .cxx
+# release.keystore is intentionally committed so every CI build signs with
+# the same key (so the APK installs over the previous version without
+# requiring an uninstall). It is personal-use only.
+!release.keystore

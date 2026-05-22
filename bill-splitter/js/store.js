@@ -40,6 +40,11 @@
       taxes: [],
       // person: { id, name, color, prefs: { diet, isDrinker } }
       people: [],
+      // Bill-level payer (single person who paid the whole bill at the
+      // counter). If null, the bill is treated as Dutch at the counter.
+      // Per-item `paidBy` can override this for specific items (e.g. an
+      // ice-cream someone bought separately after the meal).
+      paidBy: null,
       // map: itemId -> { rule, values }
       allocations: {},
     };

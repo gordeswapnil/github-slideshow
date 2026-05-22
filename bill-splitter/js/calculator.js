@@ -355,12 +355,15 @@
     const taxFactorFor = (section) => 1 + rateSumFor(section);
     const paidByPerson              = Object.fromEntries(people.map((p) => [p.id, 0]));
     const settlementConsumedPerPerson = Object.fromEntries(people.map((p) => [p.id, 0]));
+    // effective payer = item.paidBy (override) ?? bill.paidBy (bill-level)
+    const billPaidBy = bill.paidBy || null;
     items.forEach((it) => {
-      if (!it.paidBy) return;
+      const payer = it.paidBy || billPaidBy;
+      if (!payer) return;                          // Dutch item, skip
       const tf      = taxFactorFor(it.section);
       const gross   = itemTotal(it) * tf;
-      if (paidByPerson.hasOwnProperty(it.paidBy)) {
-        paidByPerson[it.paidBy] = round2(paidByPerson[it.paidBy] + gross);
+      if (paidByPerson.hasOwnProperty(payer)) {
+        paidByPerson[payer] = round2(paidByPerson[payer] + gross);
       }
       const shares = itemShares[it.id] || {};
       people.forEach((p) => {

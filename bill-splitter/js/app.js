@@ -269,9 +269,30 @@
     });
     $('#addTipBtn').addEventListener('click', () => promptTip());
     renderScanWarnings();
+    renderBillPaidBy();
     renderItems();
     renderTaxes();
     refreshTotals();
+  }
+
+  function renderBillPaidBy() {
+    const sel = $('#billPaidBy'); if (!sel) return;
+    const b = App.bill;
+    sel.innerHTML = '<option value="">— Split at the counter (everyone pays Dutch) —</option>';
+    (b.people || []).forEach((p) => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name || '(unnamed)';
+      sel.appendChild(opt);
+    });
+    sel.value = b.paidBy || '';
+    // Keep handler attached (re-render is safe; we always re-add)
+    sel.onchange = () => {
+      b.paidBy = sel.value || null;
+      persist();
+      // Item per-row dropdowns inherit from this; re-render items section
+      renderItems();
+    };
   }
 
   function promptTip() {
@@ -453,15 +474,20 @@
       });
     }
 
-    // "Paid by" selector — who fronted the cash. Empty = group settles
-    // at the counter (no reimbursement needed). Each person becomes an
-    // option. Re-rendered whenever people change.
+    // Per-item "Paid by" — used as an OVERRIDE only. By default an item
+    // inherits the bill-level payer (set on the Bill Details screen).
+    // Most users will leave this on "Inherits from bill"; override only
+    // for the rare post-bill ice-cream-bought-separately case.
     const paidSel = $('.it-paidby-sel', node);
-    paidSel.innerHTML = '<option value="">— At the counter (settle together) —</option>';
+    const billPayer = App.bill.people.find((p) => p.id === App.bill.paidBy);
+    const inheritLabel = billPayer
+      ? '— Inherits from bill: ' + (billPayer.name || 'unnamed') + ' —'
+      : '— Inherits from bill (currently Dutch) —';
+    paidSel.innerHTML = '<option value="">' + esc(inheritLabel) + '</option>';
     App.bill.people.forEach((p) => {
       const opt = document.createElement('option');
       opt.value = p.id;
-      opt.textContent = p.name || '(unnamed)';
+      opt.textContent = 'Override: ' + (p.name || 'unnamed');
       paidSel.appendChild(opt);
     });
     paidSel.value = it.paidBy || '';
