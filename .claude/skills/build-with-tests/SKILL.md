@@ -1,62 +1,37 @@
 ---
 name: build-with-tests
-description: >-
-  Conventions for building a change and proving it works in this repository.
-  Use whenever you implement or verify a feature here (the backend-builder,
-  frontend-builder, and test-verifier agents all follow this skill). Covers how
-  to install dependencies, build the site, run the verification checks, and add
-  new checks so every change is proven before it is reported as done.
+description: Use this skill when implementing a feature or extending one. Captures how this project builds a feature: read the rules and the brief, match existing patterns, write production code and unit tests together in small steps, then run typecheck, lint, and the test suite at the end. Triggers when asked to build, implement, or extend a feature.
 ---
 
-# build-with-tests
+Process:
 
-This is a Jekyll site (the `github-pages` gem). It has no unit-test framework
-such as RSpec or Jest. Verification here means: the site builds cleanly and the
-generated HTML passes `html-proofer`. Treat that build-and-proof step as the
-test suite, and follow the same red/green discipline you would with unit tests.
+1. Read CLAUDE.md so you know the project rules and stack.
+2. Read the technical brief so you stay inside its scope.
+3. Look at 2-3 similar features in the codebase. Note their file
+   layout, naming, and test style.
+4. Implement the feature in the smallest coherent steps you can.
+   For each step:
+   - Write the production code.
+   - Write a unit test that covers the new behaviour.
+   - Run the test and confirm it passes.
+5. When the feature is complete, run the full typecheck, lint,
+   and test commands from CLAUDE.md.
+6. Return a short summary: files changed, patterns reused, any
+   rule you would suggest adding to CLAUDE.md.
 
-## Commands
+Conventions used in this project:
 
-- Install dependencies: `script/setup` (runs `bundle install`).
-- Run locally: `script/server` (serves the site for manual checking).
-- Verify (the test command): `script/cibuild`. This runs:
-  - `bundle exec jekyll build --baseurl "."`
-  - `htmlproofer _site/index.html --empty-alt-ignore`
+- File names follow the existing folder structure.
+- Tests live next to the code they cover (or in tests/ if that
+  is the existing pattern).
+- Use builders from test/builders/ for any entity setup.
+- Cover success, validation failure, and one edge case per
+  behaviour.
 
-`script/cibuild` is the single source of truth for "does this pass." When an
-agent definition says "run the tests," run `script/cibuild`.
+Rules:
 
-## Workflow for any change
-
-1. Read CLAUDE.md and the technical brief before editing.
-2. Make the smallest change that satisfies one acceptance criterion.
-3. Run `script/cibuild`. It must exit 0 with no proofer errors.
-4. Repeat per criterion until the brief is fully covered.
-5. Report what changed and paste the relevant `script/cibuild` result.
-
-## Red/green discipline
-
-- Before you trust a check, make sure it can fail. If you add a check (for
-  example a new page that must contain a link, or an image that must have alt
-  text), confirm `script/cibuild` flags the missing/broken case first, then make
-  it pass.
-- Never report a change as done without a clean `script/cibuild` run.
-
-## Conventions
-
-- Content lives in `_posts/`, `_layouts/`, `_includes/`, and `index.html`.
-- Site config is `_config.yml`. Respect existing front matter and layout names.
-- Match `.editorconfig` for indentation and whitespace.
-- Every `<img>` must have meaningful `alt` text (proofer enforces this; only
-  genuinely decorative images may be empty, which `--empty-alt-ignore` permits).
-- Internal links must resolve in the built `_site`; do not introduce broken
-  links or references to files that do not exist.
-
-## Scope rules for builder agents
-
-- backend-builder edits site generation / data / config concerns and never
-  touches presentation-only frontend files outside its brief scope.
-- frontend-builder edits layouts, includes, styles, and pages and never touches
-  backend/config concerns outside its brief scope.
-- If the brief did not anticipate a file you need to touch, flag it rather than
-  silently expanding scope.
+- Do not refactor unrelated code.
+- Do not change files outside the agreed scope.
+- Do not add new dependencies without explicit instruction.
+- If you cannot make the tests pass without violating a rule,
+  stop and report the conflict.
