@@ -49,20 +49,23 @@
       }
       .company .name { font-size: 1.35rem; font-weight: 800; }
       .company .pill { font-size: 0.72rem; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0.15rem 0.6rem; }
-      section.group { margin-bottom: 1.6rem; }
-      section.group > h2 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin: 0 0 0.5rem; }
+      .chk { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--text); padding: 0.55rem 0; cursor: pointer; }
+      .chk input { width: auto; }
+      section.group { margin-bottom: 1.1rem; }
+      section.group > h2 { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin: 0 0 0.35rem; }
       .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
-      table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
-      th, td { padding: 0.5rem 0.7rem; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
-      thead th { background: var(--panel); color: var(--muted); font-weight: 600; position: sticky; top: 0; }
-      tbody tr:hover { background: rgba(76, 196, 255, 0.06); }
-      th.metric, td.metric { text-align: left; position: sticky; left: 0; background: var(--panel); font-weight: 600; min-width: 210px; }
+      table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+      th, td { padding: 0.34rem 0.7rem; text-align: right; white-space: nowrap; }
+      thead th { background: var(--panel); color: var(--muted); font-weight: 600; position: sticky; top: 0; border-bottom: 1px solid var(--line); }
+      tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.018); }
+      tbody tr:hover { background: rgba(76, 196, 255, 0.08); }
+      th.metric, td.metric { text-align: left; position: sticky; left: 0; background: var(--panel); font-weight: 500; min-width: 175px; }
+      tbody tr:nth-child(even) td.metric { background: #131f37; }
       th.tag, td.tagcol { text-align: left; min-width: 230px; }
       tbody tr:hover td.metric { background: var(--panel2); }
       td .val { font-variant-numeric: tabular-nums; }
-      td .tag { display: block; font-size: 0.68rem; color: var(--muted); margin-top: 0.1rem; cursor: help; border-bottom: 1px dotted transparent; }
-      td .tag:hover { border-bottom-color: var(--muted); }
       td.derived .val::after { content: " ∗"; color: var(--warn); }
+      td .tag, td.tagcol .tag { display: block; font-size: 0.68rem; color: var(--muted); margin-top: 0.05rem; }
       .na { color: #56688a; }
       .allctrl { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.6rem; }
       .allctrl input { width: 280px; }
@@ -113,6 +116,10 @@
           <label>&nbsp;</label>
           <button id="demoBtn" class="ghost" type="button">Load sample data</button>
         </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <label class="chk"><input type="checkbox" id="showTags" /> Show source tags</label>
+        </div>
       </div>
 
       <div id="status" class="status"></div>
@@ -139,7 +146,8 @@
         </section>
 
         <p class="legend">
-          Hover the tag under any value to see its unit, accession number and filed date.
+          Hover any value to see its source US-GAAP tag, unit, accession number and filed date — or
+          tick <em>Show source tags</em> above to display them inline.
           <strong>∗</strong> marks a derived value (e.g. total liabilities computed from current +
           non-current). <span class="na">—</span> means the company did not report that tag for the
           period. Empty rows are hidden automatically.
@@ -268,8 +276,8 @@
               const tip = audit
                 ? `tag: ${audit.tag}\nunit: ${audit.unit}\nfiscal year: ${audit.fiscalYear}\nfiled: ${audit.filed}\naccession: ${audit.accessionNumber}\nform: ${audit.form}\nexact value: ${raw}`
                 : `exact value: ${raw}`;
-              return `<td class="${derived}"><span class="val">${esc(text)}</span>` +
-                (audit ? `<span class="tag" title="${esc(tip)}">${esc(audit.tag)}</span>` : '') + `</td>`;
+              return `<td class="${derived}" title="${esc(tip)}"><span class="val">${esc(text)}</span>` +
+                (showTags && audit ? `<span class="tag">${esc(audit.tag)}</span>` : '') + `</td>`;
             }).join('');
             return `<tr><td class="metric">${esc(label)}</td>${cells}</tr>`;
           }).join('');
@@ -281,6 +289,7 @@
         document.getElementById('sections').innerHTML = filingsHtml + groupsHtml;
         document.getElementById('raw').textContent = JSON.stringify(data, null, 2);
         document.getElementById('result').classList.remove('hidden');
+        lastData = data;
         resetAllFacts();
       }
 
@@ -359,6 +368,8 @@
       const demoBtn = document.getElementById('demoBtn');
       let isDemo = true;
       let currentTicker = 'NFLX';
+      let showTags = false;
+      let lastData = null;
 
       const setStatus = (msg, kind) => { statusEl.className = 'status' + (kind ? ' ' + kind : ''); statusEl.textContent = msg || ''; };
       const showBanner = (msg) => { if (!msg) { bannerEl.classList.add('hidden'); return; } bannerEl.textContent = msg; bannerEl.classList.remove('hidden'); };
@@ -479,6 +490,10 @@
       demoBtn.addEventListener('click', loadDemo);
       document.getElementById('allFactsBtn').addEventListener('click', loadAllFacts);
       document.getElementById('allSearch').addEventListener('input', (e) => renderAllFacts(e.target.value));
+      document.getElementById('showTags').addEventListener('change', (e) => {
+        showTags = e.target.checked;
+        if (lastData) render(lastData);
+      });
       document.getElementById('ticker').addEventListener('keydown', (e) => { if (e.key === 'Enter') fetchLive(); });
 
       loadDemo(); // show the formatted sample immediately on load
