@@ -276,6 +276,7 @@
         }
         const sign = v < 0 ? '-' : '';
         const a = Math.abs(v);
+        if (a >= 1e12) return sign + '$' + (a / 1e12).toFixed(2) + 'T';
         if (a >= 1e9) return sign + '$' + (a / 1e9).toFixed(2) + 'B';
         if (a >= 1e6) return sign + '$' + (a / 1e6).toFixed(1) + 'M';
         if (a >= 1e3) return sign + '$' + (a / 1e3).toFixed(0) + 'K';
@@ -802,6 +803,7 @@
           kpi('Tax rate', pctStr(r.taxRate)),
           kpi('Equity weight', pctStr(r.we)),
           kpi('Debt weight', pctStr(r.wd)),
+          kpi('Equity (market cap)', moneyStr(isFinite(mc) ? mc : null)),
           kpi('Total debt (book)', moneyStr(r.totalDebt)),
         ].join('');
         const notes = ['Cost of debt, tax rate and book debt are SEC-derived; β and market cap come from the market-data provider or your input; risk-free defaults to the US Treasury 10-yr (override above).'];
@@ -832,9 +834,10 @@
             const tax = b.taxRateUsed != null ? (b.taxRateUsed * 100).toFixed(0) + '%' : 'n/a';
             note += `β = ${b.industry} industry asset β ${b.unleveredBeta} re-levered to ${rel} (D/E ${de} ${b.deRatioBasis || ''}, tax ${tax}; ${b.vintage}). `;
           }
-          note += data.meta.marketDataConfigured
-            ? `Market cap from ${data.meta.marketDataSource}.`
-            : 'Market cap unavailable (no ALPHAVANTAGE_API_KEY) — enter it manually for the equity weight.';
+          const mc = data.inputs.marketValueOfEquity;
+          note += mc != null
+            ? `Market cap (equity) = ${fmtByUnit('USD', mc)} via ${data.meta.marketCapSource || 'provided'}. Market value of equity is normally far larger than book equity.`
+            : 'Market cap unavailable — enter it manually for the equity weight.';
           document.getElementById('waccNote').textContent = note;
         } catch (err) {
           document.getElementById('waccNote').textContent = 'Fetch error: ' + err.message;
