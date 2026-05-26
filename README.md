@@ -162,10 +162,14 @@ point `DAMODARAN_DATA_PATH` at the official downloaded data for production. The
 response's `beta` field shows the matched industry, unlevered/relevered values,
 D/E and vintage.
 
-**Market cap** still needs a price source: get a **free** Alpha Vantage key at
-<https://www.alphavantage.co/support/#api-key> and set `ALPHAVANTAGE_API_KEY`.
-Without it, the equity weight falls back to book equity for D/E — pass
-`?marketCap=` for the real market weight.
+**Market cap** needs a price. If `ALPHAVANTAGE_API_KEY` is set it comes from
+there; otherwise it's derived **free, no key** as latest Stooq close × SEC shares
+outstanding. Beta is then re-levered with **market** D/E (book equity would
+inflate it). Override anytime with `?marketCap=`.
+
+The Cash Flow statement is presented in the three **AS 3 / IAS 7 indirect-method
+activities** (Operating, Investing, Financing) with each net-cash subtotal, plus
+a reconciliation (FX + net change in cash).
 
 Every input is overridable via query params so students can apply their own
 assumptions: `?beta=&rf=&erp=&marketCap=&costOfDebt=&taxRate=&totalDebt=`

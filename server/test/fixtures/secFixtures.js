@@ -152,6 +152,11 @@ const companyfacts = {
       },
       // GrossProfit intentionally absent -> field stays null.
     },
+    dei: {
+      EntityCommonStockSharesOutstanding: {
+        units: { shares: [{ end: '2025-01-15', val: 430000000, fy: 2024, fp: 'FY', form: '10-K' }] },
+      },
+    },
   },
 };
 

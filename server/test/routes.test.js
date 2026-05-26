@@ -30,6 +30,7 @@ function makeApp() {
     treasury: {
       getRiskFreeRate: async () => ({ riskFreeRate: 0.043, source: 'default', year: 2026 }),
     },
+    priceData: { getClose: async () => 250, source: 'stub' },
   });
   return createApp({ service });
 }
@@ -118,16 +119,17 @@ describe('GET /api/sec/wacc', () => {
     expect(r.body.complete).toBe(true);
   });
 
-  test('supplies an industry beta even when market data is unconfigured', async () => {
+  test('uses industry beta and a free (price x shares) market cap without a key', async () => {
     const app = makeApp();
     const r = await request(app).get('/api/sec/wacc?ticker=NFLX');
     expect(r.status).toBe(200);
     expect(r.body.meta.marketDataConfigured).toBe(false);
-    // Beta now comes from the Damodaran industry beta, so it is NOT missing.
-    expect(r.body.missing).toContain('marketCap');
+    // Beta from Damodaran industry beta; market cap derived from 250 x 430M shares.
     expect(r.body.missing).not.toContain('beta');
+    expect(r.body.missing).not.toContain('marketCap');
     expect(r.body.beta.industry).toBe('Entertainment'); // SIC 7841
-    expect(r.body.inputs.beta).toBeGreaterThan(0);
+    expect(r.body.beta.deRatioBasis).toMatch(/market/);
+    expect(r.body.inputs.marketValueOfEquity).toBe(250 * 430000000);
   });
 });
 

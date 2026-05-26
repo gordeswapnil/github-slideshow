@@ -9,6 +9,7 @@ const { computeWacc, effectiveTaxRate } = require('./wacc');
 const { extractSegments } = require('./segments');
 const { getIndustryBeta } = require('./damodaran');
 const { extractBusinessSection } = require('./filingText');
+const { createPriceProvider } = require('./priceData');
 const TAG_MAP = require('./tagMap');
 const { badRequest, notFound } = require('./errors');
 
@@ -37,9 +38,20 @@ function normalizeTicker(ticker) {
   return t;
 }
 
-function createSecService({ client, marketData, treasury } = {}) {
+// Latest cover-page shares outstanding from SEC dei data (for market cap).
+function sharesOutstanding(facts) {
+  const dei = facts && facts.facts && facts.facts.dei;
+  const node = dei && dei.EntityCommonStockSharesOutstanding;
+  const arr = node && node.units && node.units.shares;
+  if (!Array.isArray(arr) || !arr.length) return null;
+  const latest = [...arr].sort((a, b) => Date.parse(b.end || 0) - Date.parse(a.end || 0))[0];
+  return latest && Number.isFinite(latest.val) ? latest.val : null;
+}
+
+function createSecService({ client, marketData, treasury, priceData } = {}) {
   const market = marketData || createMarketDataProvider({ client });
   const treasuryProvider = treasury || createTreasuryProvider({ client });
+  const price = priceData || createPriceProvider({ client });
 
   // Ticker -> { ticker, cik (padded), cikNumber, title }
   async function resolveTicker(rawTicker) {
@@ -144,18 +156,37 @@ function createSecService({ client, marketData, treasury } = {}) {
     } catch (err) {
       marketError = err.message;
     }
+
+    // Market cap: from the keyed provider if available, else derive it free
+    // (Stooq latest close × SEC shares outstanding).
+    let marketCap = overview.marketCap;
+    let marketCapSource = overview.marketCap != null ? overview.source : null;
+    if (marketCap == null) {
+      try {
+        const close = await price.getClose(resolved.ticker);
+        const shares = sharesOutstanding(facts);
+        if (close != null && shares != null) {
+          marketCap = close * shares;
+          marketCapSource = `${price.source}(close ${close}) × SEC(shares ${shares})`;
+        }
+      } catch (_) {
+        /* market cap stays null; user can pass ?marketCap= */
+      }
+    }
+
     const rf = await treasuryProvider.getRiskFreeRate();
 
     const totalDebt = (period.shortTermDebt || 0) + (period.longTermDebt || 0) || null;
     const taxRate = effectiveTaxRate(period);
-    const equityForLever = overview.marketCap != null ? overview.marketCap : period.stockholdersEquity;
+    // Re-lever with MARKET D/E when market cap is known (book equity inflates beta).
+    const equityForLever = marketCap != null ? marketCap : period.stockholdersEquity;
     const de = totalDebt != null && equityForLever ? totalDebt / equityForLever : null;
     const betaInfo = getIndustryBeta({ sic: submissions.sic, de, taxRate });
 
     const result = computeWacc({
       period,
       beta: betaInfo.releveredBeta,
-      marketCap: overview.marketCap,
+      marketCap,
       riskFreeRate: rf.riskFreeRate,
       equityRiskPremium: config.equityRiskPremiumDefault,
       overrides,
@@ -170,20 +201,21 @@ function createSecService({ client, marketData, treasury } = {}) {
         ...betaInfo,
         industryName: submissions.sicDescription || null,
         sic: submissions.sic || null,
-        deRatioBasis: overview.marketCap != null ? 'market (market cap)' : 'book (equity)',
+        deRatioBasis: marketCap != null ? 'market (market cap)' : 'book (equity)',
         providerBeta: overview.beta,
       },
       meta: {
         marketDataConfigured: market.configured,
-        marketDataSource: overview.source,
+        marketCapSource: marketCapSource || 'unavailable',
         marketDataError: marketError,
         riskFreeRateSource: rf.source,
         equityRiskPremiumDefault: config.equityRiskPremiumDefault,
         betaNote:
           'Beta is an industry (Damodaran) asset beta re-levered with this company. Override with ?beta=.',
-        marketCapNote: market.configured
-          ? undefined
-          : 'No market-data API key (ALPHAVANTAGE_API_KEY): market cap is null, so equity weight needs ?marketCap= (or it falls back to book equity for D/E).',
+        marketCapNote:
+          marketCap == null
+            ? 'Could not determine market cap (no API key and no free price) — pass ?marketCap= for the equity weight.'
+            : undefined,
       },
     };
   }

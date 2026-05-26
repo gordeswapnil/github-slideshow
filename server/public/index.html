@@ -65,6 +65,8 @@
       tbody tr:hover td.metric { background: var(--panel2); }
       td .val { font-variant-numeric: tabular-nums; }
       td.derived .val::after { content: " ∗"; color: var(--warn); }
+      tr.cf-sub td { font-weight: 700; border-top: 1px solid var(--line); background: rgba(76, 196, 255, 0.05); }
+      tr.cf-sub td.metric { background: #16243f; }
       td .tag, td.tagcol .tag { display: block; font-size: 0.68rem; color: var(--muted); margin-top: 0.05rem; }
       .na { color: #56688a; }
       .allctrl { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.6rem; }
@@ -282,6 +284,57 @@
       const esc = (s) =>
         String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+      const FIELD_BY_KEY = Object.fromEntries(FIELD_DEFS.map((f) => [f[0], f]));
+
+      function cellHtml(p, key) {
+        const def = FIELD_BY_KEY[key];
+        const unit = def ? def[3] : 'USD';
+        const raw = p[key];
+        const audit = p.rawTagsUsed ? p.rawTagsUsed[key] : null;
+        const text = fmtByUnit(unit, raw);
+        if (text === null) return `<td><span class="val na">—</span></td>`;
+        const derived = audit && audit.derived ? ' derived' : '';
+        const tip = audit
+          ? `tag: ${audit.tag}\nunit: ${audit.unit}\nfiscal year: ${audit.fiscalYear}\nfiled: ${audit.filed}\naccession: ${audit.accessionNumber}\nform: ${audit.form}\nexact value: ${raw}`
+          : `exact value: ${raw}`;
+        return `<td class="${derived}" title="${esc(tip)}"><span class="val">${esc(text)}</span>` +
+          (showTags && audit ? `<span class="tag">${esc(audit.tag)}</span>` : '') + `</td>`;
+      }
+
+      // Cash flow grouped into the three AS 3 / IAS 7 activities (indirect method).
+      const CF_GROUPS = [
+        { title: 'Cash Flow — Operating Activities (Indirect)',
+          lead: [['netIncome', 'Net income (starting point)']],
+          rows: [['depreciationAmortization'], ['amortizationOfIntangibles'], ['stockBasedCompensation'],
+            ['deferredIncomeTaxes'], ['otherNoncashItems'], ['changeInWorkingCapital'],
+            ['operatingCashFlow', 'Net cash from operating activities', true]] },
+        { title: 'Cash Flow — Investing Activities',
+          rows: [['capitalExpenditure'], ['acquisitions'], ['investingCashFlow', 'Net cash from investing activities', true]] },
+        { title: 'Cash Flow — Financing Activities',
+          rows: [['debtIssued'], ['debtRepaid'], ['stockRepurchased'], ['stockIssued'], ['dividendsPaid'],
+            ['financingCashFlow', 'Net cash from financing activities', true]] },
+        { title: 'Cash Flow — Reconciliation',
+          rows: [['effectOfExchangeRate'], ['netChangeInCash', 'Net change in cash', true]] },
+      ];
+      function renderCashFlow(periods, yearHeads) {
+        return CF_GROUPS.map((g) => {
+          const out = [];
+          (g.lead || []).forEach(([key, label]) => {
+            if (periods.some((p) => p[key] != null)) {
+              out.push(`<tr><td class="metric">${esc(label)}</td>${periods.map((p) => cellHtml(p, key)).join('')}</tr>`);
+            }
+          });
+          g.rows.forEach(([key, label, sub]) => {
+            if (!sub && !periods.some((p) => p[key] != null)) return;
+            const lbl = label || (FIELD_BY_KEY[key] ? FIELD_BY_KEY[key][1] : key);
+            out.push(`<tr class="${sub ? 'cf-sub' : ''}"><td class="metric">${esc(lbl)}</td>${periods.map((p) => cellHtml(p, key)).join('')}</tr>`);
+          });
+          if (!out.length) return '';
+          return `<section class="group"><h2>${esc(g.title)}</h2><div class="scroll"><table>` +
+            `<thead><tr><th class="metric">Line item</th>${yearHeads}</tr></thead><tbody>${out.join('')}</tbody></table></div></section>`;
+        }).join('');
+      }
+
       // ---- curated model rendering -----------------------------------------
       function render(data) {
         const periods = data.periods || [];
@@ -303,24 +356,12 @@
           periods.map((p) => `<td class="na">${esc(p.accessionNumber || '—')}</td>`).join('') + `</tr>` +
           `</tbody></table></div></section>`;
 
-        const groupsHtml = GROUP_ORDER.map((g) => {
+        // Income statement, per-share and balance sheet render as flat tables.
+        const groupsHtml = ['inc', 'ps', 'bs'].map((g) => {
           const fields = FIELD_DEFS.filter((f) => f[2] === g);
-          const rows = fields.map(([key, label, , unit]) => {
-            const hasAny = periods.some((p) => p[key] !== null && p[key] !== undefined);
-            if (!hasAny) return ''; // hide empty rows
-            const cells = periods.map((p) => {
-              const raw = p[key];
-              const audit = p.rawTagsUsed ? p.rawTagsUsed[key] : null;
-              const text = fmtByUnit(unit, raw);
-              if (text === null) return `<td><span class="val na">—</span></td>`;
-              const derived = audit && audit.derived ? ' derived' : '';
-              const tip = audit
-                ? `tag: ${audit.tag}\nunit: ${audit.unit}\nfiscal year: ${audit.fiscalYear}\nfiled: ${audit.filed}\naccession: ${audit.accessionNumber}\nform: ${audit.form}\nexact value: ${raw}`
-                : `exact value: ${raw}`;
-              return `<td class="${derived}" title="${esc(tip)}"><span class="val">${esc(text)}</span>` +
-                (showTags && audit ? `<span class="tag">${esc(audit.tag)}</span>` : '') + `</td>`;
-            }).join('');
-            return `<tr><td class="metric">${esc(label)}</td>${cells}</tr>`;
+          const rows = fields.map(([key, label]) => {
+            if (!periods.some((p) => p[key] !== null && p[key] !== undefined)) return '';
+            return `<tr><td class="metric">${esc(label)}</td>${periods.map((p) => cellHtml(p, key)).join('')}</tr>`;
           }).join('');
           if (!rows) return '';
           return `<section class="group"><h2>${esc(GROUP_TITLES[g])}</h2><div class="scroll"><table>` +
@@ -330,7 +371,8 @@
         const warnHtml = (data.warnings || [])
           .map((w) => `<div class="banner">⚠ ${esc(w)}</div>`)
           .join('');
-        document.getElementById('sections').innerHTML = warnHtml + filingsHtml + groupsHtml;
+        document.getElementById('sections').innerHTML =
+          warnHtml + filingsHtml + groupsHtml + renderCashFlow(periods, yearHeads);
         renderRatios(periods);
         initWacc(periods[0]);
         document.getElementById('raw').textContent = JSON.stringify(data, null, 2);

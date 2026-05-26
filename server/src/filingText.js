@@ -3,27 +3,60 @@
 // the Business section out by its item headers. Heuristic by nature — always
 // link back to the source filing.
 
-function htmlToText(html) {
-  if (!html || typeof html !== 'string') return '';
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;|&#160;|&#xa0;/gi, ' ')
+function codePoint(n) {
+  try {
+    return String.fromCodePoint(n);
+  } catch (_) {
+    return ' ';
+  }
+}
+
+// Decode numeric (&#174; &#x2122;) and common named HTML entities.
+function decodeEntities(s) {
+  return s
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => codePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => codePoint(parseInt(d, 10)))
+    .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
-    .replace(/&#8217;|&#x2019;|&rsquo;/gi, "'")
-    .replace(/&#8216;|&lsquo;/gi, "'")
-    .replace(/&#8220;|&#8221;|&ldquo;|&rdquo;/gi, '"')
-    .replace(/&#8212;|&mdash;/gi, '—')
-    .replace(/&[a-z]+;/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+    .replace(/&quot;/gi, '"')
+    .replace(/&rsquo;|&lsquo;/gi, "'")
+    .replace(/&ldquo;|&rdquo;/gi, '"')
+    .replace(/&mdash;|&ndash;/gi, '—')
+    .replace(/&[a-zA-Z]+;/g, ' ');
+}
+
+function htmlToText(html) {
+  if (!html || typeof html !== 'string') return '';
+  let t = html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ');
+  t = decodeEntities(t);
+  return t.replace(/\s+/g, ' ').trim();
+}
+
+// Common Item 1 sub-headings; we insert a paragraph break before them so the
+// extracted prose isn't a single wall of text.
+const SUBHEADINGS = [
+  'Company Background', 'Products', 'Services', 'Segments', 'Markets and Distribution',
+  'Competition', 'Supply of Components', 'Research and Development', 'Intellectual Property',
+  'Patents', 'Business Seasonality', 'Human Capital', 'Employees', 'Government Regulation',
+  'Environmental', 'Available Information', 'Seasonality',
+];
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+function addParagraphBreaks(text) {
+  let out = text;
+  for (const h of SUBHEADINGS) {
+    out = out.replace(new RegExp('\\.\\s+(' + escapeRe(h) + ')\\s', 'g'), '.\n\n$1 ');
+  }
+  return out;
 }
 
 // Returns { excerpt, length, truncated } or null if the section isn't found.
-function extractBusinessSection(html, { maxChars = 4000 } = {}) {
+function extractBusinessSection(html, { maxChars = 6000 } = {}) {
   const text = htmlToText(html);
   if (!text) return null;
 
@@ -42,7 +75,7 @@ function extractBusinessSection(html, { maxChars = 4000 } = {}) {
   const endMatch = endRe.exec(text);
   const end = endMatch ? endMatch.index : Math.min(text.length, start + maxChars * 3);
 
-  let section = text.slice(start, end).trim();
+  let section = addParagraphBreaks(text.slice(start, end).trim());
   if (!section) return null;
 
   const length = section.length;
@@ -54,4 +87,4 @@ function extractBusinessSection(html, { maxChars = 4000 } = {}) {
   return { excerpt: section, length, truncated };
 }
 
-module.exports = { extractBusinessSection, htmlToText };
+module.exports = { extractBusinessSection, htmlToText, decodeEntities };
