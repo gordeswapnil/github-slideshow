@@ -39,6 +39,13 @@ function createRouter({ service }) {
   );
 
   router.get(
+    '/business',
+    asyncHandler(async (req, res) => {
+      res.json(await service.getBusinessSummary(req.query.ticker));
+    })
+  );
+
+  router.get(
     '/ratios',
     asyncHandler(async (req, res) => {
       res.json(await service.getRatios(req.query.ticker, { years: req.query.years }));

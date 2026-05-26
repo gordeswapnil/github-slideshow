@@ -73,5 +73,11 @@ module.exports = `<?xml version="1.0" encoding="UTF-8"?>
 <p>Product x geography intersection - must be excluded (multi-axis):
   <ix:nonFraction name="us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax"
     contextRef="cProdGeo2024" unitRef="usd" scale="3" decimals="-3">12000000</ix:nonFraction></p>
+
+<h2>Item 1. Business</h2>
+<p>SampleCo is a synthetic streaming entertainment company used for tests. We operate
+globally and earn subscription revenue across multiple regions.</p>
+<h2>Item 1A. Risk Factors</h2>
+<p>Our business is subject to numerous risks described in this section.</p>
 </body>
 </html>`;

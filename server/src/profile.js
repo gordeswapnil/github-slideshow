@@ -28,6 +28,10 @@ function buildSnapshot(periods) {
 
   const totalDebt =
     (latest.shortTermDebt || 0) + (latest.longTermDebt || 0) || null;
+  const freeCashFlow =
+    latest.operatingCashFlow != null && latest.capitalExpenditure != null
+      ? latest.operatingCashFlow - latest.capitalExpenditure
+      : null;
 
   return {
     fiscalYear: latest.fiscalYear,
@@ -37,6 +41,8 @@ function buildSnapshot(periods) {
     operatingMargin: pct(latest.operatingIncome, latest.revenue),
     netMargin: pct(latest.netIncome, latest.revenue),
     netIncome: latest.netIncome,
+    operatingCashFlow: latest.operatingCashFlow,
+    freeCashFlow,
     totalAssets: latest.totalAssets,
     totalLiabilities: latest.totalLiabilities,
     stockholdersEquity: latest.stockholdersEquity,

@@ -79,6 +79,7 @@ Copy `server/.env.example` to `server/.env` and set your email before deploying.
 | `GET /api/sec/model-data?ticker=NFLX` | Normalized annual 10-K modelling data (curated ~50 line items) |
 | `GET /api/sec/model-data?ticker=NFLX&years=5` | Latest 5 annual 10-K periods |
 | `GET /api/sec/profile?ticker=NFLX` | Case-study profile: industry, HQ, filings + financial snapshot |
+| `GET /api/sec/business?ticker=NFLX` | "Item 1 — Business" narrative extracted from the latest 10-K |
 | `GET /api/sec/ratios?ticker=NFLX` | Working-capital, liquidity, leverage & return ratios per year |
 | `GET /api/sec/wacc?ticker=NFLX` | Cost of capital (see WACC section below) |
 | `GET /api/sec/segments?ticker=NFLX` | Revenue by segment / geography / product (parsed from the 10-K) |
@@ -149,13 +150,22 @@ a market-data provider; the rest is SEC/Treasury/assumption:
 | Tax rate (`Tc`) | SEC — income tax ÷ pre-tax income (clamped 0–50%) |
 | Book debt (`D`) | SEC — short-term + long-term debt |
 | Risk-free rate (`R_f`) | **US Treasury** 10-yr par yield (free, no key) |
-| Beta (`β`) | Market-data provider (default **Alpha Vantage** `OVERVIEW`) |
-| Market value of equity (`E`) | Market-data provider (market cap) |
+| Beta (`β`) | **Damodaran industry** asset beta, re-levered with this company's D/E + tax |
+| Market value of equity (`E`) | Market-data provider (market cap, e.g. Alpha Vantage) |
 | Equity risk premium (`ERP`) | Assumption (default 5.5%, overridable) |
 
-Get a **free** Alpha Vantage key at <https://www.alphavantage.co/support/#api-key>
-and set `ALPHAVANTAGE_API_KEY` in `server/.env`. Without a key, `/wacc` still
-works but returns beta/market-cap empty — supply them yourself.
+**Beta** is no longer a single-stock API regression. We map the company's SIC to
+an industry, take that industry's **unlevered (asset) beta** (à la Aswath
+Damodaran's free NYU Stern dataset), then re-lever it:
+`β_L = β_U · (1 + (1 − Tc)·D/E)`. The built-in table is an approximate seed —
+point `DAMODARAN_DATA_PATH` at the official downloaded data for production. The
+response's `beta` field shows the matched industry, unlevered/relevered values,
+D/E and vintage.
+
+**Market cap** still needs a price source: get a **free** Alpha Vantage key at
+<https://www.alphavantage.co/support/#api-key> and set `ALPHAVANTAGE_API_KEY`.
+Without it, the equity weight falls back to book equity for D/E — pass
+`?marketCap=` for the real market weight.
 
 Every input is overridable via query params so students can apply their own
 assumptions: `?beta=&rf=&erp=&marketCap=&costOfDebt=&taxRate=&totalDebt=`

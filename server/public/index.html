@@ -444,6 +444,7 @@
           setStatus('Loaded ' + ticker + ' — live SEC data.');
           render(data);
           fetchProfile(base, ticker, data.periods);
+          fetchWaccInputs();
         } catch (err) {
           setStatus('Error: ' + err.message + ' — is the backend running at ' + base + '?', 'error');
         } finally {
@@ -458,6 +459,7 @@
         const d = buildDemo();
         render(d);
         renderProfile(DEMO_PROFILE, d.periods);
+        renderBusiness(DEMO_BUSINESS);
         renderSegments(DEMO_SEGMENTS);
       }
 
@@ -546,17 +548,26 @@
       const pctStr = (v, dp = 1) => (v == null ? '—' : (v * 100).toFixed(dp) + '%');
       const kpi = (label, num, cls = '') => `<div class="kpi ${cls}"><div class="label">${esc(label)}</div><div class="num ${cls}">${num}</div></div>`;
 
+      const xRatio = (v) => (v == null ? '—' : v.toFixed(2) + '×');
       function snapshotClient(periods) {
         if (!periods || !periods.length) return null;
         const L = periods[0], P = periods[1] || null;
         const div = (a, b) => (a == null || b == null || b === 0 ? null : a / b);
+        const totalDebt = (L.shortTermDebt || 0) + (L.longTermDebt || 0) || null;
         return {
           fiscalYear: L.fiscalYear, revenue: L.revenue,
           revenueGrowth: P ? div((L.revenue || 0) - (P.revenue || 0), P.revenue) : null,
           grossMargin: div(L.grossProfit, L.revenue), operatingMargin: div(L.operatingIncome, L.revenue),
-          netMargin: div(L.netIncome, L.revenue), returnOnEquity: div(L.netIncome, L.stockholdersEquity),
+          netMargin: div(L.netIncome, L.revenue),
+          returnOnEquity: div(L.netIncome, L.stockholdersEquity), returnOnAssets: div(L.netIncome, L.totalAssets),
+          currentRatio: div(L.currentAssets, L.currentLiabilities), debtToEquity: div(totalDebt, L.stockholdersEquity),
+          freeCashFlow: L.operatingCashFlow != null && L.capitalExpenditure != null ? L.operatingCashFlow - L.capitalExpenditure : null,
         };
       }
+      const DEMO_BUSINESS = {
+        sourceDocument: '(sample data)',
+        business: { excerpt: 'Item 1. Business — Netflix is one of the world\'s leading entertainment services, offering TV series, films and games across a wide variety of genres and languages to paying members in over 190 countries. (Sample text for layout preview; load live data for the real 10-K business description.)', truncated: false },
+      };
       function renderProfile(meta, periods) {
         const s = snapshotClient(periods);
         const f = (l, v) => (v ? `<span class="f">${esc(l)}: <b>${esc(v)}</b></span>` : '');
@@ -577,12 +588,34 @@
             kpi('Operating margin', pctStr(s.operatingMargin)) +
             kpi('Net margin', pctStr(s.netMargin)) +
             kpi('Return on equity', pctStr(s.returnOnEquity)) +
+            kpi('Return on assets', pctStr(s.returnOnAssets)) +
+            kpi('Current ratio', xRatio(s.currentRatio)) +
+            kpi('Debt / Equity', xRatio(s.debtToEquity)) +
+            kpi('Free cash flow', moneyStr(s.freeCashFlow)) +
             `</div>`;
         }
         document.getElementById('profile').innerHTML =
           `<div class="card"><h3>Company profile</h3>` +
           `<div class="facts">${facts}</div>` +
-          (meta.narrative ? `<p class="narrative">${esc(meta.narrative)}</p>` : '') + snap + `</div>`;
+          (meta.narrative ? `<p class="narrative">${esc(meta.narrative)}</p>` : '') + snap +
+          `<div id="bizBox"></div></div>`;
+      }
+      function renderBusiness(data) {
+        const box = document.getElementById('bizBox');
+        if (!box) return;
+        if (!data || !data.business || !data.business.excerpt) { box.innerHTML = ''; return; }
+        const src = data.sourceDocument && data.sourceDocument.startsWith('http')
+          ? ` · <a href="${esc(data.sourceDocument)}" target="_blank" rel="noopener" style="color:var(--accent)">source 10-K</a>` : '';
+        box.innerHTML = `<details style="margin-top:0.7rem"><summary style="cursor:pointer;color:var(--accent);font-weight:600">Business overview (10-K, Item 1)${src}</summary>` +
+          `<p class="narrative" style="white-space:pre-wrap">${esc(data.business.excerpt)}</p></details>`;
+      }
+      async function fetchBusiness(base, ticker) {
+        try {
+          const res = await fetch(base + '/api/sec/business?ticker=' + encodeURIComponent(ticker));
+          const data = await res.json();
+          if (!res.ok) return;
+          renderBusiness(data);
+        } catch (_) { /* leave empty */ }
       }
       async function fetchProfile(base, ticker, periods) {
         try {
@@ -593,6 +626,7 @@
             industry: data.industry, exchanges: data.exchanges, stateOfIncorporation: data.stateOfIncorporation,
             fiscalYearEnd: data.fiscalYearEnd, headquarters: data.headquarters, narrative: data.narrative,
           }, periods);
+          fetchBusiness(base, ticker);
         } catch (_) {
           document.getElementById('profile').innerHTML = '';
         }
@@ -696,7 +730,7 @@
             waccField('wRf', 'Risk-free %', waccState.rf, '4.3') +
             waccField('wErp', 'Equity risk premium %', waccState.erp, '5.5') +
             waccField('wMc', 'Market cap ($)', waccState.marketCap, 'e.g. 350000000000') +
-            `<div class="field"><label>&nbsp;</label><button id="waccFetch" class="ghost" type="button">Fetch β & market cap</button></div>` +
+            `<div class="field"><label>&nbsp;</label><button id="waccFetch" class="ghost" type="button">Fetch industry β, market cap & risk-free</button></div>` +
           `</div><div id="waccOut" class="wacc-out"></div><p class="muted" id="waccNote"></p></div></section>`;
         ['wBeta', 'wRf', 'wErp', 'wMc'].forEach((id) =>
           document.getElementById(id).addEventListener('input', recomputeWacc));
@@ -744,14 +778,22 @@
           const res = await fetch(apiBase() + '/api/sec/wacc?ticker=' + encodeURIComponent(currentTicker));
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
-          if (data.inputs.beta != null) document.getElementById('wBeta').value = data.inputs.beta;
+          if (data.inputs.beta != null) document.getElementById('wBeta').value = Number(data.inputs.beta).toFixed(2);
           if (data.inputs.marketValueOfEquity != null) document.getElementById('wMc').value = data.inputs.marketValueOfEquity;
           if (data.inputs.riskFreeRate != null) document.getElementById('wRf').value = (data.inputs.riskFreeRate * 100).toFixed(2);
           recomputeWacc();
-          if (!data.meta.marketDataConfigured) {
-            document.getElementById('waccNote').textContent =
-              'Backend has no market-data API key (ALPHAVANTAGE_API_KEY), so β and market cap came back empty — enter them manually or set a key and retry.';
+          const b = data.beta || {};
+          let note = '';
+          if (b.industry) {
+            const rel = b.releveredBeta != null ? b.releveredBeta.toFixed(2) : '—';
+            const de = b.deRatioUsed != null ? b.deRatioUsed.toFixed(2) : 'n/a';
+            const tax = b.taxRateUsed != null ? (b.taxRateUsed * 100).toFixed(0) + '%' : 'n/a';
+            note += `β = ${b.industry} industry asset β ${b.unleveredBeta} re-levered to ${rel} (D/E ${de} ${b.deRatioBasis || ''}, tax ${tax}; ${b.vintage}). `;
           }
+          note += data.meta.marketDataConfigured
+            ? `Market cap from ${data.meta.marketDataSource}.`
+            : 'Market cap unavailable (no ALPHAVANTAGE_API_KEY) — enter it manually for the equity weight.';
+          document.getElementById('waccNote').textContent = note;
         } catch (err) {
           document.getElementById('waccNote').textContent = 'Fetch error: ' + err.message;
         } finally {

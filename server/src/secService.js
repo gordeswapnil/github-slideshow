@@ -5,8 +5,10 @@ const { buildProfile } = require('./profile');
 const { computeRatios } = require('./ratios');
 const { createMarketDataProvider } = require('./marketData');
 const { createTreasuryProvider } = require('./treasury');
-const { computeWacc } = require('./wacc');
+const { computeWacc, effectiveTaxRate } = require('./wacc');
 const { extractSegments } = require('./segments');
+const { getIndustryBeta } = require('./damodaran');
+const { extractBusinessSection } = require('./filingText');
 const TAG_MAP = require('./tagMap');
 const { badRequest, notFound } = require('./errors');
 
@@ -124,13 +126,17 @@ function createSecService({ client, marketData, treasury } = {}) {
   // GET /api/sec/wacc (cost of capital; market inputs from the configured provider)
   async function getWacc(rawTicker, overrides = {}) {
     const resolved = await resolveTicker(rawTicker);
-    const facts = await client.getJson(companyFactsUrl(resolved.cik));
+    const [facts, submissions] = await Promise.all([
+      client.getJson(companyFactsUrl(resolved.cik)),
+      client.getJson(submissionsUrl(resolved.cik)),
+    ]);
     const modelData = normalizeCompanyFacts(facts, { years: 2 });
     const period = modelData.periods[0];
     if (!period) throw notFound(`No annual 10-K data to compute WACC for "${resolved.ticker}".`);
 
-    // Market data (beta, market cap) and risk-free rate may fail or be
-    // unconfigured; WACC still returns with whatever is available + overrides.
+    // Market cap (for the equity weight) is sourced from the market-data
+    // provider; it may be unconfigured/fail. Beta comes from a Damodaran
+    // INDUSTRY beta re-levered with the company's own D/E + tax rate.
     let overview = { configured: market.configured, beta: null, marketCap: null, source: 'none' };
     let marketError = null;
     try {
@@ -140,9 +146,15 @@ function createSecService({ client, marketData, treasury } = {}) {
     }
     const rf = await treasuryProvider.getRiskFreeRate();
 
+    const totalDebt = (period.shortTermDebt || 0) + (period.longTermDebt || 0) || null;
+    const taxRate = effectiveTaxRate(period);
+    const equityForLever = overview.marketCap != null ? overview.marketCap : period.stockholdersEquity;
+    const de = totalDebt != null && equityForLever ? totalDebt / equityForLever : null;
+    const betaInfo = getIndustryBeta({ sic: submissions.sic, de, taxRate });
+
     const result = computeWacc({
       period,
-      beta: overview.beta,
+      beta: betaInfo.releveredBeta,
       marketCap: overview.marketCap,
       riskFreeRate: rf.riskFreeRate,
       equityRiskPremium: config.equityRiskPremiumDefault,
@@ -154,16 +166,54 @@ function createSecService({ client, marketData, treasury } = {}) {
       cik: resolved.cik,
       companyName: modelData.companyName || resolved.title,
       ...result,
+      beta: {
+        ...betaInfo,
+        industryName: submissions.sicDescription || null,
+        sic: submissions.sic || null,
+        deRatioBasis: overview.marketCap != null ? 'market (market cap)' : 'book (equity)',
+        providerBeta: overview.beta,
+      },
       meta: {
         marketDataConfigured: market.configured,
         marketDataSource: overview.source,
         marketDataError: marketError,
         riskFreeRateSource: rf.source,
         equityRiskPremiumDefault: config.equityRiskPremiumDefault,
-        note: market.configured
+        betaNote:
+          'Beta is an industry (Damodaran) asset beta re-levered with this company. Override with ?beta=.',
+        marketCapNote: market.configured
           ? undefined
-          : 'No market-data API key set (ALPHAVANTAGE_API_KEY). Beta and market cap are null — pass them as query params (?beta=&marketCap=) or set a key.',
+          : 'No market-data API key (ALPHAVANTAGE_API_KEY): market cap is null, so equity weight needs ?marketCap= (or it falls back to book equity for D/E).',
       },
+    };
+  }
+
+  // GET /api/sec/business (Item 1 "Business" narrative from the latest 10-K)
+  async function getBusinessSummary(rawTicker) {
+    const resolved = await resolveTicker(rawTicker);
+    const submissions = await client.getJson(submissionsUrl(resolved.cik));
+    const recent = submissions.filings && submissions.filings.recent;
+    if (!recent || !Array.isArray(recent.form)) {
+      throw notFound(`No filing history found for "${resolved.ticker}".`);
+    }
+    const idx = recent.form.findIndex((f) => f === '10-K');
+    if (idx === -1) throw notFound(`No 10-K filing found for "${resolved.ticker}".`);
+
+    const accession = recent.accessionNumber[idx];
+    const primaryDoc = recent.primaryDocument[idx];
+    if (!primaryDoc) throw notFound('Latest 10-K has no primary document to parse.');
+    const accnNoDash = String(accession).replace(/-/g, '');
+    const sourceDocument = `https://www.sec.gov/Archives/edgar/data/${resolved.cikNumber}/${accnNoDash}/${primaryDoc}`;
+    const html = await client.getText(sourceDocument);
+    const business = extractBusinessSection(html);
+
+    return {
+      ticker: resolved.ticker,
+      cik: resolved.cik,
+      accessionNumber: accession,
+      sourceDocument,
+      business: business || null,
+      note: business ? undefined : 'Could not locate the Item 1 (Business) section in the latest 10-K.',
     };
   }
 
@@ -241,6 +291,7 @@ function createSecService({ client, marketData, treasury } = {}) {
     getCompanyFacts,
     getModelData,
     getProfile,
+    getBusinessSummary,
     getRatios,
     getWacc,
     getSegments,

@@ -118,12 +118,26 @@ describe('GET /api/sec/wacc', () => {
     expect(r.body.complete).toBe(true);
   });
 
-  test('still returns (incomplete) when market data is unconfigured', async () => {
+  test('supplies an industry beta even when market data is unconfigured', async () => {
     const app = makeApp();
     const r = await request(app).get('/api/sec/wacc?ticker=NFLX');
     expect(r.status).toBe(200);
     expect(r.body.meta.marketDataConfigured).toBe(false);
-    expect(r.body.missing).toEqual(expect.arrayContaining(['beta', 'marketCap']));
+    // Beta now comes from the Damodaran industry beta, so it is NOT missing.
+    expect(r.body.missing).toContain('marketCap');
+    expect(r.body.missing).not.toContain('beta');
+    expect(r.body.beta.industry).toBe('Entertainment'); // SIC 7841
+    expect(r.body.inputs.beta).toBeGreaterThan(0);
+  });
+});
+
+describe('GET /api/sec/business', () => {
+  test('extracts the Item 1 Business narrative from the latest 10-K', async () => {
+    const app = makeApp();
+    const r = await request(app).get('/api/sec/business?ticker=NFLX');
+    expect(r.status).toBe(200);
+    expect(r.body.sourceDocument).toContain('/Archives/edgar/data/1065280/');
+    expect(r.body.business.excerpt).toMatch(/SampleCo is a synthetic streaming/);
   });
 });
 
