@@ -222,12 +222,17 @@
         ['propertyPlantEquipmentNet', 'PP&E, Net', 'bs', 'USD'],
         ['goodwill', 'Goodwill', 'bs', 'USD'],
         ['intangibleAssets', 'Intangible Assets', 'bs', 'USD'],
+        ['otherNoncurrentAssets', 'Other Non-Current Assets', 'bs', 'USD'],
         ['totalAssets', 'Total Assets', 'bs', 'USD'],
         ['accountsPayable', 'Accounts Payable', 'bs', 'USD'],
+        ['accruedLiabilities', 'Accrued Liabilities', 'bs', 'USD'],
+        ['otherCurrentLiabilities', 'Other Current Liabilities', 'bs', 'USD'],
         ['shortTermDebt', 'Short-Term / Current Debt', 'bs', 'USD'],
         ['deferredRevenueCurrent', 'Deferred Revenue (Current)', 'bs', 'USD'],
         ['currentLiabilities', 'Total Current Liabilities', 'bs', 'USD'],
         ['longTermDebt', 'Long-Term Debt', 'bs', 'USD'],
+        ['otherNoncurrentLiabilities', 'Other Non-Current Liabilities', 'bs', 'USD'],
+        ['deferredTaxLiabilities', 'Deferred Tax Liabilities', 'bs', 'USD'],
         ['totalLiabilities', 'Total Liabilities', 'bs', 'USD'],
         ['commonStockValue', 'Common Stock', 'bs', 'USD'],
         ['additionalPaidInCapital', 'Additional Paid-In Capital', 'bs', 'USD'],
@@ -236,7 +241,11 @@
         ['accumulatedOCI', 'Accumulated OCI', 'bs', 'USD'],
         ['stockholdersEquity', "Stockholders' Equity", 'bs', 'USD'],
         ['depreciationAmortization', 'Depreciation & Amortization', 'cf', 'USD'],
+        ['amortizationOfIntangibles', 'Amortization of Intangibles/Content', 'cf', 'USD'],
         ['stockBasedCompensation', 'Stock-Based Compensation', 'cf', 'USD'],
+        ['deferredIncomeTaxes', 'Deferred Income Taxes', 'cf', 'USD'],
+        ['otherNoncashItems', 'Other Non-Cash Items', 'cf', 'USD'],
+        ['changeInWorkingCapital', 'Change in Working Capital', 'cf', 'USD'],
         ['operatingCashFlow', 'Operating Cash Flow', 'cf', 'USD'],
         ['capitalExpenditure', 'Capital Expenditure', 'cf', 'USD'],
         ['acquisitions', 'Acquisitions, Net', 'cf', 'USD'],
@@ -244,8 +253,11 @@
         ['debtIssued', 'Debt Issued', 'cf', 'USD'],
         ['debtRepaid', 'Debt Repaid', 'cf', 'USD'],
         ['stockRepurchased', 'Stock Repurchased', 'cf', 'USD'],
+        ['stockIssued', 'Stock Issued', 'cf', 'USD'],
         ['dividendsPaid', 'Dividends Paid', 'cf', 'USD'],
         ['financingCashFlow', 'Financing Cash Flow', 'cf', 'USD'],
+        ['effectOfExchangeRate', 'Effect of Exchange Rate on Cash', 'cf', 'USD'],
+        ['netChangeInCash', 'Net Change in Cash', 'cf', 'USD'],
       ];
       const GROUP_TITLES = { inc: 'Income Statement', ps: 'Per Share', bs: 'Balance Sheet', cf: 'Cash Flow' };
       const GROUP_ORDER = ['inc', 'ps', 'bs', 'cf'];
@@ -315,7 +327,10 @@
             `<thead><tr><th class="metric">Metric</th>${yearHeads}</tr></thead><tbody>${rows}</tbody></table></div></section>`;
         }).join('');
 
-        document.getElementById('sections').innerHTML = filingsHtml + groupsHtml;
+        const warnHtml = (data.warnings || [])
+          .map((w) => `<div class="banner">⚠ ${esc(w)}</div>`)
+          .join('');
+        document.getElementById('sections').innerHTML = warnHtml + filingsHtml + groupsHtml;
         renderRatios(periods);
         initWacc(periods[0]);
         document.getElementById('raw').textContent = JSON.stringify(data, null, 2);

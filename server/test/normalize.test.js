@@ -64,8 +64,16 @@ describe('normalizeCompanyFacts', () => {
   });
 
   test('leaves unmapped/absent fields null', () => {
-    expect(byYear[2024].grossProfit).toBeNull();
-    expect(byYear[2024].rawTagsUsed.grossProfit).toBeUndefined();
+    expect(byYear[2024].goodwill).toBeNull();
+    expect(byYear[2024].rawTagsUsed.goodwill).toBeUndefined();
+  });
+
+  test('derives gross profit when GrossProfit is not tagged', () => {
+    // FY2024: revenue 39000 (fallback tag) - costOfRevenue 21038 = 17962
+    expect(byYear[2024].grossProfit).toBe(39000 - 21038);
+    expect(byYear[2024].rawTagsUsed.grossProfit.derived).toBe(true);
+    // FY2022 has revenue but no cost of revenue -> stays null
+    expect(byYear[2022].grossProfit).toBeNull();
   });
 
   test('prefers the original filing over a restated comparative', () => {
@@ -120,6 +128,54 @@ describe('normalizeCompanyFacts', () => {
     // LiabilitiesCurrent in the fixture now also surfaces as currentLiabilities.
     expect(byYear[2024].currentLiabilities).toBe(10000);
     expect(byYear[2024].rawTagsUsed.currentLiabilities.tag).toBe('LiabilitiesCurrent');
+  });
+});
+
+describe('split / restatement handling', () => {
+  const dur = (start, end, val, fy, accn, filed) => ({ start, end, val, fy, fp: 'FY', form: '10-K', accn, filed });
+  const facts = {
+    entityName: 'SplitCo',
+    facts: {
+      'us-gaap': {
+        WeightedAverageNumberOfDilutedSharesOutstanding: {
+          units: {
+            shares: [
+              dur('2025-01-01', '2025-12-31', 4400000000, 2025, 'A25', '2026-01-20'),
+              dur('2024-01-01', '2024-12-31', 4400000000, 2025, 'A25', '2026-01-20'), // restated post-split
+              dur('2024-01-01', '2024-12-31', 440000000, 2024, 'A24', '2025-01-20'), // original pre-split
+              dur('2023-01-01', '2023-12-31', 4400000000, 2025, 'A25', '2026-01-20'),
+              dur('2022-01-01', '2022-12-31', 450000000, 2024, 'A24', '2025-01-20'),
+            ],
+          },
+        },
+      },
+    },
+  };
+  const result = normalizeCompanyFacts(facts);
+  const byYear = Object.fromEntries(result.periods.map((p) => [p.fiscalYear, p]));
+
+  test('uses the latest restated (split-adjusted) value for prior years', () => {
+    expect(byYear[2024].dilutedShares).toBe(4400000000); // not the original 440M
+  });
+
+  test('flags a likely stock-split discontinuity', () => {
+    expect(result.warnings.some((w) => /stock split/i.test(w))).toBe(true);
+  });
+});
+
+describe('treasury stock sign', () => {
+  const facts = {
+    entityName: 'T',
+    facts: {
+      'us-gaap': {
+        TreasuryStockValue: {
+          units: { USD: [{ end: '2024-12-31', val: 13000000000, fy: 2024, fp: 'FY', form: '10-K', accn: 'A', filed: '2025-01-20' }] },
+        },
+      },
+    },
+  };
+  test('normalizes treasury stock to a negative contra value', () => {
+    expect(normalizeCompanyFacts(facts).periods[0].treasuryStock).toBe(-13000000000);
   });
 });
 

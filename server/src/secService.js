@@ -92,6 +92,7 @@ function createSecService({ client, marketData, treasury } = {}) {
       ticker: resolved.ticker,
       cik: resolved.cik,
       companyName: normalized.companyName || resolved.title,
+      warnings: normalized.warnings || [],
       periods: normalized.periods,
     };
   }

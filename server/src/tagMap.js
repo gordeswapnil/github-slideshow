@@ -70,7 +70,13 @@ module.exports = {
     statement: 'income',
     label: 'Interest Expense',
     unit: 'USD',
-    tags: ['InterestExpense', 'InterestExpenseDebt', 'InterestAndDebtExpense'],
+    tags: [
+      'InterestExpense',
+      'InterestExpenseDebt',
+      'InterestAndDebtExpense',
+      'InterestExpenseNonoperating',
+      'InterestIncomeExpenseNonoperatingNet',
+    ],
   },
   interestIncome: {
     statement: 'income',
@@ -107,28 +113,34 @@ module.exports = {
   },
 
   // ---- Per share ---------------------------------------------------------
+  // preferLatestFiling: use the most recently filed value for each year so the
+  // series is split-adjusted (a later 10-K restates prior years for splits).
   epsBasic: {
     statement: 'pershare',
     label: 'EPS (Basic)',
     unit: 'USD/shares',
+    preferLatestFiling: true,
     tags: ['EarningsPerShareBasic'],
   },
   dilutedEPS: {
     statement: 'pershare',
     label: 'EPS (Diluted)',
     unit: 'USD/shares',
+    preferLatestFiling: true,
     tags: ['EarningsPerShareDiluted'],
   },
   sharesBasic: {
     statement: 'pershare',
     label: 'Shares (Basic)',
     unit: 'shares',
+    preferLatestFiling: true,
     tags: ['WeightedAverageNumberOfSharesOutstandingBasic'],
   },
   dilutedShares: {
     statement: 'pershare',
     label: 'Shares (Diluted)',
     unit: 'shares',
+    preferLatestFiling: true,
     tags: ['WeightedAverageNumberOfDilutedSharesOutstanding'],
   },
   dividendsPerShare: {
@@ -186,12 +198,30 @@ module.exports = {
     unit: 'USD',
     tags: ['IntangibleAssetsNetExcludingGoodwill', 'FiniteLivedIntangibleAssetsNet'],
   },
+  otherNoncurrentAssets: {
+    statement: 'balance',
+    label: 'Other Non-Current Assets',
+    unit: 'USD',
+    tags: ['OtherAssetsNoncurrent'],
+  },
   totalAssets: { statement: 'balance', label: 'Total Assets', unit: 'USD', tags: ['Assets'] },
   accountsPayable: {
     statement: 'balance',
     label: 'Accounts Payable',
     unit: 'USD',
-    tags: ['AccountsPayableCurrent', 'AccountsPayableAndAccruedLiabilitiesCurrent'],
+    tags: ['AccountsPayableCurrent'],
+  },
+  accruedLiabilities: {
+    statement: 'balance',
+    label: 'Accrued Liabilities',
+    unit: 'USD',
+    tags: ['AccruedLiabilitiesCurrent', 'AccountsPayableAndAccruedLiabilitiesCurrent'],
+  },
+  otherCurrentLiabilities: {
+    statement: 'balance',
+    label: 'Other Current Liabilities',
+    unit: 'USD',
+    tags: ['OtherLiabilitiesCurrent'],
   },
   shortTermDebt: {
     statement: 'balance',
@@ -216,6 +246,18 @@ module.exports = {
     label: 'Long-Term Debt',
     unit: 'USD',
     tags: ['LongTermDebtNoncurrent', 'LongTermDebt'],
+  },
+  otherNoncurrentLiabilities: {
+    statement: 'balance',
+    label: 'Other Non-Current Liabilities',
+    unit: 'USD',
+    tags: ['OtherLiabilitiesNoncurrent'],
+  },
+  deferredTaxLiabilities: {
+    statement: 'balance',
+    label: 'Deferred Tax Liabilities',
+    unit: 'USD',
+    tags: ['DeferredIncomeTaxLiabilitiesNet', 'DeferredTaxLiabilitiesNoncurrent'],
   },
   totalLiabilities: {
     statement: 'balance',
@@ -247,6 +289,9 @@ module.exports = {
     statement: 'balance',
     label: 'Treasury Stock',
     unit: 'USD',
+    // Reported as a positive contra amount; normalize to negative so equity
+    // components sum to total equity.
+    negate: true,
     tags: ['TreasuryStockValue', 'TreasuryStockCommonValue'],
   },
   accumulatedOCI: {
@@ -276,11 +321,35 @@ module.exports = {
       'DepreciationAndAmortization',
     ],
   },
+  amortizationOfIntangibles: {
+    statement: 'cashflow',
+    label: 'Amortization of Intangibles/Content',
+    unit: 'USD',
+    tags: ['AmortizationOfIntangibleAssets', 'AmortizationOfDeferredCharges'],
+  },
   stockBasedCompensation: {
     statement: 'cashflow',
     label: 'Stock-Based Compensation',
     unit: 'USD',
     tags: ['ShareBasedCompensation'],
+  },
+  deferredIncomeTaxes: {
+    statement: 'cashflow',
+    label: 'Deferred Income Taxes',
+    unit: 'USD',
+    tags: ['DeferredIncomeTaxExpenseBenefit', 'DeferredIncomeTaxesAndTaxCredits'],
+  },
+  otherNoncashItems: {
+    statement: 'cashflow',
+    label: 'Other Non-Cash Items',
+    unit: 'USD',
+    tags: ['OtherNoncashIncomeExpense'],
+  },
+  changeInWorkingCapital: {
+    statement: 'cashflow',
+    label: 'Change in Working Capital',
+    unit: 'USD',
+    tags: ['IncreaseDecreaseInOperatingCapital'],
   },
   operatingCashFlow: {
     statement: 'cashflow',
@@ -330,6 +399,12 @@ module.exports = {
     unit: 'USD',
     tags: ['PaymentsForRepurchaseOfCommonStock'],
   },
+  stockIssued: {
+    statement: 'cashflow',
+    label: 'Stock Issued',
+    unit: 'USD',
+    tags: ['ProceedsFromIssuanceOfCommonStock', 'ProceedsFromStockOptionsExercised'],
+  },
   dividendsPaid: {
     statement: 'cashflow',
     label: 'Dividends Paid',
@@ -343,6 +418,24 @@ module.exports = {
     tags: [
       'NetCashProvidedByUsedInFinancingActivities',
       'NetCashProvidedByUsedInFinancingActivitiesContinuingOperations',
+    ],
+  },
+  effectOfExchangeRate: {
+    statement: 'cashflow',
+    label: 'Effect of Exchange Rate on Cash',
+    unit: 'USD',
+    tags: [
+      'EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents',
+      'EffectOfExchangeRateOnCashAndCashEquivalents',
+    ],
+  },
+  netChangeInCash: {
+    statement: 'cashflow',
+    label: 'Net Change in Cash',
+    unit: 'USD',
+    tags: [
+      'CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseIncludingExchangeRateEffect',
+      'CashAndCashEquivalentsPeriodIncreaseDecrease',
     ],
   },
 };

@@ -40,16 +40,20 @@ function selectUnit(tagData, preferredUnit) {
 
 // Prefer the entry whose report fiscal year equals the period year (the
 // original 10-K for that year); otherwise prefer the most recently filed.
-function isBetterCandidate(candidate, existing, fiscalYear) {
+function isBetterCandidate(candidate, existing, fiscalYear, preferLatest = false) {
+  const newer = Date.parse(candidate.filed || 0) > Date.parse(existing.filed || 0);
+  // For split-sensitive fields (EPS, shares) prefer the most recently filed
+  // value so the series is restated/split-adjusted.
+  if (preferLatest) return newer;
   const candIsOriginal = candidate.reportFiscalYear === fiscalYear;
   const existIsOriginal = existing.reportFiscalYear === fiscalYear;
   if (candIsOriginal !== existIsOriginal) return candIsOriginal;
-  return Date.parse(candidate.filed || 0) > Date.parse(existing.filed || 0);
+  return newer;
 }
 
 // Map fiscalYear -> audited value for a single XBRL tag, keeping only annual
 // 10-K facts (form === "10-K", fp === "FY").
-function selectAnnualByYear(tagData, preferredUnit) {
+function selectAnnualByYear(tagData, preferredUnit, preferLatest = false) {
   const { unit, entries } = selectUnit(tagData, preferredUnit);
   const byYear = new Map();
   for (const entry of entries) {
@@ -71,7 +75,7 @@ function selectAnnualByYear(tagData, preferredUnit) {
       periodStart: entry.start || null,
     };
     const existing = byYear.get(fiscalYear);
-    if (!existing || isBetterCandidate(candidate, existing, fiscalYear)) {
+    if (!existing || isBetterCandidate(candidate, existing, fiscalYear, preferLatest)) {
       byYear.set(fiscalYear, candidate);
     }
   }
@@ -87,10 +91,11 @@ function buildFieldSeries(companyFacts, field) {
   for (const tag of def.tags) {
     const tagData = gaap[tag];
     if (!tagData) continue;
-    const series = selectAnnualByYear(tagData, def.unit);
+    const series = selectAnnualByYear(tagData, def.unit, def.preferLatestFiling);
     for (const [fiscalYear, audited] of series) {
       if (!byYear.has(fiscalYear)) {
-        byYear.set(fiscalYear, { ...audited, tag });
+        const value = def.negate ? -Math.abs(audited.value) : audited.value;
+        byYear.set(fiscalYear, { ...audited, value, tag });
       }
     }
   }
@@ -175,6 +180,53 @@ function buildPeriod(fiscalYear, fieldSeries) {
   return period;
 }
 
+// Derive gross profit (revenue - cost of revenue) for years the company did not
+// tag GrossProfit directly.
+function applyGrossProfitFallback(fieldSeries) {
+  const revenue = fieldSeries.revenue;
+  const cost = fieldSeries.costOfRevenue;
+  const gross = fieldSeries.grossProfit;
+  for (const [fiscalYear, rev] of revenue) {
+    if (gross.has(fiscalYear)) continue;
+    const c = cost.get(fiscalYear);
+    if (!c) continue;
+    gross.set(fiscalYear, {
+      value: rev.value - c.value,
+      unit: rev.unit,
+      fiscalYear,
+      reportFiscalYear: rev.reportFiscalYear,
+      accessionNumber: rev.accessionNumber,
+      filed: rev.filed,
+      form: rev.form,
+      periodEnd: rev.periodEnd,
+      tag: `${rev.tag} − ${c.tag}`,
+      derived: true,
+    });
+  }
+}
+
+// Flag a likely stock split where weighted diluted shares jump by >3x (or <1/3x)
+// between adjacent years — the per-share series may not be split-consistent
+// across that boundary (older filings are not restated in available data).
+function detectSplitWarnings(fieldSeries, sortedYears) {
+  const shares = fieldSeries.dilutedShares;
+  const warnings = [];
+  for (let i = 0; i < sortedYears.length - 1; i += 1) {
+    const newer = shares.get(sortedYears[i]);
+    const older = shares.get(sortedYears[i + 1]);
+    if (!newer || !older || !older.value) continue;
+    const ratio = newer.value / older.value;
+    if (ratio >= 3 || ratio <= 1 / 3) {
+      warnings.push(
+        `Diluted shares change ~${ratio.toFixed(1)}x between FY${sortedYears[i + 1]} and ` +
+          `FY${sortedYears[i]} — likely a stock split. Per-share figures may not be ` +
+          `split-consistent across that boundary (older filings aren't restated in SEC data).`
+      );
+    }
+  }
+  return warnings;
+}
+
 // Turn raw SEC companyfacts JSON into normalized, modelling-ready annual data.
 function normalizeCompanyFacts(companyFacts, { years } = {}) {
   const fieldSeries = {};
@@ -182,6 +234,7 @@ function normalizeCompanyFacts(companyFacts, { years } = {}) {
     fieldSeries[field] = buildFieldSeries(companyFacts, field);
   }
   applyLiabilitiesFallback(companyFacts, fieldSeries.totalLiabilities);
+  applyGrossProfitFallback(fieldSeries);
 
   const yearSet = new Set();
   for (const field of FIELDS) {
@@ -199,6 +252,7 @@ function normalizeCompanyFacts(companyFacts, { years } = {}) {
   return {
     cik: null, // filled in by the service (padded form)
     companyName: companyFacts && companyFacts.entityName ? companyFacts.entityName : null,
+    warnings: detectSplitWarnings(fieldSeries, sortedYears),
     periods: sortedYears.map((fiscalYear) => buildPeriod(fiscalYear, fieldSeries)),
   };
 }

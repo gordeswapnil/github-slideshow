@@ -186,7 +186,13 @@ value to see the exact US-GAAP tag behind it.
 ## Limitations
 
 - Tag coverage varies by company and over time; missing values come back `null`
-  rather than guessed.
+  rather than guessed. A few values are **derived** and flagged as such: gross
+  profit (revenue − cost of revenue) and total liabilities (current +
+  non-current) when not tagged directly; treasury stock is sign-normalized to a
+  negative contra-equity value.
+- Per-share figures (EPS, weighted shares) use the **latest restated** filing so
+  the series is split-adjusted as far back as recent filings restate it; a
+  `warnings` entry flags a likely stock-split discontinuity beyond that point.
 - The fiscal year is derived from each fact's period-end date, which is a
   reasonable convention but may differ from a company's internal FY label.
 - The in-memory cache is per-process; use a shared cache (e.g. Redis) if you run
