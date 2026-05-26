@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SEC EDGAR 10-K Financials</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --panel: #1e293b;
+        --line: #334155;
+        --text: #e2e8f0;
+        --muted: #94a3b8;
+        --accent: #38bdf8;
+        --error: #f87171;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        padding: 2rem 1rem;
+      }
+      .wrap { max-width: 1100px; margin: 0 auto; }
+      h1 { font-size: 1.4rem; margin: 0 0 0.25rem; }
+      p.sub { color: var(--muted); margin: 0 0 1.5rem; font-size: 0.9rem; }
+      form { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-bottom: 1rem; }
+      input, button, select {
+        background: var(--panel);
+        color: var(--text);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 0.55rem 0.75rem;
+        font-size: 0.95rem;
+      }
+      input { text-transform: uppercase; width: 130px; }
+      button { cursor: pointer; border-color: var(--accent); color: var(--accent); font-weight: 600; }
+      button:disabled { opacity: 0.5; cursor: not-allowed; }
+      .status { margin: 1rem 0; font-size: 0.95rem; }
+      .status.error { color: var(--error); }
+      .meta { color: var(--muted); font-size: 0.85rem; margin-bottom: 0.75rem; }
+      table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+      th, td { border: 1px solid var(--line); padding: 0.5rem 0.6rem; text-align: right; white-space: nowrap; }
+      th:first-child, td:first-child { text-align: left; position: sticky; left: 0; background: var(--panel); }
+      thead th { background: var(--panel); position: sticky; top: 0; }
+      .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+      .tag { cursor: help; border-bottom: 1px dotted var(--muted); }
+      .row-label { color: var(--muted); cursor: pointer; }
+      details { margin-top: 1.5rem; }
+      summary { cursor: pointer; color: var(--accent); }
+      pre { background: var(--panel); padding: 1rem; border-radius: 8px; overflow: auto; font-size: 0.75rem; max-height: 360px; }
+      .audit td { color: var(--muted); font-size: 0.72rem; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>SEC EDGAR 10-K Financials</h1>
+      <p class="sub">
+        Structured annual financial data pulled from the official SEC EDGAR XBRL JSON APIs.
+        No PDF extraction, no API key. Hover a value to see the raw US-GAAP tag used.
+      </p>
+
+      <form id="form">
+        <input id="ticker" name="ticker" placeholder="NFLX" value="NFLX" autocomplete="off" />
+        <select id="years" name="years">
+          <option value="">All years</option>
+          <option value="3">Last 3</option>
+          <option value="5" selected>Last 5</option>
+          <option value="10">Last 10</option>
+        </select>
+        <button id="submit" type="submit">Fetch</button>
+      </form>
+
+      <div id="status" class="status"></div>
+      <div id="meta" class="meta"></div>
+      <div id="result" class="scroll" hidden>
+        <table id="table">
+          <thead>
+            <tr id="head"></tr>
+          </thead>
+          <tbody id="body"></tbody>
+        </table>
+      </div>
+
+      <details id="rawWrap" hidden>
+        <summary>Raw normalized JSON (with per-value audit trail)</summary>
+        <pre id="raw"></pre>
+      </details>
+    </div>
+
+    <script>
+      const ROWS = [
+        ['revenue', 'Revenue'],
+        ['costOfRevenue', 'Cost of Revenue'],
+        ['grossProfit', 'Gross Profit'],
+        ['operatingIncome', 'Operating Income'],
+        ['netIncome', 'Net Income'],
+        ['totalAssets', 'Total Assets'],
+        ['currentAssets', 'Current Assets'],
+        ['cashAndEquivalents', 'Cash & Equivalents'],
+        ['totalLiabilities', 'Total Liabilities'],
+        ['stockholdersEquity', "Stockholders' Equity"],
+        ['operatingCashFlow', 'Operating Cash Flow'],
+        ['capitalExpenditure', 'Capital Expenditure'],
+        ['dilutedEPS', 'Diluted EPS'],
+        ['dilutedShares', 'Diluted Shares'],
+      ];
+
+      const form = document.getElementById('form');
+      const statusEl = document.getElementById('status');
+      const metaEl = document.getElementById('meta');
+      const resultEl = document.getElementById('result');
+      const headEl = document.getElementById('head');
+      const bodyEl = document.getElementById('body');
+      const rawWrap = document.getElementById('rawWrap');
+      const rawEl = document.getElementById('raw');
+      const submitBtn = document.getElementById('submit');
+
+      function fmt(field, value) {
+        if (value === null || value === undefined) return '—';
+        if (field === 'dilutedEPS') return value.toFixed(2);
+        if (field === 'dilutedShares') return value.toLocaleString();
+        const abs = Math.abs(value);
+        if (abs >= 1e9) return (value / 1e9).toFixed(2) + 'B';
+        if (abs >= 1e6) return (value / 1e6).toFixed(2) + 'M';
+        return value.toLocaleString();
+      }
+
+      function render(data) {
+        metaEl.textContent =
+          `${data.companyName} — CIK ${data.cik} — ${data.periods.length} annual 10-K period(s)`;
+
+        headEl.innerHTML = '<th>Metric</th>' +
+          data.periods.map((p) => `<th>FY${p.fiscalYear}</th>`).join('');
+
+        bodyEl.innerHTML = ROWS.map(([field, label]) => {
+          const cells = data.periods.map((p) => {
+            const audit = p.rawTagsUsed[field];
+            const title = audit
+              ? `tag: ${audit.tag}\nunit: ${audit.unit}\nfiled: ${audit.filed}\naccession: ${audit.accessionNumber}\nform: ${audit.form}`
+              : 'no data';
+            const cls = audit ? 'tag' : '';
+            return `<td><span class="${cls}" title="${title.replace(/"/g, '&quot;')}">${fmt(field, p[field])}</span></td>`;
+          });
+          return `<tr><td class="row-label">${label}</td>${cells.join('')}</tr>`;
+        }).join('');
+
+        const filedRow =
+          '<tr class="audit"><td>Filed</td>' +
+          data.periods.map((p) => `<td>${p.filed || '—'}</td>`).join('') +
+          '</tr>';
+        bodyEl.insertAdjacentHTML('beforeend', filedRow);
+
+        resultEl.hidden = false;
+        rawEl.textContent = JSON.stringify(data, null, 2);
+        rawWrap.hidden = false;
+      }
+
+      async function run(ticker, years) {
+        statusEl.className = 'status';
+        statusEl.textContent = 'Loading…';
+        resultEl.hidden = true;
+        rawWrap.hidden = true;
+        metaEl.textContent = '';
+        submitBtn.disabled = true;
+        try {
+          const params = new URLSearchParams({ ticker });
+          if (years) params.set('years', years);
+          const res = await fetch(`/api/sec/model-data?${params.toString()}`);
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+          if (!data.periods.length) {
+            statusEl.textContent = 'No annual 10-K data found for this ticker.';
+            return;
+          }
+          statusEl.textContent = '';
+          render(data);
+        } catch (err) {
+          statusEl.className = 'status error';
+          statusEl.textContent = `Error: ${err.message}`;
+        } finally {
+          submitBtn.disabled = false;
+        }
+      }
+
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const ticker = document.getElementById('ticker').value.trim();
+        const years = document.getElementById('years').value;
+        if (ticker) run(ticker, years);
+      });
+    </script>
+  </body>
+</html>
