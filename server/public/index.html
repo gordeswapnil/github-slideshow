@@ -125,7 +125,7 @@
         </div>
         <div class="field">
           <label for="api">Backend URL</label>
-          <input id="api" placeholder="http://localhost:3000" />
+          <input id="api" placeholder="http://localhost:5050" />
         </div>
         <div class="field">
           <label>&nbsp;</label>
@@ -283,7 +283,7 @@
 
       function defaultApiBase() {
         if (location.protocol === 'http:' || location.protocol === 'https:') return location.origin;
-        return 'http://localhost:3000';
+        return 'http://localhost:5050';
       }
 
       async function fetchLive() {

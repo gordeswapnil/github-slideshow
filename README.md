@@ -98,11 +98,11 @@ non-current). Always treat the raw tag as the source of truth.
 cd server
 npm install
 cp .env.example .env   # set SEC_CONTACT_EMAIL
-npm start              # http://localhost:3000  (UI + API)
+npm start              # http://localhost:5050  (UI + API)
 npm test               # Jest suite (mocked SEC responses)
 ```
 
-Open `http://localhost:3000`, enter a ticker (e.g. **NFLX**) and fetch. Hover any
+Open `http://localhost:5050`, enter a ticker (e.g. **NFLX**) and fetch. Hover any
 value to see the exact US-GAAP tag behind it.
 
 ## Limitations

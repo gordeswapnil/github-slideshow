@@ -11,7 +11,7 @@ const contactEmail = process.env.SEC_CONTACT_EMAIL || 'gordeswapnil@gmail.com';
 const appName = process.env.SEC_APP_NAME || 'FinancialModellingEducationApp';
 
 module.exports = {
-  port: Number(process.env.PORT) || 3000,
+  port: Number(process.env.PORT) || 5050,
   contactEmail,
   appName,
   // SEC fair-access policy requires a descriptive User-Agent that identifies
