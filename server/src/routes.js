@@ -32,6 +32,17 @@ function createRouter({ service }) {
   );
 
   router.get(
+    '/all-facts',
+    asyncHandler(async (req, res) => {
+      res.json(await service.getAllFacts(req.query.ticker, { years: req.query.years }));
+    })
+  );
+
+  router.get('/fields', (req, res) => {
+    res.json(service.getFields());
+  });
+
+  router.get(
     '/concept',
     asyncHandler(async (req, res) => {
       res.json(await service.getConcept(req.query.ticker, req.query.tag, req.query.taxonomy));

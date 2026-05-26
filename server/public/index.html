@@ -6,31 +6,19 @@
     <title>SEC EDGAR 10-K Financials</title>
     <style>
       :root {
-        --bg: #0b1120;
-        --panel: #111c33;
-        --panel2: #16243f;
-        --line: #2b3b5b;
-        --text: #e6edf6;
-        --muted: #8aa0c0;
-        --accent: #4cc4ff;
-        --good: #4ade80;
-        --bad: #f87171;
-        --warn: #fbbf24;
+        --bg: #0b1120; --panel: #111c33; --panel2: #16243f; --line: #2b3b5b;
+        --text: #e6edf6; --muted: #8aa0c0; --accent: #4cc4ff; --good: #4ade80;
+        --bad: #f87171; --warn: #fbbf24;
       }
       * { box-sizing: border-box; }
       body {
-        margin: 0;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         background: radial-gradient(1200px 600px at 80% -10%, #15233f 0%, var(--bg) 55%);
-        color: var(--text);
-        min-height: 100vh;
-        padding: 2rem 1rem 4rem;
+        color: var(--text); min-height: 100vh; padding: 2rem 1rem 4rem;
       }
-      .wrap { max-width: 1180px; margin: 0 auto; }
-      header.app { margin-bottom: 1.25rem; }
+      .wrap { max-width: 1240px; margin: 0 auto; }
       h1 { font-size: 1.5rem; margin: 0 0 0.25rem; }
-      p.sub { color: var(--muted); margin: 0; font-size: 0.9rem; max-width: 760px; }
-
+      p.sub { color: var(--muted); margin: 0; font-size: 0.9rem; max-width: 780px; }
       .controls {
         display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: flex-end;
         background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
@@ -48,7 +36,6 @@
       button.primary { background: var(--accent); color: #04243a; border-color: var(--accent); }
       button.ghost { color: var(--accent); }
       button:disabled { opacity: 0.5; cursor: not-allowed; }
-
       .status { margin: 0.5rem 0 1rem; font-size: 0.95rem; min-height: 1.2rem; }
       .status.error { color: var(--bad); }
       .status.loading { color: var(--accent); }
@@ -56,41 +43,31 @@
         background: rgba(251, 191, 36, 0.12); border: 1px solid var(--warn); color: var(--warn);
         padding: 0.55rem 0.8rem; border-radius: 8px; font-size: 0.82rem; margin-bottom: 1rem;
       }
-
       .company {
         display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: baseline;
         border-bottom: 1px solid var(--line); padding-bottom: 0.9rem; margin-bottom: 1.25rem;
       }
       .company .name { font-size: 1.35rem; font-weight: 800; }
-      .company .pill {
-        font-size: 0.72rem; color: var(--muted);
-        border: 1px solid var(--line); border-radius: 999px; padding: 0.15rem 0.6rem;
-      }
-
+      .company .pill { font-size: 0.72rem; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0.15rem 0.6rem; }
       section.group { margin-bottom: 1.6rem; }
-      section.group > h2 {
-        font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em;
-        color: var(--accent); margin: 0 0 0.5rem;
-      }
+      section.group > h2 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin: 0 0 0.5rem; }
       .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
       table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
-      th, td { padding: 0.55rem 0.7rem; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+      th, td { padding: 0.5rem 0.7rem; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
       thead th { background: var(--panel); color: var(--muted); font-weight: 600; position: sticky; top: 0; }
       tbody tr:hover { background: rgba(76, 196, 255, 0.06); }
-      th.metric, td.metric {
-        text-align: left; position: sticky; left: 0; background: var(--panel);
-        font-weight: 600; min-width: 190px;
-      }
+      th.metric, td.metric { text-align: left; position: sticky; left: 0; background: var(--panel); font-weight: 600; min-width: 210px; }
+      th.tag, td.tagcol { text-align: left; min-width: 230px; }
       tbody tr:hover td.metric { background: var(--panel2); }
       td .val { font-variant-numeric: tabular-nums; }
-      td .tag {
-        display: block; font-size: 0.68rem; color: var(--muted); margin-top: 0.1rem;
-        cursor: help; border-bottom: 1px dotted transparent;
-      }
+      td .tag { display: block; font-size: 0.68rem; color: var(--muted); margin-top: 0.1rem; cursor: help; border-bottom: 1px dotted transparent; }
       td .tag:hover { border-bottom-color: var(--muted); }
       td.derived .val::after { content: " ∗"; color: var(--warn); }
       .na { color: #56688a; }
-
+      .allctrl { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.6rem; }
+      .allctrl input { width: 280px; }
+      .allctrl .count { color: var(--muted); font-size: 0.82rem; }
+      code.tagname { color: var(--accent); font-size: 0.8rem; }
       details.raw { margin-top: 1.5rem; }
       details.raw summary { cursor: pointer; color: var(--accent); font-weight: 600; }
       pre { background: var(--panel); border: 1px solid var(--line); padding: 1rem; border-radius: 10px; overflow: auto; font-size: 0.74rem; max-height: 420px; }
@@ -103,9 +80,10 @@
       <header class="app">
         <h1>SEC EDGAR · 10-K Financials</h1>
         <p class="sub">
-          Structured annual financial-statement data pulled from the official SEC EDGAR
-          XBRL JSON APIs — no API key, no PDF extraction. Every figure links back to the
-          exact US-GAAP tag it came from (shown beneath each value).
+          Structured annual financial-statement data from the official SEC EDGAR XBRL JSON APIs —
+          no API key, no PDF extraction. A curated full three-statement model, plus an
+          "all reported facts" explorer for everything the company tagged. Each value links back to
+          its exact US-GAAP tag.
         </p>
       </header>
 
@@ -129,7 +107,7 @@
         </div>
         <div class="field">
           <label>&nbsp;</label>
-          <button id="fetchBtn" class="primary" type="button">Fetch live data</button>
+          <button id="fetchBtn" class="primary" type="button">Load live data</button>
         </div>
         <div class="field">
           <label>&nbsp;</label>
@@ -144,11 +122,27 @@
         <div class="company" id="company"></div>
         <div id="sections"></div>
 
+        <section class="group" id="allFactsSection">
+          <h2>All reported facts — everything SEC has</h2>
+          <div class="allctrl">
+            <button id="allFactsBtn" class="ghost" type="button">Load all reported facts</button>
+            <input id="allSearch" placeholder="Filter by tag or label…" disabled />
+            <span class="count" id="allCount"></span>
+          </div>
+          <div id="allScroll" class="scroll hidden">
+            <table>
+              <thead><tr id="allHead"></tr></thead>
+              <tbody id="allBody"></tbody>
+            </table>
+          </div>
+          <p class="legend" id="allNote"></p>
+        </section>
+
         <p class="legend">
-          Hover the tag under any value to see its unit, filing accession number and filed date.
+          Hover the tag under any value to see its unit, accession number and filed date.
           <strong>∗</strong> marks a derived value (e.g. total liabilities computed from current +
-          non-current). <span class="na">—</span> means the company did not report that tag for
-          the period.
+          non-current). <span class="na">—</span> means the company did not report that tag for the
+          period. Empty rows are hidden automatically.
         </p>
 
         <details class="raw">
@@ -159,42 +153,76 @@
     </div>
 
     <script>
-      // ---- field groups / formatting ---------------------------------------
-      const GROUPS = [
-        { title: 'Income Statement', fields: [
-          ['revenue', 'Revenue', 'money'],
-          ['costOfRevenue', 'Cost of Revenue', 'money'],
-          ['grossProfit', 'Gross Profit', 'money'],
-          ['operatingIncome', 'Operating Income', 'money'],
-          ['netIncome', 'Net Income', 'money'],
-        ]},
-        { title: 'Balance Sheet', fields: [
-          ['totalAssets', 'Total Assets', 'money'],
-          ['currentAssets', 'Current Assets', 'money'],
-          ['cashAndEquivalents', 'Cash & Equivalents', 'money'],
-          ['totalLiabilities', 'Total Liabilities', 'money'],
-          ['stockholdersEquity', "Stockholders' Equity", 'money'],
-        ]},
-        { title: 'Cash Flow', fields: [
-          ['operatingCashFlow', 'Operating Cash Flow', 'money'],
-          ['capitalExpenditure', 'Capital Expenditure', 'money'],
-        ]},
-        { title: 'Per Share', fields: [
-          ['dilutedEPS', 'Diluted EPS', 'eps'],
-          ['dilutedShares', 'Diluted Shares', 'shares'],
-        ]},
+      // ---- curated field metadata (mirrors server/src/tagMap.js) -----------
+      // [key, label, group, unit]   group: inc | ps | bs | cf
+      const FIELD_DEFS = [
+        ['revenue', 'Revenue', 'inc', 'USD'],
+        ['costOfRevenue', 'Cost of Revenue', 'inc', 'USD'],
+        ['grossProfit', 'Gross Profit', 'inc', 'USD'],
+        ['researchAndDevelopment', 'R&D Expense', 'inc', 'USD'],
+        ['sellingAndMarketing', 'Selling & Marketing', 'inc', 'USD'],
+        ['generalAndAdministrative', 'General & Administrative', 'inc', 'USD'],
+        ['sellingGeneralAndAdministrative', 'SG&A (combined)', 'inc', 'USD'],
+        ['totalOperatingExpenses', 'Total Operating Expenses', 'inc', 'USD'],
+        ['operatingIncome', 'Operating Income', 'inc', 'USD'],
+        ['interestExpense', 'Interest Expense', 'inc', 'USD'],
+        ['interestIncome', 'Interest / Investment Income', 'inc', 'USD'],
+        ['otherIncomeExpense', 'Other Non-Operating Income', 'inc', 'USD'],
+        ['pretaxIncome', 'Pre-Tax Income', 'inc', 'USD'],
+        ['incomeTaxExpense', 'Income Tax Expense', 'inc', 'USD'],
+        ['netIncome', 'Net Income', 'inc', 'USD'],
+        ['epsBasic', 'EPS (Basic)', 'ps', 'USD/shares'],
+        ['dilutedEPS', 'EPS (Diluted)', 'ps', 'USD/shares'],
+        ['sharesBasic', 'Shares (Basic)', 'ps', 'shares'],
+        ['dilutedShares', 'Shares (Diluted)', 'ps', 'shares'],
+        ['dividendsPerShare', 'Dividends per Share', 'ps', 'USD/shares'],
+        ['cashAndEquivalents', 'Cash & Equivalents', 'bs', 'USD'],
+        ['shortTermInvestments', 'Short-Term Investments', 'bs', 'USD'],
+        ['accountsReceivable', 'Accounts Receivable', 'bs', 'USD'],
+        ['inventory', 'Inventory', 'bs', 'USD'],
+        ['otherCurrentAssets', 'Other Current Assets', 'bs', 'USD'],
+        ['currentAssets', 'Total Current Assets', 'bs', 'USD'],
+        ['propertyPlantEquipmentNet', 'PP&E, Net', 'bs', 'USD'],
+        ['goodwill', 'Goodwill', 'bs', 'USD'],
+        ['intangibleAssets', 'Intangible Assets', 'bs', 'USD'],
+        ['totalAssets', 'Total Assets', 'bs', 'USD'],
+        ['accountsPayable', 'Accounts Payable', 'bs', 'USD'],
+        ['shortTermDebt', 'Short-Term / Current Debt', 'bs', 'USD'],
+        ['deferredRevenueCurrent', 'Deferred Revenue (Current)', 'bs', 'USD'],
+        ['currentLiabilities', 'Total Current Liabilities', 'bs', 'USD'],
+        ['longTermDebt', 'Long-Term Debt', 'bs', 'USD'],
+        ['totalLiabilities', 'Total Liabilities', 'bs', 'USD'],
+        ['commonStockValue', 'Common Stock', 'bs', 'USD'],
+        ['additionalPaidInCapital', 'Additional Paid-In Capital', 'bs', 'USD'],
+        ['retainedEarnings', 'Retained Earnings', 'bs', 'USD'],
+        ['treasuryStock', 'Treasury Stock', 'bs', 'USD'],
+        ['accumulatedOCI', 'Accumulated OCI', 'bs', 'USD'],
+        ['stockholdersEquity', "Stockholders' Equity", 'bs', 'USD'],
+        ['depreciationAmortization', 'Depreciation & Amortization', 'cf', 'USD'],
+        ['stockBasedCompensation', 'Stock-Based Compensation', 'cf', 'USD'],
+        ['operatingCashFlow', 'Operating Cash Flow', 'cf', 'USD'],
+        ['capitalExpenditure', 'Capital Expenditure', 'cf', 'USD'],
+        ['acquisitions', 'Acquisitions, Net', 'cf', 'USD'],
+        ['investingCashFlow', 'Investing Cash Flow', 'cf', 'USD'],
+        ['debtIssued', 'Debt Issued', 'cf', 'USD'],
+        ['debtRepaid', 'Debt Repaid', 'cf', 'USD'],
+        ['stockRepurchased', 'Stock Repurchased', 'cf', 'USD'],
+        ['dividendsPaid', 'Dividends Paid', 'cf', 'USD'],
+        ['financingCashFlow', 'Financing Cash Flow', 'cf', 'USD'],
       ];
+      const GROUP_TITLES = { inc: 'Income Statement', ps: 'Per Share', bs: 'Balance Sheet', cf: 'Cash Flow' };
+      const GROUP_ORDER = ['inc', 'ps', 'bs', 'cf'];
+      const ALL_KEYS = FIELD_DEFS.map((f) => f[0]);
 
-      function fmt(kind, v) {
+      function fmtByUnit(unit, v) {
         if (v === null || v === undefined) return null;
-        if (kind === 'eps') return '$' + Number(v).toFixed(2);
-        if (kind === 'shares') {
+        if (unit === 'USD/shares') return '$' + Number(v).toFixed(2);
+        if (unit === 'shares') {
           const a = Math.abs(v);
           if (a >= 1e9) return (v / 1e9).toFixed(2) + 'B';
           if (a >= 1e6) return (v / 1e6).toFixed(1) + 'M';
           return Number(v).toLocaleString();
         }
-        // money
         const sign = v < 0 ? '-' : '';
         const a = Math.abs(v);
         if (a >= 1e9) return sign + '$' + (a / 1e9).toFixed(2) + 'B';
@@ -202,11 +230,10 @@
         if (a >= 1e3) return sign + '$' + (a / 1e3).toFixed(0) + 'K';
         return sign + '$' + a;
       }
-
       const esc = (s) =>
         String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-      // ---- rendering --------------------------------------------------------
+      // ---- curated model rendering -----------------------------------------
       function render(data) {
         const periods = data.periods || [];
         document.getElementById('company').innerHTML = [
@@ -217,52 +244,112 @@
         ].join('');
 
         const yearHeads = periods.map((p) => `<th>FY ${p.fiscalYear}</th>`).join('');
-        const filedRow =
-          `<tr><td class="metric">Filed</td>` +
-          periods.map((p) => `<td class="na">${esc(p.filed || '—')}</td>`).join('') +
-          `</tr>`;
 
-        const sectionsHtml = GROUPS.map((g) => {
-          const rows = g.fields.map(([field, label, kind]) => {
+        const filingsHtml =
+          `<section class="group"><h2>Filings</h2><div class="scroll"><table>` +
+          `<thead><tr><th class="metric">Metric</th>${yearHeads}</tr></thead><tbody>` +
+          `<tr><td class="metric">Filed</td>` +
+          periods.map((p) => `<td class="na">${esc(p.filed || '—')}</td>`).join('') + `</tr>` +
+          `<tr><td class="metric">Accession #</td>` +
+          periods.map((p) => `<td class="na">${esc(p.accessionNumber || '—')}</td>`).join('') + `</tr>` +
+          `</tbody></table></div></section>`;
+
+        const groupsHtml = GROUP_ORDER.map((g) => {
+          const fields = FIELD_DEFS.filter((f) => f[2] === g);
+          const rows = fields.map(([key, label, , unit]) => {
+            const hasAny = periods.some((p) => p[key] !== null && p[key] !== undefined);
+            if (!hasAny) return ''; // hide empty rows
             const cells = periods.map((p) => {
-              const raw = p[field];
-              const audit = p.rawTagsUsed ? p.rawTagsUsed[field] : null;
-              const text = fmt(kind, raw);
+              const raw = p[key];
+              const audit = p.rawTagsUsed ? p.rawTagsUsed[key] : null;
+              const text = fmtByUnit(unit, raw);
               if (text === null) return `<td><span class="val na">—</span></td>`;
               const derived = audit && audit.derived ? ' derived' : '';
               const tip = audit
                 ? `tag: ${audit.tag}\nunit: ${audit.unit}\nfiscal year: ${audit.fiscalYear}\nfiled: ${audit.filed}\naccession: ${audit.accessionNumber}\nform: ${audit.form}\nexact value: ${raw}`
                 : `exact value: ${raw}`;
-              const tagLabel = audit ? esc(audit.tag) : '';
-              return (
-                `<td class="${derived}">` +
-                `<span class="val">${esc(text)}</span>` +
-                (tagLabel ? `<span class="tag" title="${esc(tip)}">${tagLabel}</span>` : '') +
-                `</td>`
-              );
+              return `<td class="${derived}"><span class="val">${esc(text)}</span>` +
+                (audit ? `<span class="tag" title="${esc(tip)}">${esc(audit.tag)}</span>` : '') + `</td>`;
             }).join('');
             return `<tr><td class="metric">${esc(label)}</td>${cells}</tr>`;
           }).join('');
-
-          return (
-            `<section class="group"><h2>${esc(g.title)}</h2><div class="scroll"><table>` +
-            `<thead><tr><th class="metric">Metric</th>${yearHeads}</tr></thead>` +
-            `<tbody>${rows}</tbody></table></div></section>`
-          );
+          if (!rows) return '';
+          return `<section class="group"><h2>${esc(GROUP_TITLES[g])}</h2><div class="scroll"><table>` +
+            `<thead><tr><th class="metric">Metric</th>${yearHeads}</tr></thead><tbody>${rows}</tbody></table></div></section>`;
         }).join('');
 
-        // Filings overview table on top.
-        const filingsHtml =
-          `<section class="group"><h2>Filings</h2><div class="scroll"><table>` +
-          `<thead><tr><th class="metric">Metric</th>${yearHeads}</tr></thead>` +
-          `<tbody>${filedRow}` +
-          `<tr><td class="metric">Accession #</td>` +
-          periods.map((p) => `<td class="na">${esc(p.accessionNumber || '—')}</td>`).join('') +
-          `</tr></tbody></table></div></section>`;
-
-        document.getElementById('sections').innerHTML = filingsHtml + sectionsHtml;
+        document.getElementById('sections').innerHTML = filingsHtml + groupsHtml;
         document.getElementById('raw').textContent = JSON.stringify(data, null, 2);
         document.getElementById('result').classList.remove('hidden');
+        resetAllFacts();
+      }
+
+      // ---- all reported facts ----------------------------------------------
+      let allFactsData = null;
+      function resetAllFacts() {
+        allFactsData = null;
+        document.getElementById('allScroll').classList.add('hidden');
+        document.getElementById('allCount').textContent = '';
+        document.getElementById('allNote').textContent = '';
+        const search = document.getElementById('allSearch');
+        search.value = '';
+        search.disabled = true;
+        document.getElementById('allFactsBtn').disabled = false;
+      }
+
+      function renderAllFacts(filter) {
+        if (!allFactsData) return;
+        const years = allFactsData.fiscalYears;
+        document.getElementById('allHead').innerHTML =
+          `<th class="tag">US-GAAP Tag</th>` + years.map((y) => `<th>FY ${y}</th>`).join('');
+        const f = (filter || '').trim().toLowerCase();
+        const concepts = f
+          ? allFactsData.concepts.filter(
+              (c) => c.tag.toLowerCase().includes(f) || (c.label || '').toLowerCase().includes(f)
+            )
+          : allFactsData.concepts;
+        document.getElementById('allBody').innerHTML = concepts.map((c) => {
+          const cells = years.map((y) => {
+            const cell = c.values[y];
+            if (!cell) return `<td><span class="na">—</span></td>`;
+            const tip = `unit: ${cell.unit}\nfiled: ${cell.filed}\naccession: ${cell.accessionNumber}\nperiod end: ${cell.periodEnd}\nexact value: ${cell.value}`;
+            return `<td title="${esc(tip)}">${esc(fmtByUnit(c.unit, cell.value))}</td>`;
+          }).join('');
+          return `<tr><td class="tagcol"><code class="tagname">${esc(c.tag)}</code>` +
+            (c.label && c.label !== c.tag ? `<span class="tag">${esc(c.label)}</span>` : '') +
+            `</td>${cells}</tr>`;
+        }).join('');
+        document.getElementById('allCount').textContent =
+          concepts.length + ' / ' + allFactsData.concepts.length + ' concepts';
+        document.getElementById('allScroll').classList.remove('hidden');
+      }
+
+      async function loadAllFacts() {
+        if (isDemo) {
+          document.getElementById('allNote').textContent =
+            'All-facts is a live-only feature (it returns hundreds of concepts straight from SEC). Click "Load live data" against a running backend to use it.';
+          return;
+        }
+        const ticker = currentTicker;
+        const years = document.getElementById('years').value;
+        const base = apiBase();
+        const btn = document.getElementById('allFactsBtn');
+        btn.disabled = true;
+        document.getElementById('allNote').textContent = 'Loading every reported concept…';
+        try {
+          const params = new URLSearchParams({ ticker });
+          if (years) params.set('years', years);
+          const res = await fetch(base + '/api/sec/all-facts?' + params.toString());
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
+          allFactsData = data;
+          document.getElementById('allNote').textContent = '';
+          document.getElementById('allSearch').disabled = false;
+          renderAllFacts('');
+        } catch (err) {
+          document.getElementById('allNote').textContent = 'Error: ' + err.message;
+          btn.disabled = false;
+        }
       }
 
       // ---- data sources -----------------------------------------------------
@@ -270,28 +357,19 @@
       const bannerEl = document.getElementById('banner');
       const fetchBtn = document.getElementById('fetchBtn');
       const demoBtn = document.getElementById('demoBtn');
+      let isDemo = true;
+      let currentTicker = 'NFLX';
 
-      function setStatus(msg, kind) {
-        statusEl.className = 'status' + (kind ? ' ' + kind : '');
-        statusEl.textContent = msg || '';
-      }
-      function showBanner(msg) {
-        if (!msg) { bannerEl.classList.add('hidden'); return; }
-        bannerEl.textContent = msg;
-        bannerEl.classList.remove('hidden');
-      }
-
-      function defaultApiBase() {
-        if (location.protocol === 'http:' || location.protocol === 'https:') return location.origin;
-        return 'http://localhost:5050';
-      }
+      const setStatus = (msg, kind) => { statusEl.className = 'status' + (kind ? ' ' + kind : ''); statusEl.textContent = msg || ''; };
+      const showBanner = (msg) => { if (!msg) { bannerEl.classList.add('hidden'); return; } bannerEl.textContent = msg; bannerEl.classList.remove('hidden'); };
+      const defaultApiBase = () => (location.protocol === 'http:' || location.protocol === 'https:') ? location.origin : 'http://localhost:5050';
+      const apiBase = () => (document.getElementById('api').value.trim() || defaultApiBase()).replace(/\/$/, '');
 
       async function fetchLive() {
         const ticker = document.getElementById('ticker').value.trim().toUpperCase();
         const years = document.getElementById('years').value;
-        const base = (document.getElementById('api').value.trim() || defaultApiBase()).replace(/\/$/, '');
+        const base = apiBase();
         if (!ticker) { setStatus('Enter a ticker first.', 'error'); return; }
-
         showBanner('');
         setStatus('Loading ' + ticker + ' from ' + base + ' …', 'loading');
         document.getElementById('result').classList.add('hidden');
@@ -302,10 +380,9 @@
           const res = await fetch(base + '/api/sec/model-data?' + params.toString());
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
-          if (!data.periods || !data.periods.length) {
-            setStatus('No annual 10-K data found for ' + ticker + '.', 'error');
-            return;
-          }
+          if (!data.periods || !data.periods.length) { setStatus('No annual 10-K data found for ' + ticker + '.', 'error'); return; }
+          isDemo = false;
+          currentTicker = ticker;
           setStatus('Loaded ' + ticker + ' — live SEC data.');
           render(data);
         } catch (err) {
@@ -316,82 +393,83 @@
       }
 
       function loadDemo() {
-        showBanner('Sample data shown for layout preview — approximate Netflix figures, not a live SEC pull. Click "Fetch live data" against a running backend for real numbers.');
+        isDemo = true;
+        showBanner('Sample data shown for layout preview — approximate Netflix figures, not a live SEC pull. Click "Load live data" against a running backend for real numbers (and the full all-facts explorer).');
         setStatus('');
         render(buildDemo());
       }
 
-      // ---- bundled sample dataset (normalized output shape) -----------------
+      // ---- bundled sample dataset ------------------------------------------
       function buildDemo() {
-        const FIELD_TAG = {
-          revenue: 'Revenues',
-          costOfRevenue: 'CostOfGoodsAndServicesSold',
-          grossProfit: 'GrossProfit',
-          operatingIncome: 'OperatingIncomeLoss',
-          netIncome: 'NetIncomeLoss',
-          totalAssets: 'Assets',
-          currentAssets: 'AssetsCurrent',
-          cashAndEquivalents: 'CashAndCashEquivalentsAtCarryingValue',
-          totalLiabilities: 'Liabilities',
-          stockholdersEquity: 'StockholdersEquity',
-          operatingCashFlow: 'NetCashProvidedByUsedInOperatingActivities',
-          capitalExpenditure: 'PaymentsToAcquirePropertyPlantAndEquipment',
-          dilutedEPS: 'EarningsPerShareDiluted',
-          dilutedShares: 'WeightedAverageNumberOfDilutedSharesOutstanding',
+        const TAG = {
+          revenue: 'Revenues', costOfRevenue: 'CostOfGoodsAndServicesSold', grossProfit: 'GrossProfit',
+          researchAndDevelopment: 'ResearchAndDevelopmentExpense', sellingAndMarketing: 'SellingAndMarketingExpense',
+          generalAndAdministrative: 'GeneralAndAdministrativeExpense', totalOperatingExpenses: 'OperatingExpenses',
+          operatingIncome: 'OperatingIncomeLoss', interestExpense: 'InterestExpense', interestIncome: 'InvestmentIncomeInterest',
+          otherIncomeExpense: 'NonoperatingIncomeExpense', pretaxIncome: 'IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest',
+          incomeTaxExpense: 'IncomeTaxExpenseBenefit', netIncome: 'NetIncomeLoss', epsBasic: 'EarningsPerShareBasic',
+          dilutedEPS: 'EarningsPerShareDiluted', sharesBasic: 'WeightedAverageNumberOfSharesOutstandingBasic',
+          dilutedShares: 'WeightedAverageNumberOfDilutedSharesOutstanding', cashAndEquivalents: 'CashAndCashEquivalentsAtCarryingValue',
+          shortTermInvestments: 'ShortTermInvestments', currentAssets: 'AssetsCurrent', propertyPlantEquipmentNet: 'PropertyPlantAndEquipmentNet',
+          goodwill: 'Goodwill', totalAssets: 'Assets', accountsPayable: 'AccountsPayableCurrent', shortTermDebt: 'LongTermDebtCurrent',
+          deferredRevenueCurrent: 'ContractWithCustomerLiabilityCurrent', currentLiabilities: 'LiabilitiesCurrent',
+          longTermDebt: 'LongTermDebtNoncurrent', totalLiabilities: 'Liabilities', additionalPaidInCapital: 'AdditionalPaidInCapital',
+          retainedEarnings: 'RetainedEarningsAccumulatedDeficit', accumulatedOCI: 'AccumulatedOtherComprehensiveIncomeLossNetOfTax',
+          stockholdersEquity: 'StockholdersEquity', depreciationAmortization: 'DepreciationDepletionAndAmortization',
+          stockBasedCompensation: 'ShareBasedCompensation', operatingCashFlow: 'NetCashProvidedByUsedInOperatingActivities',
+          capitalExpenditure: 'PaymentsToAcquirePropertyPlantAndEquipment', investingCashFlow: 'NetCashProvidedByUsedInInvestingActivities',
+          debtIssued: 'ProceedsFromIssuanceOfLongTermDebt', debtRepaid: 'RepaymentsOfLongTermDebt',
+          stockRepurchased: 'PaymentsForRepurchaseOfCommonStock', financingCashFlow: 'NetCashProvidedByUsedInFinancingActivities',
         };
-        const UNIT = { dilutedEPS: 'USD/shares', dilutedShares: 'shares' };
-        const ALL = Object.keys(FIELD_TAG);
-
+        const UNIT = (k) => (FIELD_DEFS.find((f) => f[0] === k) || [])[3] || 'USD';
         const RAW = [
           { fy: 2024, filed: '2025-01-27', accn: '0001065280-25-000044', v: {
-            revenue: 39000966000, costOfRevenue: 21038000000, grossProfit: 17962966000,
-            operatingIncome: 10417874000, netIncome: 8711631000, totalAssets: 53629000000,
-            currentAssets: 9792000000, cashAndEquivalents: 7804000000, totalLiabilities: 28886000000,
-            stockholdersEquity: 24743000000, operatingCashFlow: 6921000000, capitalExpenditure: 439000000,
-            dilutedEPS: 19.83, dilutedShares: 439380000 } },
+            revenue: 39000966000, costOfRevenue: 21038000000, grossProfit: 17962966000, researchAndDevelopment: 2925000000,
+            sellingAndMarketing: 2554000000, generalAndAdministrative: 1700000000, totalOperatingExpenses: 28583092000,
+            operatingIncome: 10417874000, interestExpense: 718733000, interestIncome: 690000000, otherIncomeExpense: -266000000,
+            pretaxIncome: 10124000000, incomeTaxExpense: 1254000000, netIncome: 8711631000, epsBasic: 20.27, dilutedEPS: 19.83,
+            sharesBasic: 429700000, dilutedShares: 439380000, cashAndEquivalents: 7804000000, shortTermInvestments: 432000000,
+            currentAssets: 9792000000, propertyPlantEquipmentNet: 1631000000, goodwill: 284000000, totalAssets: 53629000000,
+            accountsPayable: 747000000, shortTermDebt: 1784000000, deferredRevenueCurrent: 1442000000, currentLiabilities: 9621000000,
+            longTermDebt: 13682000000, totalLiabilities: 28886000000, additionalPaidInCapital: 5184000000, retainedEarnings: 22790000000,
+            accumulatedOCI: -300000000, stockholdersEquity: 24743000000, depreciationAmortization: 14400000000, stockBasedCompensation: 575000000,
+            operatingCashFlow: 6921000000, capitalExpenditure: 439000000, investingCashFlow: -325000000, debtIssued: 1797000000,
+            debtRepaid: 1809000000, stockRepurchased: 6072000000, financingCashFlow: -3722000000 } },
           { fy: 2023, filed: '2024-01-26', accn: '0001065280-24-000029', v: {
-            revenue: 33723297000, costOfRevenue: 19715368000, grossProfit: 14007929000,
-            operatingIncome: 6954303000, netIncome: 5407990000, totalAssets: 48731992000,
-            currentAssets: 9918133000, cashAndEquivalents: 7116913000, totalLiabilities: 28107976000,
-            stockholdersEquity: 20624016000, operatingCashFlow: 7273885000, capitalExpenditure: 348428000,
-            dilutedEPS: 12.03, dilutedShares: 449498000 } },
+            revenue: 33723297000, costOfRevenue: 19715368000, grossProfit: 14007929000, researchAndDevelopment: 2675000000,
+            sellingAndMarketing: 2657000000, generalAndAdministrative: 1492000000, totalOperatingExpenses: 26769000000,
+            operatingIncome: 6954303000, interestExpense: 699826000, interestIncome: 460000000, otherIncomeExpense: -48000000,
+            pretaxIncome: 6206000000, incomeTaxExpense: 797000000, netIncome: 5407990000, epsBasic: 12.21, dilutedEPS: 12.03,
+            sharesBasic: 442800000, dilutedShares: 449498000, cashAndEquivalents: 7116913000, shortTermInvestments: 1390000000,
+            currentAssets: 9918133000, propertyPlantEquipmentNet: 1491000000, goodwill: 284000000, totalAssets: 48731992000,
+            accountsPayable: 747412000, shortTermDebt: 399844000, deferredRevenueCurrent: 1442969000, currentLiabilities: 8860655000,
+            longTermDebt: 14143417000, totalLiabilities: 28107976000, additionalPaidInCapital: 4905000000, retainedEarnings: 17489000000,
+            accumulatedOCI: -350000000, stockholdersEquity: 20624016000, depreciationAmortization: 14296000000, stockBasedCompensation: 432000000,
+            operatingCashFlow: 7273885000, capitalExpenditure: 348428000, investingCashFlow: -252000000, debtIssued: 0,
+            debtRepaid: 1198000000, stockRepurchased: 6043000000, financingCashFlow: -8480000000 } },
           { fy: 2022, filed: '2023-01-27', accn: '0001065280-23-000017', v: {
-            revenue: 31615550000, costOfRevenue: 19168285000, grossProfit: 12447265000,
-            operatingIncome: 5632831000, netIncome: 4491924000, totalAssets: 48594768000,
-            currentAssets: null, cashAndEquivalents: 5147176000, totalLiabilities: null,
-            stockholdersEquity: 20777401000, operatingCashFlow: 2021131000, capitalExpenditure: 407719000,
-            dilutedEPS: 9.95, dilutedShares: 451290000 } },
+            revenue: 31615550000, costOfRevenue: 19168285000, grossProfit: 12447265000, operatingIncome: 5632831000,
+            netIncome: 4491924000, dilutedEPS: 9.95, dilutedShares: 451290000, cashAndEquivalents: 5147176000,
+            totalAssets: 48594768000, stockholdersEquity: 20777401000, operatingCashFlow: 2021131000, capitalExpenditure: 407719000 } },
           { fy: 2021, filed: '2022-01-28', accn: '0001065280-22-000036', v: {
-            revenue: 29697844000, costOfRevenue: null, grossProfit: null,
-            operatingIncome: 6194509000, netIncome: 5116228000, totalAssets: null,
-            currentAssets: null, cashAndEquivalents: 6027804000, totalLiabilities: null,
-            stockholdersEquity: 15849248000, operatingCashFlow: 392610000, capitalExpenditure: 524585000,
-            dilutedEPS: 11.24, dilutedShares: 455372000 } },
+            revenue: 29697844000, operatingIncome: 6194509000, netIncome: 5116228000, dilutedEPS: 11.24, dilutedShares: 455372000,
+            cashAndEquivalents: 6027804000, stockholdersEquity: 15849248000, operatingCashFlow: 392610000, capitalExpenditure: 524585000 } },
         ];
-
         const periods = RAW.map((p) => {
           const period = { fiscalYear: p.fy, form: '10-K', filed: p.filed, accessionNumber: p.accn };
           const rawTagsUsed = {};
-          for (const field of ALL) {
-            const val = p.v[field];
-            period[field] = val === undefined ? null : val;
-            if (val === null || val === undefined) continue;
-            rawTagsUsed[field] = {
-              tag: FIELD_TAG[field],
-              unit: UNIT[field] || 'USD',
-              value: val,
-              fiscalYear: p.fy,
-              reportFiscalYear: p.fy,
-              accessionNumber: p.accn,
-              filed: p.filed,
-              form: '10-K',
-              periodEnd: p.fy + '-12-31',
+          for (const key of ALL_KEYS) {
+            const val = p.v[key];
+            period[key] = val === undefined ? null : val;
+            if (val === undefined || val === null) continue;
+            rawTagsUsed[key] = {
+              tag: TAG[key] || key, unit: UNIT(key), value: val, fiscalYear: p.fy, reportFiscalYear: p.fy,
+              accessionNumber: p.accn, filed: p.filed, form: '10-K', periodEnd: p.fy + '-12-31',
             };
           }
           period.rawTagsUsed = rawTagsUsed;
           return period;
         });
-
         return { ticker: 'NFLX', cik: '0001065280', companyName: 'NETFLIX INC', periods };
       }
 
@@ -399,12 +477,11 @@
       document.getElementById('api').value = defaultApiBase();
       fetchBtn.addEventListener('click', fetchLive);
       demoBtn.addEventListener('click', loadDemo);
-      document.getElementById('ticker').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') fetchLive();
-      });
+      document.getElementById('allFactsBtn').addEventListener('click', loadAllFacts);
+      document.getElementById('allSearch').addEventListener('input', (e) => renderAllFacts(e.target.value));
+      document.getElementById('ticker').addEventListener('keydown', (e) => { if (e.key === 'Enter') fetchLive(); });
 
-      // Show the sample table immediately so the formatting is visible on load.
-      loadDemo();
+      loadDemo(); // show the formatted sample immediately on load
     </script>
   </body>
 </html>

@@ -203,8 +203,60 @@ function normalizeCompanyFacts(companyFacts, { years } = {}) {
   };
 }
 
+// Extract EVERY us-gaap concept that has annual 10-K / FY values, as a
+// normalized time series. This is the "fetch everything" path — it surfaces all
+// line items the company reported in XBRL, using the raw tag names.
+function extractAllAnnualFacts(companyFacts, { years } = {}) {
+  const gaap = getGaapFacts(companyFacts);
+  const yearSet = new Set();
+  let concepts = [];
+
+  for (const [tag, tagData] of Object.entries(gaap)) {
+    const byYear = selectAnnualByYear(tagData, 'USD');
+    if (byYear.size === 0) continue;
+    const values = {};
+    let unit = null;
+    for (const [fiscalYear, audited] of byYear) {
+      unit = audited.unit;
+      values[fiscalYear] = {
+        value: audited.value,
+        unit: audited.unit,
+        accessionNumber: audited.accessionNumber,
+        filed: audited.filed,
+        form: audited.form,
+        periodEnd: audited.periodEnd,
+      };
+      yearSet.add(fiscalYear);
+    }
+    concepts.push({ tag, label: tagData.label || tag, unit, values });
+  }
+
+  let fiscalYears = [...yearSet].sort((a, b) => b - a);
+  const limit = Number(years);
+  if (Number.isFinite(limit) && limit > 0) {
+    fiscalYears = fiscalYears.slice(0, limit);
+    const keep = new Set(fiscalYears);
+    for (const concept of concepts) {
+      for (const fy of Object.keys(concept.values)) {
+        if (!keep.has(Number(fy))) delete concept.values[fy];
+      }
+    }
+    concepts = concepts.filter((c) => Object.keys(c.values).length > 0);
+  }
+
+  concepts.sort((a, b) => a.tag.localeCompare(b.tag));
+
+  return {
+    taxonomy: 'us-gaap',
+    fiscalYears,
+    conceptCount: concepts.length,
+    concepts,
+  };
+}
+
 module.exports = {
   normalizeCompanyFacts,
+  extractAllAnnualFacts,
   // exported for unit testing
   selectAnnualByYear,
   isFullYearDuration,

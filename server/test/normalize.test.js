@@ -1,4 +1,8 @@
-const { normalizeCompanyFacts, isFullYearDuration } = require('../src/normalize');
+const {
+  normalizeCompanyFacts,
+  isFullYearDuration,
+  extractAllAnnualFacts,
+} = require('../src/normalize');
 const { companyfacts } = require('./fixtures/secFixtures');
 
 describe('isFullYearDuration', () => {
@@ -110,5 +114,43 @@ describe('normalizeCompanyFacts', () => {
     const empty = normalizeCompanyFacts({ entityName: 'X', facts: {} });
     expect(empty.periods).toEqual([]);
     expect(empty.companyName).toBe('X');
+  });
+
+  test('maps newly added line items (current liabilities, R&D fallbacks)', () => {
+    // LiabilitiesCurrent in the fixture now also surfaces as currentLiabilities.
+    expect(byYear[2024].currentLiabilities).toBe(10000);
+    expect(byYear[2024].rawTagsUsed.currentLiabilities.tag).toBe('LiabilitiesCurrent');
+  });
+});
+
+describe('extractAllAnnualFacts', () => {
+  const all = extractAllAnnualFacts(companyfacts);
+
+  test('returns every reported annual concept', () => {
+    const tags = all.concepts.map((c) => c.tag);
+    expect(tags).toEqual(expect.arrayContaining(['Revenues', 'NetIncomeLoss', 'Assets']));
+    expect(all.conceptCount).toBe(all.concepts.length);
+    expect(all.taxonomy).toBe('us-gaap');
+  });
+
+  test('concepts are sorted and carry a per-year audit trail', () => {
+    const sorted = [...all.concepts].sort((a, b) => a.tag.localeCompare(b.tag));
+    expect(all.concepts.map((c) => c.tag)).toEqual(sorted.map((c) => c.tag));
+    const revenue = all.concepts.find((c) => c.tag === 'Revenues');
+    expect(revenue.values[2023]).toMatchObject({ value: 33723, unit: 'USD', form: '10-K' });
+  });
+
+  test('excludes 10-Q / partial periods (Revenues 2024 partials dropped)', () => {
+    const revenue = all.concepts.find((c) => c.tag === 'Revenues');
+    // Only the full-year 2022/2023 entries survive under Revenues.
+    expect(Object.keys(revenue.values).map(Number).sort()).toEqual([2022, 2023]);
+  });
+
+  test('respects the years limit', () => {
+    const limited = extractAllAnnualFacts(companyfacts, { years: 1 });
+    expect(limited.fiscalYears).toEqual([2024]);
+    for (const c of limited.concepts) {
+      expect(Object.keys(c.values).map(Number).every((y) => y === 2024)).toBe(true);
+    }
   });
 });

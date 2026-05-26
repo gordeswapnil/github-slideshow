@@ -2,7 +2,7 @@ const TAG_MAP = require('../src/tagMap');
 
 describe('tagMap', () => {
   test('revenue has primary tag and fallback', () => {
-    expect(TAG_MAP.revenue.tags).toEqual([
+    expect(TAG_MAP.revenue.tags.slice(0, 2)).toEqual([
       'Revenues',
       'RevenueFromContractWithCustomerExcludingAssessedTax',
     ]);
@@ -17,8 +17,8 @@ describe('tagMap', () => {
     expect(TAG_MAP.dilutedShares.unit).toBe('shares');
   });
 
-  test('all required modelling fields are mapped', () => {
-    const expected = [
+  test('all original headline fields remain mapped', () => {
+    const required = [
       'revenue',
       'costOfRevenue',
       'grossProfit',
@@ -34,14 +34,22 @@ describe('tagMap', () => {
       'dilutedEPS',
       'dilutedShares',
     ];
-    expect(Object.keys(TAG_MAP)).toEqual(expected);
+    expect(Object.keys(TAG_MAP)).toEqual(expect.arrayContaining(required));
   });
 
-  test('every field has at least one tag and a unit', () => {
-    for (const [field, def] of Object.entries(TAG_MAP)) {
+  test('expanded into a full three-statement model', () => {
+    expect(Object.keys(TAG_MAP).length).toBeGreaterThanOrEqual(40);
+    const statements = new Set(Object.values(TAG_MAP).map((d) => d.statement));
+    expect(statements).toEqual(new Set(['income', 'pershare', 'balance', 'cashflow']));
+  });
+
+  test('every field has tags, a unit, a label and a statement', () => {
+    for (const def of Object.values(TAG_MAP)) {
       expect(Array.isArray(def.tags)).toBe(true);
       expect(def.tags.length).toBeGreaterThan(0);
       expect(typeof def.unit).toBe('string');
+      expect(typeof def.label).toBe('string');
+      expect(['income', 'pershare', 'balance', 'cashflow']).toContain(def.statement);
     }
   });
 });

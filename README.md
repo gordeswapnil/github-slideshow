@@ -76,13 +76,37 @@ Copy `server/.env.example` to `server/.env` and set your email before deploying.
 | --- | --- |
 | `GET /api/sec/company?ticker=NFLX` | CIK, company name, tickers, exchange |
 | `GET /api/sec/companyfacts?ticker=NFLX` | Wrapped raw SEC companyfacts JSON |
-| `GET /api/sec/model-data?ticker=NFLX` | Normalized annual 10-K modelling data |
+| `GET /api/sec/model-data?ticker=NFLX` | Normalized annual 10-K modelling data (curated ~50 line items) |
 | `GET /api/sec/model-data?ticker=NFLX&years=5` | Latest 5 annual 10-K periods |
+| `GET /api/sec/all-facts?ticker=NFLX` | **Every** annual us-gaap concept the company reported, as a time series |
+| `GET /api/sec/fields` | Metadata for the curated model (field keys, labels, statement, tags) |
 | `GET /api/sec/concept?ticker=NFLX&tag=Revenues` | One US-GAAP concept (raw) |
 
-`model-data` returns one normalized object per fiscal year (revenue, cost of
-revenue, gross profit, operating income, net income, total/current assets, cash,
-total liabilities, equity, operating cash flow, capex, diluted EPS and shares).
+`model-data` returns one normalized object per fiscal year covering a curated
+**full three-statement** line-item set (~50 fields):
+
+- **Income statement** — revenue, cost of revenue, gross profit, R&D, selling &
+  marketing, G&A, SG&A, total opex, operating income, interest expense/income,
+  other non-operating income, pre-tax income, income tax, net income.
+- **Per share** — basic & diluted EPS, basic & diluted weighted shares,
+  dividends per share.
+- **Balance sheet** — cash, short-term investments, receivables, inventory,
+  other current assets, total current assets, PP&E, goodwill, intangibles, total
+  assets, payables, short-term/long-term debt, deferred revenue, current
+  liabilities, total liabilities, common stock, APIC, retained earnings, treasury
+  stock, AOCI, stockholders' equity.
+- **Cash flow** — D&A, stock-based comp, operating cash flow, capex,
+  acquisitions, investing cash flow, debt issued/repaid, buybacks, dividends
+  paid, financing cash flow.
+
+The curated set is intentionally not exhaustive. For **everything** a company
+tagged in XBRL (often hundreds of concepts), use `all-facts`, which returns each
+concept by its raw US-GAAP tag with the same per-value audit trail. Companies use
+different tags, so all-facts uses the raw tag names rather than normalizing.
+
+**Note:** segment / product / geographic breakdowns are *not* available from the
+companyfacts JSON API (they live in the filing's dimensional XBRL); only
+consolidated/total values are exposed here.
 
 ## Auditability
 

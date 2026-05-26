@@ -1,6 +1,18 @@
 const { padCik, cikUrlParam, findTickerEntry } = require('./cikLookup');
-const { normalizeCompanyFacts } = require('./normalize');
+const { normalizeCompanyFacts, extractAllAnnualFacts } = require('./normalize');
+const TAG_MAP = require('./tagMap');
 const { badRequest, notFound } = require('./errors');
+
+// Field metadata derived from the tag map (no network needed).
+function fieldDefinitions() {
+  return Object.entries(TAG_MAP).map(([key, def]) => ({
+    key,
+    label: def.label,
+    statement: def.statement,
+    unit: def.unit,
+    tags: def.tags,
+  }));
+}
 
 const TICKERS_URL = 'https://www.sec.gov/files/company_tickers.json';
 const submissionsUrl = (cik) => `https://data.sec.gov/submissions/${cikUrlParam(cik)}.json`;
@@ -74,6 +86,24 @@ function createSecService({ client }) {
     };
   }
 
+  // GET /api/sec/all-facts (every annual us-gaap concept the company reported)
+  async function getAllFacts(rawTicker, { years } = {}) {
+    const resolved = await resolveTicker(rawTicker);
+    const facts = await client.getJson(companyFactsUrl(resolved.cik));
+    const all = extractAllAnnualFacts(facts, { years });
+    return {
+      ticker: resolved.ticker,
+      cik: resolved.cik,
+      companyName: facts.entityName || resolved.title,
+      ...all,
+    };
+  }
+
+  // GET /api/sec/fields (metadata for the curated model — no network)
+  function getFields() {
+    return { fields: fieldDefinitions() };
+  }
+
   // GET /api/sec/concept (uses the company concept API the SEC exposes)
   async function getConcept(rawTicker, tag, taxonomy = 'us-gaap') {
     if (!tag) throw badRequest('Query parameter "tag" is required.');
@@ -88,7 +118,15 @@ function createSecService({ client }) {
     };
   }
 
-  return { resolveTicker, getCompany, getCompanyFacts, getModelData, getConcept };
+  return {
+    resolveTicker,
+    getCompany,
+    getCompanyFacts,
+    getModelData,
+    getAllFacts,
+    getFields,
+    getConcept,
+  };
 }
 
 module.exports = {

@@ -69,6 +69,28 @@ describe('GET /api/sec/model-data', () => {
   });
 });
 
+describe('GET /api/sec/all-facts', () => {
+  test('returns every annual concept for the ticker', async () => {
+    const app = makeApp();
+    const r = await request(app).get('/api/sec/all-facts?ticker=NFLX');
+    expect(r.status).toBe(200);
+    expect(r.body.cik).toBe('0001065280');
+    expect(r.body.conceptCount).toBeGreaterThan(0);
+    expect(r.body.concepts.map((c) => c.tag)).toEqual(expect.arrayContaining(['Revenues']));
+  });
+});
+
+describe('GET /api/sec/fields', () => {
+  test('returns curated field metadata without a network call', async () => {
+    const app = makeApp();
+    const r = await request(app).get('/api/sec/fields');
+    expect(r.status).toBe(200);
+    expect(r.body.fields.length).toBeGreaterThanOrEqual(40);
+    const revenue = r.body.fields.find((f) => f.key === 'revenue');
+    expect(revenue).toMatchObject({ statement: 'income', unit: 'USD' });
+  });
+});
+
 describe('error handling', () => {
   test('400 when ticker is missing', async () => {
     const app = makeApp();
