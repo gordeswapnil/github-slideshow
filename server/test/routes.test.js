@@ -15,7 +15,17 @@ function makeApp() {
       throw err;
     }),
   };
-  const service = createSecService({ client });
+  const service = createSecService({
+    client,
+    // Deterministic stubs so WACC tests don't depend on env/network.
+    marketData: {
+      configured: false,
+      getOverview: async () => ({ configured: false, beta: null, marketCap: null, source: 'none' }),
+    },
+    treasury: {
+      getRiskFreeRate: async () => ({ riskFreeRate: 0.043, source: 'default', year: 2026 }),
+    },
+  });
   return createApp({ service });
 }
 
@@ -66,6 +76,49 @@ describe('GET /api/sec/model-data', () => {
     expect(r.status).toBe(200);
     expect(r.body.periods).toHaveLength(2);
     expect(r.body.periods[0].fiscalYear).toBe(2024);
+  });
+});
+
+describe('GET /api/sec/profile', () => {
+  test('returns metadata plus a financial snapshot', async () => {
+    const app = makeApp();
+    const r = await request(app).get('/api/sec/profile?ticker=NFLX');
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ ticker: 'NFLX', cik: '0001065280', name: 'NETFLIX INC' });
+    expect(r.body.snapshot.fiscalYear).toBe(2024);
+    expect(typeof r.body.narrative).toBe('string');
+  });
+});
+
+describe('GET /api/sec/ratios', () => {
+  test('returns one ratio set per period', async () => {
+    const app = makeApp();
+    const r = await request(app).get('/api/sec/ratios?ticker=NFLX');
+    expect(r.status).toBe(200);
+    expect(r.body.ratios.length).toBeGreaterThan(0);
+    expect(r.body.ratios[0]).toHaveProperty('currentRatio');
+  });
+});
+
+describe('GET /api/sec/wacc', () => {
+  test('computes WACC from query-param overrides', async () => {
+    const app = makeApp();
+    const r = await request(app).get(
+      '/api/sec/wacc?ticker=NFLX&beta=1.2&marketCap=90000&costOfDebt=0.05&taxRate=0.2&totalDebt=10000&rf=0.04&erp=0.05'
+    );
+    expect(r.status).toBe(200);
+    expect(r.body.inputs.beta).toBe(1.2);
+    // Re=0.04+1.2*0.05=0.10 ; afterTaxRd=0.05*0.8=0.04 ; 0.9*0.10+0.1*0.04=0.094
+    expect(r.body.wacc).toBeCloseTo(0.094, 5);
+    expect(r.body.complete).toBe(true);
+  });
+
+  test('still returns (incomplete) when market data is unconfigured', async () => {
+    const app = makeApp();
+    const r = await request(app).get('/api/sec/wacc?ticker=NFLX');
+    expect(r.status).toBe(200);
+    expect(r.body.meta.marketDataConfigured).toBe(false);
+    expect(r.body.missing).toEqual(expect.arrayContaining(['beta', 'marketCap']));
   });
 });
 

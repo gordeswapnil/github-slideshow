@@ -61,8 +61,9 @@ function createSecClient(options = {}) {
     return baseBackoffMs * 2 ** attempt;
   }
 
-  async function getJson(url) {
-    const cached = cache.get(url);
+  async function request(url, parse, cacheKey) {
+    const key = cacheKey || url;
+    const cached = cache.get(key);
     if (cached !== undefined) {
       return cached;
     }
@@ -81,8 +82,8 @@ function createSecClient(options = {}) {
       }
 
       if (response.ok) {
-        const data = await response.json();
-        cache.set(url, data);
+        const data = await parse(response);
+        cache.set(key, data);
         return data;
       }
 
@@ -94,14 +95,17 @@ function createSecClient(options = {}) {
       }
 
       const err = new Error(
-        `SEC request failed: ${response.status} ${response.statusText || ''} for ${url}`.trim()
+        `Request failed: ${response.status} ${response.statusText || ''} for ${url}`.trim()
       );
       err.status = response.status;
       throw err;
     }
   }
 
-  return { getJson, cache, headers };
+  const getJson = (url) => request(url, (r) => r.json());
+  const getText = (url) => request(url, (r) => r.text(), `text:${url}`);
+
+  return { getJson, getText, cache, headers };
 }
 
 module.exports = { createSecClient, createRateLimiter };

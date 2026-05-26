@@ -1,5 +1,11 @@
+const config = require('./config');
 const { padCik, cikUrlParam, findTickerEntry } = require('./cikLookup');
 const { normalizeCompanyFacts, extractAllAnnualFacts } = require('./normalize');
+const { buildProfile } = require('./profile');
+const { computeRatios } = require('./ratios');
+const { createMarketDataProvider } = require('./marketData');
+const { createTreasuryProvider } = require('./treasury');
+const { computeWacc } = require('./wacc');
 const TAG_MAP = require('./tagMap');
 const { badRequest, notFound } = require('./errors');
 
@@ -28,7 +34,10 @@ function normalizeTicker(ticker) {
   return t;
 }
 
-function createSecService({ client }) {
+function createSecService({ client, marketData, treasury } = {}) {
+  const market = marketData || createMarketDataProvider({ client });
+  const treasuryProvider = treasury || createTreasuryProvider({ client });
+
   // Ticker -> { ticker, cik (padded), cikNumber, title }
   async function resolveTicker(rawTicker) {
     const ticker = normalizeTicker(rawTicker);
@@ -86,6 +95,76 @@ function createSecService({ client }) {
     };
   }
 
+  // GET /api/sec/profile (case-study profile: metadata + financial snapshot)
+  async function getProfile(rawTicker) {
+    const resolved = await resolveTicker(rawTicker);
+    const [submissions, facts] = await Promise.all([
+      client.getJson(submissionsUrl(resolved.cik)),
+      client.getJson(companyFactsUrl(resolved.cik)),
+    ]);
+    const modelData = normalizeCompanyFacts(facts, { years: 5 });
+    return buildProfile({ ticker: resolved.ticker, cik: resolved.cik, submissions, modelData });
+  }
+
+  // GET /api/sec/ratios (working-capital, liquidity, leverage, returns)
+  async function getRatios(rawTicker, { years } = {}) {
+    const resolved = await resolveTicker(rawTicker);
+    const facts = await client.getJson(companyFactsUrl(resolved.cik));
+    const modelData = normalizeCompanyFacts(facts, { years });
+    return {
+      ticker: resolved.ticker,
+      cik: resolved.cik,
+      companyName: modelData.companyName || resolved.title,
+      ratios: computeRatios(modelData.periods),
+    };
+  }
+
+  // GET /api/sec/wacc (cost of capital; market inputs from the configured provider)
+  async function getWacc(rawTicker, overrides = {}) {
+    const resolved = await resolveTicker(rawTicker);
+    const facts = await client.getJson(companyFactsUrl(resolved.cik));
+    const modelData = normalizeCompanyFacts(facts, { years: 2 });
+    const period = modelData.periods[0];
+    if (!period) throw notFound(`No annual 10-K data to compute WACC for "${resolved.ticker}".`);
+
+    // Market data (beta, market cap) and risk-free rate may fail or be
+    // unconfigured; WACC still returns with whatever is available + overrides.
+    let overview = { configured: market.configured, beta: null, marketCap: null, source: 'none' };
+    let marketError = null;
+    try {
+      overview = await market.getOverview(resolved.ticker);
+    } catch (err) {
+      marketError = err.message;
+    }
+    const rf = await treasuryProvider.getRiskFreeRate();
+
+    const result = computeWacc({
+      period,
+      beta: overview.beta,
+      marketCap: overview.marketCap,
+      riskFreeRate: rf.riskFreeRate,
+      equityRiskPremium: config.equityRiskPremiumDefault,
+      overrides,
+    });
+
+    return {
+      ticker: resolved.ticker,
+      cik: resolved.cik,
+      companyName: modelData.companyName || resolved.title,
+      ...result,
+      meta: {
+        marketDataConfigured: market.configured,
+        marketDataSource: overview.source,
+        marketDataError: marketError,
+        riskFreeRateSource: rf.source,
+        equityRiskPremiumDefault: config.equityRiskPremiumDefault,
+        note: market.configured
+          ? undefined
+          : 'No market-data API key set (ALPHAVANTAGE_API_KEY). Beta and market cap are null — pass them as query params (?beta=&marketCap=) or set a key.',
+      },
+    };
+  }
+
   // GET /api/sec/all-facts (every annual us-gaap concept the company reported)
   async function getAllFacts(rawTicker, { years } = {}) {
     const resolved = await resolveTicker(rawTicker);
@@ -123,6 +202,9 @@ function createSecService({ client }) {
     getCompany,
     getCompanyFacts,
     getModelData,
+    getProfile,
+    getRatios,
+    getWacc,
     getAllFacts,
     getFields,
     getConcept,

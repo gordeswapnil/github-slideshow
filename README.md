@@ -78,6 +78,9 @@ Copy `server/.env.example` to `server/.env` and set your email before deploying.
 | `GET /api/sec/companyfacts?ticker=NFLX` | Wrapped raw SEC companyfacts JSON |
 | `GET /api/sec/model-data?ticker=NFLX` | Normalized annual 10-K modelling data (curated ~50 line items) |
 | `GET /api/sec/model-data?ticker=NFLX&years=5` | Latest 5 annual 10-K periods |
+| `GET /api/sec/profile?ticker=NFLX` | Case-study profile: industry, HQ, filings + financial snapshot |
+| `GET /api/sec/ratios?ticker=NFLX` | Working-capital, liquidity, leverage & return ratios per year |
+| `GET /api/sec/wacc?ticker=NFLX` | Cost of capital (see WACC section below) |
 | `GET /api/sec/all-facts?ticker=NFLX` | **Every** annual us-gaap concept the company reported, as a time series |
 | `GET /api/sec/fields` | Metadata for the curated model (field keys, labels, statement, tags) |
 | `GET /api/sec/concept?ticker=NFLX&tag=Revenues` | One US-GAAP concept (raw) |
@@ -107,6 +110,43 @@ different tags, so all-facts uses the raw tag names rather than normalizing.
 **Note:** segment / product / geographic breakdowns are *not* available from the
 companyfacts JSON API (they live in the filing's dimensional XBRL); only
 consolidated/total values are exposed here.
+
+## Company profile & ratios
+
+`profile` combines SEC submissions metadata (industry/SIC, exchange, HQ, state of
+incorporation, fiscal year-end, recent 10-K filings) with a computed financial
+snapshot (revenue, YoY growth, margins, ROE) — a quick case-study brief.
+
+`ratios` returns per-year working-capital and analysis ratios: current/quick
+ratio, working capital, **DSO / DPO / DIO and the cash-conversion cycle**,
+debt/equity, debt/assets, interest coverage, net margin, ROE and ROA — all
+computed from the normalized SEC figures.
+
+## WACC (cost of capital)
+
+`WACC = (E/V)·Rₑ + (D/V)·R_d·(1−Tc)`, with `Rₑ = R_f + β·ERP`.
+
+SEC data does **not** include beta or market value of equity, so those come from
+a market-data provider; the rest is SEC/Treasury/assumption:
+
+| Input | Source |
+| --- | --- |
+| Cost of debt (`R_d`) | SEC — interest expense ÷ total debt |
+| Tax rate (`Tc`) | SEC — income tax ÷ pre-tax income (clamped 0–50%) |
+| Book debt (`D`) | SEC — short-term + long-term debt |
+| Risk-free rate (`R_f`) | **US Treasury** 10-yr par yield (free, no key) |
+| Beta (`β`) | Market-data provider (default **Alpha Vantage** `OVERVIEW`) |
+| Market value of equity (`E`) | Market-data provider (market cap) |
+| Equity risk premium (`ERP`) | Assumption (default 5.5%, overridable) |
+
+Get a **free** Alpha Vantage key at <https://www.alphavantage.co/support/#api-key>
+and set `ALPHAVANTAGE_API_KEY` in `server/.env`. Without a key, `/wacc` still
+works but returns beta/market-cap empty — supply them yourself.
+
+Every input is overridable via query params so students can apply their own
+assumptions: `?beta=&rf=&erp=&marketCap=&costOfDebt=&taxRate=&totalDebt=`
+(rates as decimals, e.g. `rf=0.043`). The UI exposes the same as editable fields
+with a live-recomputed breakdown.
 
 ## Auditability
 

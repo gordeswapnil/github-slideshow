@@ -71,6 +71,22 @@
       .allctrl input { width: 280px; }
       .allctrl .count { color: var(--muted); font-size: 0.82rem; }
       code.tagname { color: var(--accent); font-size: 0.8rem; }
+      .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; margin-bottom: 1.4rem; }
+      .card h3 { margin: 0 0 0.6rem; font-size: 0.95rem; }
+      .facts { display: flex; flex-wrap: wrap; gap: 0.4rem 1.4rem; font-size: 0.85rem; margin-bottom: 0.6rem; }
+      .facts .f { color: var(--muted); }
+      .facts .f b { color: var(--text); font-weight: 600; }
+      .narrative { font-size: 0.88rem; line-height: 1.55; color: var(--text); margin: 0.4rem 0 0.9rem; max-width: 900px; }
+      .snap, .wacc-out { display: flex; flex-wrap: wrap; gap: 0.7rem; }
+      .kpi { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 0.45rem 0.8rem; min-width: 118px; }
+      .kpi .label { font-size: 0.66rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+      .kpi .num { font-size: 1.05rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+      .kpi.big { border-color: var(--accent); }
+      .kpi .num.big { font-size: 1.5rem; color: var(--accent); }
+      .num.pos { color: var(--good); } .num.neg { color: var(--bad); }
+      .wacc-inputs { display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: flex-end; margin-bottom: 0.9rem; }
+      .wacc-inputs .field input { width: 130px; }
+      .muted { color: var(--muted); font-size: 0.8rem; margin: 0.6rem 0 0; max-width: 900px; }
       details.raw { margin-top: 1.5rem; }
       details.raw summary { cursor: pointer; color: var(--accent); font-weight: 600; }
       pre { background: var(--panel); border: 1px solid var(--line); padding: 1rem; border-radius: 10px; overflow: auto; font-size: 0.74rem; max-height: 420px; }
@@ -127,7 +143,10 @@
 
       <div id="result" class="hidden">
         <div class="company" id="company"></div>
+        <div id="profile"></div>
         <div id="sections"></div>
+        <div id="ratiosSection"></div>
+        <div id="waccSection"></div>
 
         <section class="group" id="allFactsSection">
           <h2>All reported facts — everything SEC has</h2>
@@ -287,6 +306,8 @@
         }).join('');
 
         document.getElementById('sections').innerHTML = filingsHtml + groupsHtml;
+        renderRatios(periods);
+        initWacc(periods[0]);
         document.getElementById('raw').textContent = JSON.stringify(data, null, 2);
         document.getElementById('result').classList.remove('hidden');
         lastData = data;
@@ -396,6 +417,7 @@
           currentTicker = ticker;
           setStatus('Loaded ' + ticker + ' — live SEC data.');
           render(data);
+          fetchProfile(base, ticker, data.periods);
         } catch (err) {
           setStatus('Error: ' + err.message + ' — is the backend running at ' + base + '?', 'error');
         } finally {
@@ -407,7 +429,9 @@
         isDemo = true;
         showBanner('Sample data shown for layout preview — approximate Netflix figures, not a live SEC pull. Click "Load live data" against a running backend for real numbers (and the full all-facts explorer).');
         setStatus('');
-        render(buildDemo());
+        const d = buildDemo();
+        render(d);
+        renderProfile(DEMO_PROFILE, d.periods);
       }
 
       // ---- bundled sample dataset ------------------------------------------
@@ -482,6 +506,230 @@
           return period;
         });
         return { ticker: 'NFLX', cik: '0001065280', companyName: 'NETFLIX INC', periods };
+      }
+
+      // ---- profile ----------------------------------------------------------
+      const DEMO_PROFILE = {
+        industry: 'Streaming Entertainment (SIC 7841)', exchanges: ['NASDAQ'],
+        stateOfIncorporation: 'DE', fiscalYearEnd: '1231',
+        headquarters: { city: 'Los Gatos', state: 'CA' },
+        narrative: 'Sample profile — Netflix is a subscription streaming entertainment service. Figures shown are approximate and for layout preview only; load live data for the real profile.',
+      };
+      const moneyStr = (v) => (v == null ? '—' : fmtByUnit('USD', v));
+      const pctStr = (v, dp = 1) => (v == null ? '—' : (v * 100).toFixed(dp) + '%');
+      const kpi = (label, num, cls = '') => `<div class="kpi ${cls}"><div class="label">${esc(label)}</div><div class="num ${cls}">${num}</div></div>`;
+
+      function snapshotClient(periods) {
+        if (!periods || !periods.length) return null;
+        const L = periods[0], P = periods[1] || null;
+        const div = (a, b) => (a == null || b == null || b === 0 ? null : a / b);
+        return {
+          fiscalYear: L.fiscalYear, revenue: L.revenue,
+          revenueGrowth: P ? div((L.revenue || 0) - (P.revenue || 0), P.revenue) : null,
+          grossMargin: div(L.grossProfit, L.revenue), operatingMargin: div(L.operatingIncome, L.revenue),
+          netMargin: div(L.netIncome, L.revenue), returnOnEquity: div(L.netIncome, L.stockholdersEquity),
+        };
+      }
+      function renderProfile(meta, periods) {
+        const s = snapshotClient(periods);
+        const f = (l, v) => (v ? `<span class="f">${esc(l)}: <b>${esc(v)}</b></span>` : '');
+        const facts = [
+          f('Industry', meta.industry),
+          f('Exchange', (meta.exchanges || []).join(', ')),
+          meta.headquarters ? f('HQ', [meta.headquarters.city, meta.headquarters.state].filter(Boolean).join(', ')) : '',
+          f('Incorporated', meta.stateOfIncorporation),
+          f('Fiscal year end', meta.fiscalYearEnd),
+        ].join('');
+        let snap = '';
+        if (s) {
+          const g = s.revenueGrowth == null ? '' :
+            `<div class="num ${s.revenueGrowth >= 0 ? 'pos' : 'neg'}" style="font-size:0.8rem">${(s.revenueGrowth * 100).toFixed(1)}% YoY</div>`;
+          snap = `<div class="snap">` +
+            `<div class="kpi"><div class="label">Revenue FY${s.fiscalYear}</div><div class="num">${moneyStr(s.revenue)}</div>${g}</div>` +
+            kpi('Gross margin', pctStr(s.grossMargin)) +
+            kpi('Operating margin', pctStr(s.operatingMargin)) +
+            kpi('Net margin', pctStr(s.netMargin)) +
+            kpi('Return on equity', pctStr(s.returnOnEquity)) +
+            `</div>`;
+        }
+        document.getElementById('profile').innerHTML =
+          `<div class="card"><h3>Company profile</h3>` +
+          `<div class="facts">${facts}</div>` +
+          (meta.narrative ? `<p class="narrative">${esc(meta.narrative)}</p>` : '') + snap + `</div>`;
+      }
+      async function fetchProfile(base, ticker, periods) {
+        try {
+          const res = await fetch(base + '/api/sec/profile?ticker=' + encodeURIComponent(ticker));
+          const data = await res.json();
+          if (!res.ok) throw new Error('profile');
+          renderProfile({
+            industry: data.industry, exchanges: data.exchanges, stateOfIncorporation: data.stateOfIncorporation,
+            fiscalYearEnd: data.fiscalYearEnd, headquarters: data.headquarters, narrative: data.narrative,
+          }, periods);
+        } catch (_) {
+          document.getElementById('profile').innerHTML = '';
+        }
+      }
+
+      // ---- ratios -----------------------------------------------------------
+      const RATIO_ROWS = [
+        ['currentRatio', 'Current Ratio', 'x'],
+        ['quickRatio', 'Quick Ratio', 'x'],
+        ['workingCapital', 'Working Capital', 'money'],
+        ['daysSalesOutstanding', 'Days Sales Outstanding (DSO)', 'days'],
+        ['daysPayablesOutstanding', 'Days Payables Outstanding (DPO)', 'days'],
+        ['daysInventoryOutstanding', 'Days Inventory Outstanding (DIO)', 'days'],
+        ['cashConversionCycle', 'Cash Conversion Cycle', 'days'],
+        ['debtToEquity', 'Debt / Equity', 'x'],
+        ['debtToAssets', 'Debt / Assets', 'x'],
+        ['interestCoverage', 'Interest Coverage', 'x'],
+        ['netMargin', 'Net Margin', 'pct'],
+        ['returnOnEquity', 'Return on Equity', 'pct'],
+        ['returnOnAssets', 'Return on Assets', 'pct'],
+      ];
+      function fmtRatio(type, v) {
+        if (v == null) return null;
+        if (type === 'pct') return (v * 100).toFixed(1) + '%';
+        if (type === 'days') return v.toFixed(0) + 'd';
+        if (type === 'money') return fmtByUnit('USD', v);
+        return v.toFixed(2) + '×';
+      }
+      function computeRatiosClient(periods) {
+        const div = (a, b) => (a == null || b == null || b === 0 ? null : a / b);
+        const days = (bal, flow) => (bal == null || flow == null || flow === 0 ? null : (bal / Math.abs(flow)) * 365);
+        return (periods || []).map((p) => {
+          const totalDebt = (p.shortTermDebt || 0) + (p.longTermDebt || 0) || null;
+          const dso = days(p.accountsReceivable, p.revenue);
+          const dpo = days(p.accountsPayable, p.costOfRevenue);
+          const dio = days(p.inventory, p.costOfRevenue);
+          const ccc = dso == null && dpo == null && dio == null ? null : (dso || 0) + (dio || 0) - (dpo || 0);
+          return {
+            fiscalYear: p.fiscalYear,
+            currentRatio: div(p.currentAssets, p.currentLiabilities),
+            quickRatio: div(p.currentAssets != null ? p.currentAssets - (p.inventory || 0) : null, p.currentLiabilities),
+            workingCapital: p.currentAssets != null && p.currentLiabilities != null ? p.currentAssets - p.currentLiabilities : null,
+            daysSalesOutstanding: dso, daysPayablesOutstanding: dpo, daysInventoryOutstanding: dio, cashConversionCycle: ccc,
+            debtToEquity: div(totalDebt, p.stockholdersEquity), debtToAssets: div(totalDebt, p.totalAssets),
+            interestCoverage: div(p.operatingIncome, p.interestExpense),
+            netMargin: div(p.netIncome, p.revenue), returnOnEquity: div(p.netIncome, p.stockholdersEquity), returnOnAssets: div(p.netIncome, p.totalAssets),
+          };
+        });
+      }
+      function renderRatios(periods) {
+        const rows = computeRatiosClient(periods);
+        const yearHeads = periods.map((p) => `<th>FY ${p.fiscalYear}</th>`).join('');
+        const body = RATIO_ROWS.map(([key, label, type]) => {
+          if (!rows.some((r) => r[key] != null)) return '';
+          const cells = rows.map((r) => {
+            const t = fmtRatio(type, r[key]);
+            return `<td>${t == null ? '<span class="na">—</span>' : esc(t)}</td>`;
+          }).join('');
+          return `<tr><td class="metric">${esc(label)}</td>${cells}</tr>`;
+        }).join('');
+        document.getElementById('ratiosSection').innerHTML = body
+          ? `<section class="group"><h2>Ratios &amp; Working Capital</h2><div class="scroll"><table>` +
+            `<thead><tr><th class="metric">Ratio</th>${yearHeads}</tr></thead><tbody>${body}</tbody></table></div></section>`
+          : '';
+      }
+
+      // ---- WACC -------------------------------------------------------------
+      let waccPeriod = null;
+      const waccState = { beta: null, marketCap: null, rf: '4.3', erp: '5.5' };
+
+      function computeWaccClient(period, inp) {
+        const n = (v) => (typeof v === 'number' && isFinite(v) ? v : null);
+        const totalDebt = (period.shortTermDebt || 0) + (period.longTermDebt || 0) || null;
+        const interest = n(period.interestExpense);
+        const costOfDebt = interest != null && totalDebt ? interest / totalDebt : null;
+        let taxRate = null;
+        if (n(period.incomeTaxExpense) != null && n(period.pretaxIncome) && period.pretaxIncome !== 0) {
+          taxRate = Math.min(Math.max(period.incomeTaxExpense / period.pretaxIncome, 0), 0.5);
+        }
+        const rf = n(inp.rf), beta = n(inp.beta), erp = n(inp.erp), E = n(inp.marketCap);
+        const costOfEquity = rf != null && beta != null && erp != null ? rf + beta * erp : null;
+        const afterTaxCoD = costOfDebt != null && taxRate != null ? costOfDebt * (1 - taxRate) : null;
+        let we = null, wd = null, wacc = null;
+        if (E != null && totalDebt != null && E + totalDebt > 0) {
+          const V = E + totalDebt; we = E / V; wd = totalDebt / V;
+          if (costOfEquity != null && afterTaxCoD != null) wacc = we * costOfEquity + wd * afterTaxCoD;
+        }
+        return { totalDebt, interest, costOfDebt, taxRate, costOfEquity, afterTaxCoD, we, wd, wacc };
+      }
+      const waccField = (id, label, val, ph) =>
+        `<div class="field"><label for="${id}">${esc(label)}</label>` +
+        `<input id="${id}" value="${val === '' || val == null ? '' : esc(val)}" placeholder="${esc(ph)}" inputmode="decimal" /></div>`;
+
+      function initWacc(period) {
+        if (!period) { document.getElementById('waccSection').innerHTML = ''; return; }
+        waccPeriod = period;
+        document.getElementById('waccSection').innerHTML =
+          `<section class="group"><h2>WACC — Cost of Capital (FY${period.fiscalYear})</h2><div class="card">` +
+          `<div class="wacc-inputs">` +
+            waccField('wBeta', 'Beta (β)', waccState.beta, 'e.g. 1.25') +
+            waccField('wRf', 'Risk-free %', waccState.rf, '4.3') +
+            waccField('wErp', 'Equity risk premium %', waccState.erp, '5.5') +
+            waccField('wMc', 'Market cap ($)', waccState.marketCap, 'e.g. 350000000000') +
+            `<div class="field"><label>&nbsp;</label><button id="waccFetch" class="ghost" type="button">Fetch β & market cap</button></div>` +
+          `</div><div id="waccOut" class="wacc-out"></div><p class="muted" id="waccNote"></p></div></section>`;
+        ['wBeta', 'wRf', 'wErp', 'wMc'].forEach((id) =>
+          document.getElementById(id).addEventListener('input', recomputeWacc));
+        document.getElementById('waccFetch').addEventListener('click', fetchWaccInputs);
+        recomputeWacc();
+      }
+      function recomputeWacc() {
+        if (!waccPeriod) return;
+        const beta = parseFloat(document.getElementById('wBeta').value);
+        const rfPct = document.getElementById('wRf').value, erpPct = document.getElementById('wErp').value;
+        const mc = parseFloat(document.getElementById('wMc').value);
+        waccState.beta = isFinite(beta) ? beta : null;
+        waccState.marketCap = isFinite(mc) ? mc : null;
+        waccState.rf = rfPct; waccState.erp = erpPct;
+        const r = computeWaccClient(waccPeriod, {
+          beta: isFinite(beta) ? beta : null,
+          rf: isFinite(parseFloat(rfPct)) ? parseFloat(rfPct) / 100 : null,
+          erp: isFinite(parseFloat(erpPct)) ? parseFloat(erpPct) / 100 : null,
+          marketCap: isFinite(mc) ? mc : null,
+        });
+        const p2 = (v) => (v == null ? '—' : (v * 100).toFixed(2) + '%');
+        document.getElementById('waccOut').innerHTML = [
+          kpi('WACC', p2(r.wacc), 'big'),
+          kpi('Cost of equity', p2(r.costOfEquity)),
+          kpi('Cost of debt (pre-tax)', p2(r.costOfDebt)),
+          kpi('After-tax cost of debt', p2(r.afterTaxCoD)),
+          kpi('Tax rate', pctStr(r.taxRate)),
+          kpi('Equity weight', pctStr(r.we)),
+          kpi('Debt weight', pctStr(r.wd)),
+          kpi('Total debt (book)', moneyStr(r.totalDebt)),
+        ].join('');
+        const notes = ['Cost of debt, tax rate and book debt are SEC-derived; β and market cap come from the market-data provider or your input; risk-free defaults to the US Treasury 10-yr (override above).'];
+        if (r.costOfDebt == null) notes.push('This company did not report interest expense and/or debt, so pre-tax cost of debt is blank — enter it manually if known.');
+        document.getElementById('waccNote').textContent = notes.join(' ');
+      }
+      async function fetchWaccInputs() {
+        if (isDemo) {
+          document.getElementById('waccNote').textContent =
+            'Auto-fetch needs a running backend with a market-data API key. In sample mode, enter β and market cap manually.';
+          return;
+        }
+        const btn = document.getElementById('waccFetch');
+        btn.disabled = true;
+        try {
+          const res = await fetch(apiBase() + '/api/sec/wacc?ticker=' + encodeURIComponent(currentTicker));
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
+          if (data.inputs.beta != null) document.getElementById('wBeta').value = data.inputs.beta;
+          if (data.inputs.marketValueOfEquity != null) document.getElementById('wMc').value = data.inputs.marketValueOfEquity;
+          if (data.inputs.riskFreeRate != null) document.getElementById('wRf').value = (data.inputs.riskFreeRate * 100).toFixed(2);
+          recomputeWacc();
+          if (!data.meta.marketDataConfigured) {
+            document.getElementById('waccNote').textContent =
+              'Backend has no market-data API key (ALPHAVANTAGE_API_KEY), so β and market cap came back empty — enter them manually or set a key and retry.';
+          }
+        } catch (err) {
+          document.getElementById('waccNote').textContent = 'Fetch error: ' + err.message;
+        } finally {
+          btn.disabled = false;
+        }
       }
 
       // ---- wiring -----------------------------------------------------------

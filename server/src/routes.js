@@ -32,6 +32,46 @@ function createRouter({ service }) {
   );
 
   router.get(
+    '/profile',
+    asyncHandler(async (req, res) => {
+      res.json(await service.getProfile(req.query.ticker));
+    })
+  );
+
+  router.get(
+    '/ratios',
+    asyncHandler(async (req, res) => {
+      res.json(await service.getRatios(req.query.ticker, { years: req.query.years }));
+    })
+  );
+
+  router.get(
+    '/wacc',
+    asyncHandler(async (req, res) => {
+      const q = req.query;
+      const overrides = {};
+      // Accept student overrides; ignore blanks/non-numerics.
+      const map = {
+        beta: 'beta',
+        rf: 'riskFreeRate',
+        riskFreeRate: 'riskFreeRate',
+        erp: 'equityRiskPremium',
+        equityRiskPremium: 'equityRiskPremium',
+        marketCap: 'marketCap',
+        costOfDebt: 'costOfDebt',
+        taxRate: 'taxRate',
+        totalDebt: 'totalDebt',
+      };
+      for (const [param, key] of Object.entries(map)) {
+        if (q[param] !== undefined && q[param] !== '' && Number.isFinite(Number(q[param]))) {
+          overrides[key] = Number(q[param]);
+        }
+      }
+      res.json(await service.getWacc(q.ticker, overrides));
+    })
+  );
+
+  router.get(
     '/all-facts',
     asyncHandler(async (req, res) => {
       res.json(await service.getAllFacts(req.query.ticker, { years: req.query.years }));

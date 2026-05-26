@@ -26,4 +26,18 @@ module.exports = {
   maxRequestsPerSecond: Number(process.env.SEC_MAX_RPS) || 10,
   maxRetries: Number(process.env.SEC_MAX_RETRIES) || 4,
   baseBackoffMs: Number(process.env.SEC_BASE_BACKOFF_MS) || 500,
+
+  // ---- WACC / market data (non-SEC) -------------------------------------
+  // Beta and market capitalisation are not in SEC data. They come from a
+  // pluggable market-data provider (default: Alpha Vantage). Get a free key at
+  // https://www.alphavantage.co/support/#api-key and set ALPHAVANTAGE_API_KEY.
+  marketDataProvider: process.env.MARKET_DATA_PROVIDER || 'alphavantage',
+  alphaVantageApiKey: process.env.ALPHAVANTAGE_API_KEY || '',
+  alphaVantageBaseUrl: process.env.ALPHAVANTAGE_BASE_URL || 'https://www.alphavantage.co',
+
+  // Risk-free rate: pulled free (no key) from the US Treasury par-yield feed,
+  // with a sensible fallback if the feed is unreachable. Override per-request.
+  riskFreeRateDefault: Number(process.env.RISK_FREE_RATE) || 0.043,
+  // Equity risk premium is a market assumption, not a data point.
+  equityRiskPremiumDefault: Number(process.env.EQUITY_RISK_PREMIUM) || 0.055,
 };

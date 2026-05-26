@@ -15,6 +15,25 @@ const submissions = {
   sic: '7841',
   sicDescription: 'Services-Video Tape Rental',
   fiscalYearEnd: '1231',
+  stateOfIncorporation: 'DE',
+  category: 'Large accelerated filer',
+  formerNames: [{ name: 'NETFLIX COM INC' }],
+  addresses: {
+    business: {
+      street1: '121 Albright Way',
+      city: 'Los Gatos',
+      stateOrCountry: 'CA',
+    },
+  },
+  filings: {
+    recent: {
+      form: ['10-K', '10-Q', '10-K'],
+      filingDate: ['2025-01-27', '2024-10-18', '2024-01-26'],
+      reportDate: ['2024-12-31', '2024-09-30', '2023-12-31'],
+      accessionNumber: ['A-2024', 'Q3-2024', 'A-2023'],
+      primaryDocument: ['nflx-20241231.htm', 'nflx-20240930.htm', 'nflx-20231231.htm'],
+    },
+  },
 };
 
 // Helper to keep fact entries terse.
