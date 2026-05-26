@@ -6,190 +6,405 @@
     <title>SEC EDGAR 10-K Financials</title>
     <style>
       :root {
-        --bg: #0f172a;
-        --panel: #1e293b;
-        --line: #334155;
-        --text: #e2e8f0;
-        --muted: #94a3b8;
-        --accent: #38bdf8;
-        --error: #f87171;
+        --bg: #0b1120;
+        --panel: #111c33;
+        --panel2: #16243f;
+        --line: #2b3b5b;
+        --text: #e6edf6;
+        --muted: #8aa0c0;
+        --accent: #4cc4ff;
+        --good: #4ade80;
+        --bad: #f87171;
+        --warn: #fbbf24;
       }
       * { box-sizing: border-box; }
       body {
         margin: 0;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        background: var(--bg);
+        background: radial-gradient(1200px 600px at 80% -10%, #15233f 0%, var(--bg) 55%);
         color: var(--text);
-        padding: 2rem 1rem;
+        min-height: 100vh;
+        padding: 2rem 1rem 4rem;
       }
-      .wrap { max-width: 1100px; margin: 0 auto; }
-      h1 { font-size: 1.4rem; margin: 0 0 0.25rem; }
-      p.sub { color: var(--muted); margin: 0 0 1.5rem; font-size: 0.9rem; }
-      form { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-bottom: 1rem; }
+      .wrap { max-width: 1180px; margin: 0 auto; }
+      header.app { margin-bottom: 1.25rem; }
+      h1 { font-size: 1.5rem; margin: 0 0 0.25rem; }
+      p.sub { color: var(--muted); margin: 0; font-size: 0.9rem; max-width: 760px; }
+
+      .controls {
+        display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: flex-end;
+        background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+        padding: 1rem; margin: 1.25rem 0;
+      }
+      .field { display: flex; flex-direction: column; gap: 0.3rem; }
+      .field label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
       input, button, select {
-        background: var(--panel);
-        color: var(--text);
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        padding: 0.55rem 0.75rem;
-        font-size: 0.95rem;
+        background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+        border-radius: 8px; padding: 0.6rem 0.7rem; font-size: 0.95rem;
       }
-      input { text-transform: uppercase; width: 130px; }
-      button { cursor: pointer; border-color: var(--accent); color: var(--accent); font-weight: 600; }
+      input#ticker { text-transform: uppercase; width: 120px; font-weight: 700; letter-spacing: 0.05em; }
+      input#api { width: 230px; }
+      button { cursor: pointer; font-weight: 700; }
+      button.primary { background: var(--accent); color: #04243a; border-color: var(--accent); }
+      button.ghost { color: var(--accent); }
       button:disabled { opacity: 0.5; cursor: not-allowed; }
-      .status { margin: 1rem 0; font-size: 0.95rem; }
-      .status.error { color: var(--error); }
-      .meta { color: var(--muted); font-size: 0.85rem; margin-bottom: 0.75rem; }
-      table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-      th, td { border: 1px solid var(--line); padding: 0.5rem 0.6rem; text-align: right; white-space: nowrap; }
-      th:first-child, td:first-child { text-align: left; position: sticky; left: 0; background: var(--panel); }
-      thead th { background: var(--panel); position: sticky; top: 0; }
-      .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
-      .tag { cursor: help; border-bottom: 1px dotted var(--muted); }
-      .row-label { color: var(--muted); cursor: pointer; }
-      details { margin-top: 1.5rem; }
-      summary { cursor: pointer; color: var(--accent); }
-      pre { background: var(--panel); padding: 1rem; border-radius: 8px; overflow: auto; font-size: 0.75rem; max-height: 360px; }
-      .audit td { color: var(--muted); font-size: 0.72rem; }
+
+      .status { margin: 0.5rem 0 1rem; font-size: 0.95rem; min-height: 1.2rem; }
+      .status.error { color: var(--bad); }
+      .status.loading { color: var(--accent); }
+      .banner {
+        background: rgba(251, 191, 36, 0.12); border: 1px solid var(--warn); color: var(--warn);
+        padding: 0.55rem 0.8rem; border-radius: 8px; font-size: 0.82rem; margin-bottom: 1rem;
+      }
+
+      .company {
+        display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: baseline;
+        border-bottom: 1px solid var(--line); padding-bottom: 0.9rem; margin-bottom: 1.25rem;
+      }
+      .company .name { font-size: 1.35rem; font-weight: 800; }
+      .company .pill {
+        font-size: 0.72rem; color: var(--muted);
+        border: 1px solid var(--line); border-radius: 999px; padding: 0.15rem 0.6rem;
+      }
+
+      section.group { margin-bottom: 1.6rem; }
+      section.group > h2 {
+        font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em;
+        color: var(--accent); margin: 0 0 0.5rem;
+      }
+      .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+      table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+      th, td { padding: 0.55rem 0.7rem; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+      thead th { background: var(--panel); color: var(--muted); font-weight: 600; position: sticky; top: 0; }
+      tbody tr:hover { background: rgba(76, 196, 255, 0.06); }
+      th.metric, td.metric {
+        text-align: left; position: sticky; left: 0; background: var(--panel);
+        font-weight: 600; min-width: 190px;
+      }
+      tbody tr:hover td.metric { background: var(--panel2); }
+      td .val { font-variant-numeric: tabular-nums; }
+      td .tag {
+        display: block; font-size: 0.68rem; color: var(--muted); margin-top: 0.1rem;
+        cursor: help; border-bottom: 1px dotted transparent;
+      }
+      td .tag:hover { border-bottom-color: var(--muted); }
+      td.derived .val::after { content: " ∗"; color: var(--warn); }
+      .na { color: #56688a; }
+
+      details.raw { margin-top: 1.5rem; }
+      details.raw summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+      pre { background: var(--panel); border: 1px solid var(--line); padding: 1rem; border-radius: 10px; overflow: auto; font-size: 0.74rem; max-height: 420px; }
+      .legend { color: var(--muted); font-size: 0.76rem; margin-top: 0.6rem; }
+      .hidden { display: none; }
     </style>
   </head>
   <body>
     <div class="wrap">
-      <h1>SEC EDGAR 10-K Financials</h1>
-      <p class="sub">
-        Structured annual financial data pulled from the official SEC EDGAR XBRL JSON APIs.
-        No PDF extraction, no API key. Hover a value to see the raw US-GAAP tag used.
-      </p>
+      <header class="app">
+        <h1>SEC EDGAR · 10-K Financials</h1>
+        <p class="sub">
+          Structured annual financial-statement data pulled from the official SEC EDGAR
+          XBRL JSON APIs — no API key, no PDF extraction. Every figure links back to the
+          exact US-GAAP tag it came from (shown beneath each value).
+        </p>
+      </header>
 
-      <form id="form">
-        <input id="ticker" name="ticker" placeholder="NFLX" value="NFLX" autocomplete="off" />
-        <select id="years" name="years">
-          <option value="">All years</option>
-          <option value="3">Last 3</option>
-          <option value="5" selected>Last 5</option>
-          <option value="10">Last 10</option>
-        </select>
-        <button id="submit" type="submit">Fetch</button>
-      </form>
-
-      <div id="status" class="status"></div>
-      <div id="meta" class="meta"></div>
-      <div id="result" class="scroll" hidden>
-        <table id="table">
-          <thead>
-            <tr id="head"></tr>
-          </thead>
-          <tbody id="body"></tbody>
-        </table>
+      <div class="controls">
+        <div class="field">
+          <label for="ticker">Ticker</label>
+          <input id="ticker" value="NFLX" autocomplete="off" placeholder="NFLX" />
+        </div>
+        <div class="field">
+          <label for="years">Periods</label>
+          <select id="years">
+            <option value="">All years</option>
+            <option value="3">Last 3</option>
+            <option value="5" selected>Last 5</option>
+            <option value="10">Last 10</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="api">Backend URL</label>
+          <input id="api" placeholder="http://localhost:3000" />
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <button id="fetchBtn" class="primary" type="button">Fetch live data</button>
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <button id="demoBtn" class="ghost" type="button">Load sample data</button>
+        </div>
       </div>
 
-      <details id="rawWrap" hidden>
-        <summary>Raw normalized JSON (with per-value audit trail)</summary>
-        <pre id="raw"></pre>
-      </details>
+      <div id="status" class="status"></div>
+      <div id="banner" class="banner hidden"></div>
+
+      <div id="result" class="hidden">
+        <div class="company" id="company"></div>
+        <div id="sections"></div>
+
+        <p class="legend">
+          Hover the tag under any value to see its unit, filing accession number and filed date.
+          <strong>∗</strong> marks a derived value (e.g. total liabilities computed from current +
+          non-current). <span class="na">—</span> means the company did not report that tag for
+          the period.
+        </p>
+
+        <details class="raw">
+          <summary>Raw normalized JSON (full audit trail)</summary>
+          <pre id="raw"></pre>
+        </details>
+      </div>
     </div>
 
     <script>
-      const ROWS = [
-        ['revenue', 'Revenue'],
-        ['costOfRevenue', 'Cost of Revenue'],
-        ['grossProfit', 'Gross Profit'],
-        ['operatingIncome', 'Operating Income'],
-        ['netIncome', 'Net Income'],
-        ['totalAssets', 'Total Assets'],
-        ['currentAssets', 'Current Assets'],
-        ['cashAndEquivalents', 'Cash & Equivalents'],
-        ['totalLiabilities', 'Total Liabilities'],
-        ['stockholdersEquity', "Stockholders' Equity"],
-        ['operatingCashFlow', 'Operating Cash Flow'],
-        ['capitalExpenditure', 'Capital Expenditure'],
-        ['dilutedEPS', 'Diluted EPS'],
-        ['dilutedShares', 'Diluted Shares'],
+      // ---- field groups / formatting ---------------------------------------
+      const GROUPS = [
+        { title: 'Income Statement', fields: [
+          ['revenue', 'Revenue', 'money'],
+          ['costOfRevenue', 'Cost of Revenue', 'money'],
+          ['grossProfit', 'Gross Profit', 'money'],
+          ['operatingIncome', 'Operating Income', 'money'],
+          ['netIncome', 'Net Income', 'money'],
+        ]},
+        { title: 'Balance Sheet', fields: [
+          ['totalAssets', 'Total Assets', 'money'],
+          ['currentAssets', 'Current Assets', 'money'],
+          ['cashAndEquivalents', 'Cash & Equivalents', 'money'],
+          ['totalLiabilities', 'Total Liabilities', 'money'],
+          ['stockholdersEquity', "Stockholders' Equity", 'money'],
+        ]},
+        { title: 'Cash Flow', fields: [
+          ['operatingCashFlow', 'Operating Cash Flow', 'money'],
+          ['capitalExpenditure', 'Capital Expenditure', 'money'],
+        ]},
+        { title: 'Per Share', fields: [
+          ['dilutedEPS', 'Diluted EPS', 'eps'],
+          ['dilutedShares', 'Diluted Shares', 'shares'],
+        ]},
       ];
 
-      const form = document.getElementById('form');
-      const statusEl = document.getElementById('status');
-      const metaEl = document.getElementById('meta');
-      const resultEl = document.getElementById('result');
-      const headEl = document.getElementById('head');
-      const bodyEl = document.getElementById('body');
-      const rawWrap = document.getElementById('rawWrap');
-      const rawEl = document.getElementById('raw');
-      const submitBtn = document.getElementById('submit');
-
-      function fmt(field, value) {
-        if (value === null || value === undefined) return '—';
-        if (field === 'dilutedEPS') return value.toFixed(2);
-        if (field === 'dilutedShares') return value.toLocaleString();
-        const abs = Math.abs(value);
-        if (abs >= 1e9) return (value / 1e9).toFixed(2) + 'B';
-        if (abs >= 1e6) return (value / 1e6).toFixed(2) + 'M';
-        return value.toLocaleString();
+      function fmt(kind, v) {
+        if (v === null || v === undefined) return null;
+        if (kind === 'eps') return '$' + Number(v).toFixed(2);
+        if (kind === 'shares') {
+          const a = Math.abs(v);
+          if (a >= 1e9) return (v / 1e9).toFixed(2) + 'B';
+          if (a >= 1e6) return (v / 1e6).toFixed(1) + 'M';
+          return Number(v).toLocaleString();
+        }
+        // money
+        const sign = v < 0 ? '-' : '';
+        const a = Math.abs(v);
+        if (a >= 1e9) return sign + '$' + (a / 1e9).toFixed(2) + 'B';
+        if (a >= 1e6) return sign + '$' + (a / 1e6).toFixed(1) + 'M';
+        if (a >= 1e3) return sign + '$' + (a / 1e3).toFixed(0) + 'K';
+        return sign + '$' + a;
       }
 
+      const esc = (s) =>
+        String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+      // ---- rendering --------------------------------------------------------
       function render(data) {
-        metaEl.textContent =
-          `${data.companyName} — CIK ${data.cik} — ${data.periods.length} annual 10-K period(s)`;
+        const periods = data.periods || [];
+        document.getElementById('company').innerHTML = [
+          `<span class="name">${esc(data.companyName || data.ticker)}</span>`,
+          `<span class="pill">Ticker ${esc(data.ticker)}</span>`,
+          `<span class="pill">CIK ${esc(data.cik)}</span>`,
+          `<span class="pill">${periods.length} annual 10-K period(s)</span>`,
+        ].join('');
 
-        headEl.innerHTML = '<th>Metric</th>' +
-          data.periods.map((p) => `<th>FY${p.fiscalYear}</th>`).join('');
+        const yearHeads = periods.map((p) => `<th>FY ${p.fiscalYear}</th>`).join('');
+        const filedRow =
+          `<tr><td class="metric">Filed</td>` +
+          periods.map((p) => `<td class="na">${esc(p.filed || '—')}</td>`).join('') +
+          `</tr>`;
 
-        bodyEl.innerHTML = ROWS.map(([field, label]) => {
-          const cells = data.periods.map((p) => {
-            const audit = p.rawTagsUsed[field];
-            const title = audit
-              ? `tag: ${audit.tag}\nunit: ${audit.unit}\nfiled: ${audit.filed}\naccession: ${audit.accessionNumber}\nform: ${audit.form}`
-              : 'no data';
-            const cls = audit ? 'tag' : '';
-            return `<td><span class="${cls}" title="${title.replace(/"/g, '&quot;')}">${fmt(field, p[field])}</span></td>`;
-          });
-          return `<tr><td class="row-label">${label}</td>${cells.join('')}</tr>`;
+        const sectionsHtml = GROUPS.map((g) => {
+          const rows = g.fields.map(([field, label, kind]) => {
+            const cells = periods.map((p) => {
+              const raw = p[field];
+              const audit = p.rawTagsUsed ? p.rawTagsUsed[field] : null;
+              const text = fmt(kind, raw);
+              if (text === null) return `<td><span class="val na">—</span></td>`;
+              const derived = audit && audit.derived ? ' derived' : '';
+              const tip = audit
+                ? `tag: ${audit.tag}\nunit: ${audit.unit}\nfiscal year: ${audit.fiscalYear}\nfiled: ${audit.filed}\naccession: ${audit.accessionNumber}\nform: ${audit.form}\nexact value: ${raw}`
+                : `exact value: ${raw}`;
+              const tagLabel = audit ? esc(audit.tag) : '';
+              return (
+                `<td class="${derived}">` +
+                `<span class="val">${esc(text)}</span>` +
+                (tagLabel ? `<span class="tag" title="${esc(tip)}">${tagLabel}</span>` : '') +
+                `</td>`
+              );
+            }).join('');
+            return `<tr><td class="metric">${esc(label)}</td>${cells}</tr>`;
+          }).join('');
+
+          return (
+            `<section class="group"><h2>${esc(g.title)}</h2><div class="scroll"><table>` +
+            `<thead><tr><th class="metric">Metric</th>${yearHeads}</tr></thead>` +
+            `<tbody>${rows}</tbody></table></div></section>`
+          );
         }).join('');
 
-        const filedRow =
-          '<tr class="audit"><td>Filed</td>' +
-          data.periods.map((p) => `<td>${p.filed || '—'}</td>`).join('') +
-          '</tr>';
-        bodyEl.insertAdjacentHTML('beforeend', filedRow);
+        // Filings overview table on top.
+        const filingsHtml =
+          `<section class="group"><h2>Filings</h2><div class="scroll"><table>` +
+          `<thead><tr><th class="metric">Metric</th>${yearHeads}</tr></thead>` +
+          `<tbody>${filedRow}` +
+          `<tr><td class="metric">Accession #</td>` +
+          periods.map((p) => `<td class="na">${esc(p.accessionNumber || '—')}</td>`).join('') +
+          `</tr></tbody></table></div></section>`;
 
-        resultEl.hidden = false;
-        rawEl.textContent = JSON.stringify(data, null, 2);
-        rawWrap.hidden = false;
+        document.getElementById('sections').innerHTML = filingsHtml + sectionsHtml;
+        document.getElementById('raw').textContent = JSON.stringify(data, null, 2);
+        document.getElementById('result').classList.remove('hidden');
       }
 
-      async function run(ticker, years) {
-        statusEl.className = 'status';
-        statusEl.textContent = 'Loading…';
-        resultEl.hidden = true;
-        rawWrap.hidden = true;
-        metaEl.textContent = '';
-        submitBtn.disabled = true;
+      // ---- data sources -----------------------------------------------------
+      const statusEl = document.getElementById('status');
+      const bannerEl = document.getElementById('banner');
+      const fetchBtn = document.getElementById('fetchBtn');
+      const demoBtn = document.getElementById('demoBtn');
+
+      function setStatus(msg, kind) {
+        statusEl.className = 'status' + (kind ? ' ' + kind : '');
+        statusEl.textContent = msg || '';
+      }
+      function showBanner(msg) {
+        if (!msg) { bannerEl.classList.add('hidden'); return; }
+        bannerEl.textContent = msg;
+        bannerEl.classList.remove('hidden');
+      }
+
+      function defaultApiBase() {
+        if (location.protocol === 'http:' || location.protocol === 'https:') return location.origin;
+        return 'http://localhost:3000';
+      }
+
+      async function fetchLive() {
+        const ticker = document.getElementById('ticker').value.trim().toUpperCase();
+        const years = document.getElementById('years').value;
+        const base = (document.getElementById('api').value.trim() || defaultApiBase()).replace(/\/$/, '');
+        if (!ticker) { setStatus('Enter a ticker first.', 'error'); return; }
+
+        showBanner('');
+        setStatus('Loading ' + ticker + ' from ' + base + ' …', 'loading');
+        document.getElementById('result').classList.add('hidden');
+        fetchBtn.disabled = true;
         try {
           const params = new URLSearchParams({ ticker });
           if (years) params.set('years', years);
-          const res = await fetch(`/api/sec/model-data?${params.toString()}`);
+          const res = await fetch(base + '/api/sec/model-data?' + params.toString());
           const data = await res.json();
-          if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
-          if (!data.periods.length) {
-            statusEl.textContent = 'No annual 10-K data found for this ticker.';
+          if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
+          if (!data.periods || !data.periods.length) {
+            setStatus('No annual 10-K data found for ' + ticker + '.', 'error');
             return;
           }
-          statusEl.textContent = '';
+          setStatus('Loaded ' + ticker + ' — live SEC data.');
           render(data);
         } catch (err) {
-          statusEl.className = 'status error';
-          statusEl.textContent = `Error: ${err.message}`;
+          setStatus('Error: ' + err.message + ' — is the backend running at ' + base + '?', 'error');
         } finally {
-          submitBtn.disabled = false;
+          fetchBtn.disabled = false;
         }
       }
 
-      form.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const ticker = document.getElementById('ticker').value.trim();
-        const years = document.getElementById('years').value;
-        if (ticker) run(ticker, years);
+      function loadDemo() {
+        showBanner('Sample data shown for layout preview — approximate Netflix figures, not a live SEC pull. Click "Fetch live data" against a running backend for real numbers.');
+        setStatus('');
+        render(buildDemo());
+      }
+
+      // ---- bundled sample dataset (normalized output shape) -----------------
+      function buildDemo() {
+        const FIELD_TAG = {
+          revenue: 'Revenues',
+          costOfRevenue: 'CostOfGoodsAndServicesSold',
+          grossProfit: 'GrossProfit',
+          operatingIncome: 'OperatingIncomeLoss',
+          netIncome: 'NetIncomeLoss',
+          totalAssets: 'Assets',
+          currentAssets: 'AssetsCurrent',
+          cashAndEquivalents: 'CashAndCashEquivalentsAtCarryingValue',
+          totalLiabilities: 'Liabilities',
+          stockholdersEquity: 'StockholdersEquity',
+          operatingCashFlow: 'NetCashProvidedByUsedInOperatingActivities',
+          capitalExpenditure: 'PaymentsToAcquirePropertyPlantAndEquipment',
+          dilutedEPS: 'EarningsPerShareDiluted',
+          dilutedShares: 'WeightedAverageNumberOfDilutedSharesOutstanding',
+        };
+        const UNIT = { dilutedEPS: 'USD/shares', dilutedShares: 'shares' };
+        const ALL = Object.keys(FIELD_TAG);
+
+        const RAW = [
+          { fy: 2024, filed: '2025-01-27', accn: '0001065280-25-000044', v: {
+            revenue: 39000966000, costOfRevenue: 21038000000, grossProfit: 17962966000,
+            operatingIncome: 10417874000, netIncome: 8711631000, totalAssets: 53629000000,
+            currentAssets: 9792000000, cashAndEquivalents: 7804000000, totalLiabilities: 28886000000,
+            stockholdersEquity: 24743000000, operatingCashFlow: 6921000000, capitalExpenditure: 439000000,
+            dilutedEPS: 19.83, dilutedShares: 439380000 } },
+          { fy: 2023, filed: '2024-01-26', accn: '0001065280-24-000029', v: {
+            revenue: 33723297000, costOfRevenue: 19715368000, grossProfit: 14007929000,
+            operatingIncome: 6954303000, netIncome: 5407990000, totalAssets: 48731992000,
+            currentAssets: 9918133000, cashAndEquivalents: 7116913000, totalLiabilities: 28107976000,
+            stockholdersEquity: 20624016000, operatingCashFlow: 7273885000, capitalExpenditure: 348428000,
+            dilutedEPS: 12.03, dilutedShares: 449498000 } },
+          { fy: 2022, filed: '2023-01-27', accn: '0001065280-23-000017', v: {
+            revenue: 31615550000, costOfRevenue: 19168285000, grossProfit: 12447265000,
+            operatingIncome: 5632831000, netIncome: 4491924000, totalAssets: 48594768000,
+            currentAssets: null, cashAndEquivalents: 5147176000, totalLiabilities: null,
+            stockholdersEquity: 20777401000, operatingCashFlow: 2021131000, capitalExpenditure: 407719000,
+            dilutedEPS: 9.95, dilutedShares: 451290000 } },
+          { fy: 2021, filed: '2022-01-28', accn: '0001065280-22-000036', v: {
+            revenue: 29697844000, costOfRevenue: null, grossProfit: null,
+            operatingIncome: 6194509000, netIncome: 5116228000, totalAssets: null,
+            currentAssets: null, cashAndEquivalents: 6027804000, totalLiabilities: null,
+            stockholdersEquity: 15849248000, operatingCashFlow: 392610000, capitalExpenditure: 524585000,
+            dilutedEPS: 11.24, dilutedShares: 455372000 } },
+        ];
+
+        const periods = RAW.map((p) => {
+          const period = { fiscalYear: p.fy, form: '10-K', filed: p.filed, accessionNumber: p.accn };
+          const rawTagsUsed = {};
+          for (const field of ALL) {
+            const val = p.v[field];
+            period[field] = val === undefined ? null : val;
+            if (val === null || val === undefined) continue;
+            rawTagsUsed[field] = {
+              tag: FIELD_TAG[field],
+              unit: UNIT[field] || 'USD',
+              value: val,
+              fiscalYear: p.fy,
+              reportFiscalYear: p.fy,
+              accessionNumber: p.accn,
+              filed: p.filed,
+              form: '10-K',
+              periodEnd: p.fy + '-12-31',
+            };
+          }
+          period.rawTagsUsed = rawTagsUsed;
+          return period;
+        });
+
+        return { ticker: 'NFLX', cik: '0001065280', companyName: 'NETFLIX INC', periods };
+      }
+
+      // ---- wiring -----------------------------------------------------------
+      document.getElementById('api').value = defaultApiBase();
+      fetchBtn.addEventListener('click', fetchLive);
+      demoBtn.addEventListener('click', loadDemo);
+      document.getElementById('ticker').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') fetchLive();
       });
+
+      // Show the sample table immediately so the formatting is visible on load.
+      loadDemo();
     </script>
   </body>
 </html>

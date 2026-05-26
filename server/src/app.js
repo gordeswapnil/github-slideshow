@@ -6,6 +6,18 @@ function createApp({ service }) {
   const app = express();
   app.use(express.json());
 
+  // Read-only, no-auth public data: permissive CORS so the UI works whether it
+  // is served by this backend or opened directly as a file.
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(204);
+    }
+    return next();
+  });
+
   app.use('/api/sec', createRouter({ service }));
 
   // Serve the simple frontend.
