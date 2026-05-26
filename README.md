@@ -81,6 +81,7 @@ Copy `server/.env.example` to `server/.env` and set your email before deploying.
 | `GET /api/sec/profile?ticker=NFLX` | Case-study profile: industry, HQ, filings + financial snapshot |
 | `GET /api/sec/ratios?ticker=NFLX` | Working-capital, liquidity, leverage & return ratios per year |
 | `GET /api/sec/wacc?ticker=NFLX` | Cost of capital (see WACC section below) |
+| `GET /api/sec/segments?ticker=NFLX` | Revenue by segment / geography / product (parsed from the 10-K) |
 | `GET /api/sec/all-facts?ticker=NFLX` | **Every** annual us-gaap concept the company reported, as a time series |
 | `GET /api/sec/fields` | Metadata for the curated model (field keys, labels, statement, tags) |
 | `GET /api/sec/concept?ticker=NFLX&tag=Revenues` | One US-GAAP concept (raw) |
@@ -107,9 +108,22 @@ tagged in XBRL (often hundreds of concepts), use `all-facts`, which returns each
 concept by its raw US-GAAP tag with the same per-value audit trail. Companies use
 different tags, so all-facts uses the raw tag names rather than normalizing.
 
-**Note:** segment / product / geographic breakdowns are *not* available from the
-companyfacts JSON API (they live in the filing's dimensional XBRL); only
-consolidated/total values are exposed here.
+## Segment / geographic / product revenue
+
+These breakdowns are **not** in the companyfacts JSON API — they only exist as
+*dimensional* facts inside the filing's inline XBRL. `segments` therefore:
+
+1. finds the most recent 10-K from the submissions feed,
+2. downloads its primary inline-XBRL document,
+3. parses the contexts (axis/member dimensions) and revenue facts, and
+4. groups revenue by axis (business segment, `srt:StatementGeographicalAxis`,
+   `srt:ProductOrServiceAxis`, etc.) and member, per fiscal year.
+
+Limitations: only **single-axis, full-year** breakdowns are returned (product×
+geography intersection cells are skipped to avoid double-counting); it targets
+**inline-XBRL** filings (recent years) and reads the latest 10-K only. Members are
+shown by their raw XBRL QName (humanized) — always treat the source filing as
+authoritative.
 
 ## Company profile & ratios
 

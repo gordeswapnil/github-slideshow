@@ -6,6 +6,7 @@ const { computeRatios } = require('./ratios');
 const { createMarketDataProvider } = require('./marketData');
 const { createTreasuryProvider } = require('./treasury');
 const { computeWacc } = require('./wacc');
+const { extractSegments } = require('./segments');
 const TAG_MAP = require('./tagMap');
 const { badRequest, notFound } = require('./errors');
 
@@ -165,6 +166,42 @@ function createSecService({ client, marketData, treasury } = {}) {
     };
   }
 
+  // GET /api/sec/segments (revenue by segment/geography/product from inline XBRL)
+  async function getSegments(rawTicker) {
+    const resolved = await resolveTicker(rawTicker);
+    const submissions = await client.getJson(submissionsUrl(resolved.cik));
+    const recent = submissions.filings && submissions.filings.recent;
+    if (!recent || !Array.isArray(recent.form)) {
+      throw notFound(`No filing history found for "${resolved.ticker}".`);
+    }
+    const idx = recent.form.findIndex((f) => f === '10-K');
+    if (idx === -1) throw notFound(`No 10-K filing found for "${resolved.ticker}".`);
+
+    const accession = recent.accessionNumber[idx];
+    const primaryDoc = recent.primaryDocument[idx];
+    const reportDate = recent.reportDate ? recent.reportDate[idx] : null;
+    if (!primaryDoc) throw notFound('Latest 10-K has no primary document to parse.');
+
+    const accnNoDash = String(accession).replace(/-/g, '');
+    const sourceDocument = `https://www.sec.gov/Archives/edgar/data/${resolved.cikNumber}/${accnNoDash}/${primaryDoc}`;
+    const xml = await client.getText(sourceDocument);
+    const grouped = extractSegments(xml);
+
+    return {
+      ticker: resolved.ticker,
+      cik: resolved.cik,
+      companyName: submissions.name || resolved.title,
+      accessionNumber: accession,
+      reportDate,
+      sourceDocument,
+      note:
+        grouped.axes.length === 0
+          ? 'No single-axis revenue breakdowns found. The filing may use older (non-inline) XBRL, custom axes, or only multi-dimensional cells.'
+          : undefined,
+      ...grouped,
+    };
+  }
+
   // GET /api/sec/all-facts (every annual us-gaap concept the company reported)
   async function getAllFacts(rawTicker, { years } = {}) {
     const resolved = await resolveTicker(rawTicker);
@@ -205,6 +242,7 @@ function createSecService({ client, marketData, treasury } = {}) {
     getProfile,
     getRatios,
     getWacc,
+    getSegments,
     getAllFacts,
     getFields,
     getConcept,

@@ -2,6 +2,7 @@ const request = require('supertest');
 const { createApp } = require('../src/app');
 const { createSecService, TICKERS_URL } = require('../src/secService');
 const { tickers, submissions, companyfacts } = require('./fixtures/secFixtures');
+const inlineXbrl = require('./fixtures/inlineXbrl');
 
 // Fake SEC client that serves fixtures based on the requested URL.
 function makeApp() {
@@ -13,6 +14,10 @@ function makeApp() {
       const err = new Error(`unexpected url ${url}`);
       err.status = 404;
       throw err;
+    }),
+    getText: jest.fn(async (url) => {
+      if (url.includes('/Archives/')) return inlineXbrl;
+      throw new Error(`unexpected text url ${url}`);
     }),
   };
   const service = createSecService({
@@ -119,6 +124,20 @@ describe('GET /api/sec/wacc', () => {
     expect(r.status).toBe(200);
     expect(r.body.meta.marketDataConfigured).toBe(false);
     expect(r.body.missing).toEqual(expect.arrayContaining(['beta', 'marketCap']));
+  });
+});
+
+describe('GET /api/sec/segments', () => {
+  test('returns revenue grouped by axis/member from inline XBRL', async () => {
+    const app = makeApp();
+    const r = await request(app).get('/api/sec/segments?ticker=NFLX');
+    expect(r.status).toBe(200);
+    expect(r.body.accessionNumber).toBe('A-2024');
+    expect(r.body.sourceDocument).toContain('/Archives/edgar/data/1065280/');
+    const product = r.body.axes.find((a) => a.axis === 'srt:ProductOrServiceAxis');
+    expect(product).toBeTruthy();
+    const streaming = product.members.find((m) => m.member === 'nflx:StreamingRevenuesMember');
+    expect(streaming.values['2024']).toBe(38000000 * 1000);
   });
 });
 

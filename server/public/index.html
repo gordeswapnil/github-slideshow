@@ -148,6 +148,16 @@
         <div id="ratiosSection"></div>
         <div id="waccSection"></div>
 
+        <section class="group" id="segmentsSection">
+          <h2>Segment / Geographic / Product Revenue</h2>
+          <div class="allctrl">
+            <button id="segBtn" class="ghost" type="button">Load segment revenue</button>
+            <span class="count" id="segCount"></span>
+          </div>
+          <div id="segTables"></div>
+          <p class="legend" id="segNote"></p>
+        </section>
+
         <section class="group" id="allFactsSection">
           <h2>All reported facts — everything SEC has</h2>
           <div class="allctrl">
@@ -312,6 +322,7 @@
         document.getElementById('result').classList.remove('hidden');
         lastData = data;
         resetAllFacts();
+        resetSegments();
       }
 
       // ---- all reported facts ----------------------------------------------
@@ -432,6 +443,7 @@
         const d = buildDemo();
         render(d);
         renderProfile(DEMO_PROFILE, d.periods);
+        renderSegments(DEMO_SEGMENTS);
       }
 
       // ---- bundled sample dataset ------------------------------------------
@@ -732,8 +744,79 @@
         }
       }
 
+      // ---- segments ---------------------------------------------------------
+      const DEMO_SEGMENTS = {
+        accessionNumber: '0001065280-25-000044', reportDate: '2024-12-31', sourceDocument: '(sample data)',
+        fiscalYears: [2024, 2023],
+        axes: [{
+          axis: 'srt:StatementGeographicalAxis', label: 'Geographical (Region)',
+          members: [
+            { member: 'UCAN', label: 'United States & Canada', values: { 2024: 17359000000, 2023: 14874000000 } },
+            { member: 'EMEA', label: 'Europe, Middle East & Africa', values: { 2024: 12387000000, 2023: 10557000000 } },
+            { member: 'LATAM', label: 'Latin America', values: { 2024: 4896000000, 2023: 4489000000 } },
+            { member: 'APAC', label: 'Asia-Pacific', values: { 2024: 4358000000, 2023: 3763000000 } },
+          ],
+        }],
+      };
+      function resetSegments() {
+        document.getElementById('segTables').innerHTML = '';
+        document.getElementById('segCount').textContent = '';
+        document.getElementById('segNote').textContent = '';
+        const b = document.getElementById('segBtn');
+        if (b) b.disabled = false;
+      }
+      function renderSegments(data) {
+        const note = document.getElementById('segNote');
+        if (!data.axes || !data.axes.length) {
+          document.getElementById('segTables').innerHTML = '';
+          note.textContent = data.note || 'No single-axis revenue breakdowns found in the latest 10-K.';
+          document.getElementById('segCount').textContent = '';
+          return;
+        }
+        const years = data.fiscalYears;
+        document.getElementById('segTables').innerHTML = data.axes.map((ax) => {
+          const yearHeads = years.map((y) => `<th>FY ${y}</th>`).join('');
+          const rows = ax.members.map((m) => {
+            const cells = years.map((y) => {
+              const v = m.values[y];
+              return `<td>${v == null ? '<span class="na">—</span>' : esc(fmtByUnit('USD', v))}</td>`;
+            }).join('');
+            return `<tr><td class="metric">${esc(m.label)}</td>${cells}</tr>`;
+          }).join('');
+          return `<div style="margin-bottom:0.9rem"><div class="muted" style="margin:0.2rem 0">${esc(ax.label)} — <code class="tagname">${esc(ax.axis)}</code></div>` +
+            `<div class="scroll"><table><thead><tr><th class="metric">Member</th>${yearHeads}</tr></thead><tbody>${rows}</tbody></table></div></div>`;
+        }).join('');
+        const src = data.sourceDocument && data.sourceDocument.startsWith('http')
+          ? ` · <a href="${esc(data.sourceDocument)}" target="_blank" rel="noopener" style="color:var(--accent)">source 10-K</a>` : '';
+        note.innerHTML = `Parsed from the latest 10-K inline XBRL (${esc(data.accessionNumber || '')})${src}. Only single-axis full-year breakdowns are shown; product×geography intersection cells are excluded to avoid double-counting.`;
+        document.getElementById('segCount').textContent = data.axes.length + ' breakdown(s)';
+      }
+      async function loadSegments() {
+        if (isDemo) {
+          renderSegments(DEMO_SEGMENTS);
+          document.getElementById('segNote').textContent =
+            'Sample segment data (approximate Netflix regions). Load live data for the real breakdown parsed from the filing.';
+          return;
+        }
+        const btn = document.getElementById('segBtn');
+        btn.disabled = true;
+        document.getElementById('segNote').textContent =
+          'Fetching and parsing the latest 10-K inline XBRL (this can take a few seconds)…';
+        try {
+          const res = await fetch(apiBase() + '/api/sec/segments?ticker=' + encodeURIComponent(currentTicker));
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
+          renderSegments(data);
+        } catch (err) {
+          document.getElementById('segNote').textContent = 'Error: ' + err.message;
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
       // ---- wiring -----------------------------------------------------------
       document.getElementById('api').value = defaultApiBase();
+      document.getElementById('segBtn').addEventListener('click', loadSegments);
       fetchBtn.addEventListener('click', fetchLive);
       demoBtn.addEventListener('click', loadDemo);
       document.getElementById('allFactsBtn').addEventListener('click', loadAllFacts);

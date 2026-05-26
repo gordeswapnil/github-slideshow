@@ -72,6 +72,13 @@ function createRouter({ service }) {
   );
 
   router.get(
+    '/segments',
+    asyncHandler(async (req, res) => {
+      res.json(await service.getSegments(req.query.ticker));
+    })
+  );
+
+  router.get(
     '/all-facts',
     asyncHandler(async (req, res) => {
       res.json(await service.getAllFacts(req.query.ticker, { years: req.query.years }));
