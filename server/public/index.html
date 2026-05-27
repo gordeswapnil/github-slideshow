@@ -75,6 +75,11 @@
       tr.bs-grand td { font-weight: 800; border-top: 2px solid var(--accent); border-bottom: 2px solid var(--accent); color: var(--accent); }
       tr.bs-grand td.metric { background: #16243f; }
       tr.bs-check td { font-size: 0.78rem; color: var(--muted); }
+      tr.drill { cursor: pointer; }
+      tr.drill td.metric .caret { color: var(--accent); display: inline-block; width: 0.9rem; }
+      tr.drill:hover td.metric { color: var(--accent); }
+      tr.bs-detail td { color: var(--muted); font-size: 0.8rem; }
+      tr.bs-detail td.metric { font-weight: 400; }
       td .tag, td.tagcol .tag { display: block; font-size: 0.68rem; color: var(--muted); margin-top: 0.05rem; }
       .na { color: #56688a; }
       .allctrl { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.6rem; }
@@ -464,31 +469,60 @@
         const netIncome = n(v.netIncome);
         const otherItems = netIncome != null && pat != null ? netIncome - pat : null;
 
-        const L = (label, kind, level, value, unit) => ({ label, kind, level, value, unit: unit || 'USD' });
+        const L = (key, label, kind, level, value, unit) => ({ key, label, kind, level, value, unit: unit || 'USD' });
         const lines = [
-          L('I. Revenue from operations', 'item', 1, revenue),
-          L('II. Other income', 'item', 1, otherIncome),
-          L('III. Total Income (I + II)', 'subtotal', 0, totalIncome),
-          L('IV. Expenses', 'header', 1, null),
-          L('Cost of revenue / materials & services', 'item', 2, cor),
-          L('Finance costs', 'item', 2, fc),
-          L('Other expenses (operating & unmapped)', 'item', 2, otherExp),
-          L('Total Expenses', 'subtotal', 1, totalExpenses),
-          L('V. Profit Before Tax (III − IV)', 'subtotal', 0, pbt),
-          L('VI. Tax expense', 'header', 1, null),
-          L('(1) Current tax', 'item', 2, currentTax),
-          L('(2) Deferred tax', 'item', 2, deferredTax),
-          L('Total tax expense', 'subtotal', 1, totalTax),
-          L('VII. Profit After Tax (V − VI)', 'subtotal', 0, pat),
-          L('VIII. Other items (NCI, discontinued ops)', 'item', 1, otherItems),
-          L('IX. Profit for the period', 'grandtotal', 0, netIncome),
-          L('X. Earnings per equity share', 'header', 1, null),
-          L('(1) Basic', 'item', 2, n(v.epsBasic), 'USD/shares'),
-          L('(2) Diluted', 'item', 2, n(v.dilutedEPS), 'USD/shares'),
+          L('rev', 'I. Revenue from operations', 'item', 1, revenue),
+          L('oi', 'II. Other income', 'item', 1, otherIncome),
+          L('ti', 'III. Total Income (I + II)', 'subtotal', 0, totalIncome),
+          L('exp', 'IV. Expenses', 'header', 1, null),
+          L('cor', 'Cost of revenue / materials & services', 'item', 2, cor),
+          L('fc', 'Finance costs', 'item', 2, fc),
+          L('oe', 'Other expenses (operating & unmapped)', 'item', 2, otherExp),
+          L('te', 'Total Expenses', 'subtotal', 1, totalExpenses),
+          L('pbt', 'V. Profit Before Tax (III − IV)', 'subtotal', 0, pbt),
+          L('tax', 'VI. Tax expense', 'header', 1, null),
+          L('ct', '(1) Current tax', 'item', 2, currentTax),
+          L('dt', '(2) Deferred tax', 'item', 2, deferredTax),
+          L('tt', 'Total tax expense', 'subtotal', 1, totalTax),
+          L('pat', 'VII. Profit After Tax (V − VI)', 'subtotal', 0, pat),
+          L('oth', 'VIII. Other items (NCI, discontinued ops)', 'item', 1, otherItems),
+          L('pfp', 'IX. Profit for the period', 'grandtotal', 0, netIncome),
+          L('eps', 'X. Earnings per equity share', 'header', 1, null),
+          L('epsb', '(1) Basic', 'item', 2, n(v.epsBasic), 'USD/shares'),
+          L('epsd', '(2) Diluted', 'item', 2, n(v.dilutedEPS), 'USD/shares'),
         ];
         return { lines };
       }
-      function renderScheduleTable(title, schedules, periods, yearHeads, legend) {
+      // Drill-down detail for aggregated P&L lines (built from the loaded period
+      // fields; a balancing "Other / unallocated" row makes detail tie to the
+      // heading). field = model-data key on each period.
+      const PL_DETAIL = {
+        oi: { items: [['Interest / investment income', 'interestIncome'], ['Other non-operating income', 'otherIncomeExpense']] },
+        oe: {
+          items: [['Research & development', 'researchAndDevelopment'], ['Selling & marketing', 'sellingAndMarketing'],
+            ['General & administrative', 'generalAndAdministrative'], ['Selling, general & administrative', 'sellingGeneralAndAdministrative']],
+          remainder: 'Other / unallocated operating expenses',
+        },
+      };
+      function detailRows(spec, parentIdx, groupId, schedules, periods) {
+        const rows = spec.items.map(([label, field]) => {
+          if (!periods.some((p) => p[field] != null)) return '';
+          const cells = periods.map((p) => `<td>${p[field] == null ? '<span class="na">—</span>' : esc(fmtByUnit('USD', p[field]))}</td>`).join('');
+          return `<tr class="bs-detail" data-detailof="${groupId}" style="display:none"><td class="metric" style="padding-left:3rem">↳ ${esc(label)}</td>${cells}</tr>`;
+        }).join('');
+        let rem = '';
+        if (spec.remainder) {
+          const cells = periods.map((p, i) => {
+            const parent = schedules[i].lines[parentIdx].value;
+            const mapped = spec.items.reduce((s, [, f]) => s + (p[f] != null ? p[f] : 0), 0);
+            const v = parent == null ? null : parent - mapped;
+            return `<td>${v == null ? '<span class="na">—</span>' : esc(fmtByUnit('USD', v))}</td>`;
+          }).join('');
+          rem = `<tr class="bs-detail" data-detailof="${groupId}" style="display:none"><td class="metric" style="padding-left:3rem">↳ ${esc(spec.remainder)}</td>${cells}</tr>`;
+        }
+        return rows + rem;
+      }
+      function renderScheduleTable(title, schedules, periods, yearHeads, legend, detailMap, prefix) {
         const lines = schedules[0].lines;
         const body = lines.map((ln, idx) => {
           const cls = { header: 'bs-header', subtotal: 'bs-subtotal', grandtotal: 'bs-grand', sub: 'bs-sub', item: 'bs-item' }[ln.kind] || '';
@@ -499,7 +533,13 @@
                 const c = s.lines[idx];
                 return `<td>${c.value == null ? '<span class="na">—</span>' : esc(fmtByUnit(c.unit || 'USD', c.value))}</td>`;
               }).join('');
-          return `<tr class="${cls}"><td class="metric" style="padding-left:${pad}rem">${esc(ln.label)}</td>${cells}</tr>`;
+          const spec = detailMap && ln.key ? detailMap[ln.key] : null;
+          const groupId = spec ? `${prefix}-${ln.key}` : '';
+          const caret = spec ? '<span class="caret">▸</span> ' : '';
+          let row = `<tr class="${cls}${spec ? ' drill' : ''}"${spec ? ` data-drill="${groupId}"` : ''}>` +
+            `<td class="metric" style="padding-left:${pad}rem">${caret}${esc(ln.label)}</td>${cells}</tr>`;
+          if (spec) row += detailRows(spec, idx, groupId, schedules, periods);
+          return row;
         }).join('');
         return `<section class="group"><h2>${esc(title)}</h2><div class="scroll"><table>` +
           `<thead><tr><th class="metric">Particulars</th>${yearHeads}</tr></thead><tbody>${body}</tbody></table></div>` +
@@ -510,7 +550,8 @@
         return renderScheduleTable(
           'Statement of Profit & Loss — Companies Act 2013, Schedule III',
           periods.map(scheduleIIIPL), periods, yearHeads,
-          'US-GAAP (functional) expenses recast into Schedule III natural heads; "Other expenses" absorbs operating costs (R&D, sales & marketing, G&A) and embedded D&A so Total Income − Total Expenses = Profit Before Tax.'
+          'Click a ▸ line (e.g. Other expenses) to expand its detail. US-GAAP (functional) expenses are recast into Schedule III natural heads; "Other expenses" absorbs operating costs (R&D, sales & marketing, G&A) and embedded D&A so Total Income − Total Expenses = Profit Before Tax.',
+          PL_DETAIL, 'il'
         );
       }
 
@@ -1121,6 +1162,19 @@
       // ---- wiring -----------------------------------------------------------
       document.getElementById('api').value = defaultApiBase();
       document.getElementById('segBtn').addEventListener('click', loadSegments);
+      // Drill-down: clicking a ▸ heading toggles its detail rows (delegated so it
+      // survives re-renders).
+      document.addEventListener('click', (e) => {
+        const tr = e.target.closest && e.target.closest('tr.drill');
+        if (!tr) return;
+        const id = tr.getAttribute('data-drill');
+        const open = tr.classList.toggle('open');
+        document.querySelectorAll('tr.bs-detail[data-detailof="' + id + '"]').forEach((r) => {
+          r.style.display = open ? '' : 'none';
+        });
+        const caret = tr.querySelector('.caret');
+        if (caret) caret.textContent = open ? '▾' : '▸';
+      });
       fetchBtn.addEventListener('click', fetchLive);
       demoBtn.addEventListener('click', loadDemo);
       document.getElementById('allFactsBtn').addEventListener('click', loadAllFacts);
