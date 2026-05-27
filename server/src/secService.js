@@ -270,8 +270,11 @@ function createSecService({ client, marketData, treasury, priceData } = {}) {
   }
 
   // GET /api/sec/segments (revenue by segment/geography/product from inline XBRL)
-  // Merges the most recent N 10-K filings for more years of history.
-  async function getSegments(rawTicker, { filings } = {}) {
+  // Merges the most recent N 10-K filings for more years of history. Each 10-K
+  // tags ~3 years, and consecutive filings overlap by 2, so N filings ≈ N+2
+  // distinct years. `years` is translated to the filings needed; `filings`
+  // overrides it directly.
+  async function getSegments(rawTicker, { filings, years } = {}) {
     const resolved = await resolveTicker(rawTicker);
     const submissions = await client.getJson(submissionsUrl(resolved.cik));
     const recent = submissions.filings && submissions.filings.recent;
@@ -279,7 +282,13 @@ function createSecService({ client, marketData, treasury, priceData } = {}) {
       throw notFound(`No filing history found for "${resolved.ticker}".`);
     }
 
-    const max = Math.min(Math.max(Number(filings) || 3, 1), 6);
+    const MAX_FILINGS = 10; // ~12 years; bounded to limit large-document fetches
+    let want = Number(filings);
+    if (!Number.isFinite(want) || want <= 0) {
+      const yrs = Number(years);
+      want = Number.isFinite(yrs) && yrs > 0 ? yrs - 2 : 3;
+    }
+    const max = Math.min(Math.max(Math.round(want), 1), MAX_FILINGS);
     const indices = [];
     for (let i = 0; i < recent.form.length && indices.length < max; i += 1) {
       if (recent.form[i] === '10-K' && recent.primaryDocument[i]) indices.push(i);

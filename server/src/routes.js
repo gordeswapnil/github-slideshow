@@ -88,7 +88,12 @@ function createRouter({ service }) {
   router.get(
     '/segments',
     asyncHandler(async (req, res) => {
-      res.json(await service.getSegments(req.query.ticker, { filings: req.query.filings }));
+      res.json(
+        await service.getSegments(req.query.ticker, {
+          filings: req.query.filings,
+          years: req.query.years,
+        })
+      );
     })
   );
 

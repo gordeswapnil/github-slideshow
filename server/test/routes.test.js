@@ -172,6 +172,14 @@ describe('GET /api/sec/segments', () => {
     expect(r.body.diagnostics.axesSeen.length).toBeGreaterThan(0);
     expect(r.body.diagnostics.axisCombinations.some((c) => c.axes.includes('+'))).toBe(true);
   });
+
+  test('years=10 requests more filings (bounded by what the company has filed)', async () => {
+    const app = makeApp();
+    const r = await request(app).get('/api/sec/segments?ticker=NFLX&years=10');
+    expect(r.status).toBe(200);
+    // The fixture only has two 10-Ks, so it parses both; the cap just lifts.
+    expect(r.body.filingsParsed).toBe(2);
+  });
 });
 
 describe('GET /api/sec/all-facts', () => {

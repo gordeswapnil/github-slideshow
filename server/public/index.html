@@ -1022,10 +1022,15 @@
         }
         const btn = document.getElementById('segBtn');
         btn.disabled = true;
+        const years = document.getElementById('years').value;
+        const params = new URLSearchParams({ ticker: currentTicker });
+        // Each 10-K tags ~3 years, so more years => merge more filings.
+        if (years) params.set('years', years);
+        else params.set('filings', '10');
         document.getElementById('segNote').textContent =
-          'Fetching and parsing the latest 10-K inline XBRL (this can take a few seconds)…';
+          `Fetching and parsing ${years ? '~' + Math.max(Math.round(Number(years) - 2), 1) : 'up to 10'} 10-K filing(s) — this can take several seconds…`;
         try {
-          const res = await fetch(apiBase() + '/api/sec/segments?ticker=' + encodeURIComponent(currentTicker));
+          const res = await fetch(apiBase() + '/api/sec/segments?' + params.toString());
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
           renderSegments(data);

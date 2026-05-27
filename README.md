@@ -124,8 +124,11 @@ These breakdowns are **not** in the companyfacts JSON API — they only exist as
 Only **single-axis, full-year** breakdowns are tabled (product×geography
 intersection cells are skipped to avoid double-counting, but appear in
 `diagnostics`); it targets **inline-XBRL** filings (recent years). It **merges the
-latest N 10-Ks** (`?filings=N`, default 3, max 6) for more history than the ~3
-years a single filing tags — the most recently filed value wins per member/year.
+latest N 10-Ks** for more history than the ~3 years a single filing tags — the
+most recently filed value wins per member/year. Request a span with
+`?years=10` (translated to the filings needed) or set filings directly with
+`?filings=N` (max 10 ≈ 12 years). In the UI the Periods selector drives this, so
+"Last 10" pulls ~8 filings.
 The response includes a `diagnostics` block listing every axis/member and axis
 combination found, to make missing breakdowns easy to debug. Members are shown by
 their raw XBRL QName (humanized) — always treat the source filing as
