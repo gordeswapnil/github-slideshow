@@ -144,16 +144,20 @@ describe('GET /api/sec/business', () => {
 });
 
 describe('GET /api/sec/segments', () => {
-  test('returns revenue grouped by axis/member from inline XBRL', async () => {
+  test('returns revenue grouped by axis/member, merged across filings, with diagnostics', async () => {
     const app = makeApp();
     const r = await request(app).get('/api/sec/segments?ticker=NFLX');
     expect(r.status).toBe(200);
     expect(r.body.accessionNumber).toBe('A-2024');
     expect(r.body.sourceDocument).toContain('/Archives/edgar/data/1065280/');
+    expect(r.body.filingsParsed).toBe(2); // two 10-Ks in the fixture
     const product = r.body.axes.find((a) => a.axis === 'srt:ProductOrServiceAxis');
     expect(product).toBeTruthy();
     const streaming = product.members.find((m) => m.member === 'nflx:StreamingRevenuesMember');
     expect(streaming.values['2024']).toBe(38000000 * 1000);
+    // diagnostics reveal the multi-axis (product x geography) combination too
+    expect(r.body.diagnostics.axesSeen.length).toBeGreaterThan(0);
+    expect(r.body.diagnostics.axisCombinations.some((c) => c.axes.includes('+'))).toBe(true);
   });
 });
 

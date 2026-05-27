@@ -890,7 +890,19 @@
         }).join('');
         const src = data.sourceDocument && data.sourceDocument.startsWith('http')
           ? ` · <a href="${esc(data.sourceDocument)}" target="_blank" rel="noopener" style="color:var(--accent)">source 10-K</a>` : '';
-        note.innerHTML = `Parsed from the latest 10-K inline XBRL (${esc(data.accessionNumber || '')})${src}. Only single-axis full-year breakdowns are shown; product×geography intersection cells are excluded to avoid double-counting.`;
+        let diag = '';
+        if (data.diagnostics) {
+          const ax = data.diagnostics.axesSeen
+            .map((a) => `<li><code class="tagname">${esc(a.axis)}</code>: ${a.members.map(esc).join(', ')}</li>`).join('');
+          const combos = data.diagnostics.axisCombinations
+            .map((c) => `<li>${esc(c.axes)} — ${c.count} fact(s)</li>`).join('');
+          diag = `<details style="margin-top:0.6rem"><summary style="cursor:pointer;color:var(--accent)">Diagnostics — all axes & combinations seen (${data.diagnostics.totalRevenueFacts} dimensional revenue facts)</summary>` +
+            `<div class="muted"><strong>Axes &amp; members:</strong><ul>${ax || '<li>none</li>'}</ul>` +
+            `<strong>Axis combinations:</strong><ul>${combos || '<li>none</li>'}</ul></div></details>`;
+        }
+        document.getElementById('segTables').insertAdjacentHTML('beforeend', diag);
+        const merged = data.filingsParsed ? `Merged ${data.filingsParsed} 10-K filing(s). ` : '';
+        note.innerHTML = `${merged}Latest filing ${esc(data.accessionNumber || '')}${src}. Only single-axis full-year breakdowns are tabled; multi-axis cells appear in diagnostics.`;
         document.getElementById('segCount').textContent = data.axes.length + ' breakdown(s)';
       }
       async function loadSegments() {

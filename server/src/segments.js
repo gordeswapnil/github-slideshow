@@ -3,8 +3,9 @@ const { XMLParser } = require('fast-xml-parser');
 // Segment / geographic / product revenue breakdowns are NOT in the companyfacts
 // JSON API — they only exist as dimensional facts inside the filing's inline
 // XBRL (the primary 10-K .htm). This module parses that document, pairs each
-// dimensional revenue fact with its context's axis/member, and groups the
-// result by axis.
+// dimensional revenue fact with its context's axis/member(s), and groups the
+// single-axis breakdowns by axis. A diagnostics view exposes every axis/member
+// combination seen (including multi-axis cells) to make tuning transparent.
 
 const REVENUE_CONCEPTS = new Set([
   'Revenues',
@@ -15,7 +16,8 @@ const REVENUE_CONCEPTS = new Set([
 ]);
 
 // Axes that represent a revenue breakdown we care about.
-const isSegmentAxis = (dim) => /Segment|Geograph|ProductOrService/i.test(dim || '');
+const isSegmentAxis = (dim) =>
+  /Segment|Geograph|ProductOrService|Region|Brand|MajorCustomer|Country|Subscription/i.test(dim || '');
 
 const localName = (qname) => String(qname || '').split(':').pop();
 
@@ -27,7 +29,6 @@ function humanize(qname, stripSuffix) {
   return s || qname;
 }
 
-// Recursively collect every value stored under `key` anywhere in the parsed tree.
 function collectByKey(node, key, acc = []) {
   if (Array.isArray(node)) {
     for (const n of node) collectByKey(n, key, acc);
@@ -54,8 +55,7 @@ function isFullYear(start, end) {
 }
 
 function contextDimensions(ctx) {
-  const members = collectByKey(ctx, 'explicitMember');
-  return members
+  return collectByKey(ctx, 'explicitMember')
     .map((m) => ({
       dimension: m && m['@_dimension'],
       member: m && (typeof m === 'object' ? m['#text'] : m),
@@ -74,8 +74,7 @@ function contextPeriod(ctx) {
 function factValue(fact) {
   const raw = typeof fact === 'object' ? fact['#text'] : fact;
   if (raw == null) return null;
-  const cleaned = String(raw).replace(/,/g, '').trim();
-  let value = Number(cleaned);
+  let value = Number(String(raw).replace(/,/g, '').trim());
   if (!Number.isFinite(value)) return null;
   const scale = Number(fact['@_scale']);
   if (Number.isFinite(scale)) value *= 10 ** scale;
@@ -83,7 +82,9 @@ function factValue(fact) {
   return value;
 }
 
-function parseInlineXbrlSegments(xml, { concepts = REVENUE_CONCEPTS } = {}) {
+// All full-year revenue facts that carry >=1 segment-axis dimension, with their
+// complete segment-dimension list.
+function parseRevenueFacts(xml, { concepts = REVENUE_CONCEPTS } = {}) {
   if (!xml || typeof xml !== 'string') return [];
   const parser = new XMLParser({
     ignoreAttributes: false,
@@ -93,7 +94,6 @@ function parseInlineXbrlSegments(xml, { concepts = REVENUE_CONCEPTS } = {}) {
     trimValues: true,
     parseAttributeValue: false,
   });
-
   let tree;
   try {
     tree = parser.parse(xml);
@@ -101,7 +101,6 @@ function parseInlineXbrlSegments(xml, { concepts = REVENUE_CONCEPTS } = {}) {
     return [];
   }
 
-  // Build contextId -> { period, dimensions }
   const contexts = {};
   for (const ctx of collectByKey(tree, 'context')) {
     const id = ctx && ctx['@_id'];
@@ -118,17 +117,17 @@ function parseInlineXbrlSegments(xml, { concepts = REVENUE_CONCEPTS } = {}) {
     if (!ctx || !ctx.period || !ctx.period.end) continue;
     if (!isFullYear(ctx.period.start, ctx.period.end)) continue;
 
-    const segDims = ctx.dimensions.filter((d) => isSegmentAxis(d.dimension));
-    // Only single-axis breakdowns (avoid double-counting product x geography cells).
-    if (segDims.length !== 1) continue;
+    const segmentDims = ctx.dimensions
+      .filter((d) => isSegmentAxis(d.dimension))
+      .map((d) => ({ axis: d.dimension, member: d.member }));
+    if (segmentDims.length === 0) continue;
 
     const value = factValue(fact);
     if (value == null) continue;
 
     facts.push({
       concept,
-      axis: segDims[0].dimension,
-      member: segDims[0].member,
+      segmentDims,
       value,
       unit: localName(fact['@_unitRef']) || null,
       fiscalYear: Number(ctx.period.end.slice(0, 4)),
@@ -138,7 +137,30 @@ function parseInlineXbrlSegments(xml, { concepts = REVENUE_CONCEPTS } = {}) {
   return facts;
 }
 
-// Group flat facts into { axes: [ { axis, label, members: [ { member, label, values } ] } ] }.
+// Single-axis breakdown facts (used for the grouped tables).
+function toSingleAxisFacts(revFacts) {
+  return revFacts
+    .filter((f) => f.segmentDims.length === 1)
+    .map((f) => ({
+      concept: f.concept,
+      axis: f.segmentDims[0].axis,
+      member: f.segmentDims[0].member,
+      value: f.value,
+      unit: f.unit,
+      fiscalYear: f.fiscalYear,
+      periodEnd: f.periodEnd,
+      filed: f.filed || null,
+    }));
+}
+
+function parseInlineXbrlSegments(xml, opts) {
+  return toSingleAxisFacts(parseRevenueFacts(xml, opts));
+}
+const parseDimensionalFacts = (xml, opts) => parseRevenueFacts(xml, opts);
+
+// Group single-axis facts into { axes: [ { axis, label, members:[{member,label,values}] } ] }.
+// When facts carry a `filed` date (multi-filing merge), the most recently filed
+// value wins for each member/year; otherwise the larger absolute value wins.
 function groupSegments(facts) {
   const yearSet = new Set();
   const axisMap = new Map();
@@ -150,25 +172,62 @@ function groupSegments(facts) {
     }
     const members = axisMap.get(f.axis).members;
     if (!members.has(f.member)) {
-      members.set(f.member, { member: f.member, label: humanize(f.member, 'Member'), values: {} });
+      members.set(f.member, { member: f.member, label: humanize(f.member, 'Member'), values: {}, _filed: {} });
     }
-    // Keep the largest absolute value if the same member/year appears twice.
-    const slot = members.get(f.member).values;
-    if (slot[f.fiscalYear] == null || Math.abs(f.value) > Math.abs(slot[f.fiscalYear])) {
-      slot[f.fiscalYear] = f.value;
+    const slot = members.get(f.member);
+    const have = slot.values[f.fiscalYear];
+    const prevFiled = slot._filed[f.fiscalYear];
+    const better =
+      have == null ||
+      (f.filed && (!prevFiled || Date.parse(f.filed) > Date.parse(prevFiled))) ||
+      (!f.filed && Math.abs(f.value) > Math.abs(have));
+    if (better) {
+      slot.values[f.fiscalYear] = f.value;
+      slot._filed[f.fiscalYear] = f.filed || null;
     }
   }
 
   const axes = [...axisMap.values()].map((a) => ({
     axis: a.axis,
     label: a.label,
-    members: [...a.members.values()].sort((x, y) => {
-      const latest = Math.max(...Object.keys({ ...x.values, ...y.values }).map(Number));
-      return (y.values[latest] || 0) - (x.values[latest] || 0);
-    }),
+    members: [...a.members.values()]
+      .map((m) => {
+        delete m._filed;
+        return m;
+      })
+      .sort((x, y) => {
+        const yr = Math.max(...Object.keys({ ...x.values, ...y.values }).map(Number));
+        return (y.values[yr] || 0) - (x.values[yr] || 0);
+      }),
   }));
 
   return { fiscalYears: [...yearSet].sort((a, b) => b - a), factCount: facts.length, axes };
+}
+
+// Reveal every axis/member and axis-combination seen (incl. multi-axis cells).
+function buildDiagnostics(revFacts) {
+  const axisMembers = new Map();
+  const combos = new Map();
+  for (const f of revFacts) {
+    const axes = f.segmentDims.map((d) => d.axis).sort();
+    const key = axes.map(localName).join(' + ') || '(none)';
+    combos.set(key, (combos.get(key) || 0) + 1);
+    for (const d of f.segmentDims) {
+      if (!axisMembers.has(d.axis)) axisMembers.set(d.axis, new Set());
+      axisMembers.get(d.axis).add(d.member);
+    }
+  }
+  return {
+    totalRevenueFacts: revFacts.length,
+    axesSeen: [...axisMembers.entries()].map(([axis, set]) => ({
+      axis,
+      label: humanize(axis, 'Axis'),
+      members: [...set],
+    })),
+    axisCombinations: [...combos.entries()]
+      .map(([axes, count]) => ({ axes, count }))
+      .sort((a, b) => b.count - a.count),
+  };
 }
 
 function extractSegments(xml) {
@@ -177,7 +236,11 @@ function extractSegments(xml) {
 
 module.exports = {
   parseInlineXbrlSegments,
+  parseDimensionalFacts,
+  parseRevenueFacts,
+  toSingleAxisFacts,
   groupSegments,
+  buildDiagnostics,
   extractSegments,
   humanize,
   REVENUE_CONCEPTS,

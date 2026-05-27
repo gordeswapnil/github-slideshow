@@ -6,7 +6,12 @@ const { computeRatios } = require('./ratios');
 const { createMarketDataProvider } = require('./marketData');
 const { createTreasuryProvider } = require('./treasury');
 const { computeWacc, effectiveTaxRate } = require('./wacc');
-const { extractSegments } = require('./segments');
+const {
+  parseRevenueFacts,
+  toSingleAxisFacts,
+  groupSegments,
+  buildDiagnostics,
+} = require('./segments');
 const { getIndustryBeta } = require('./damodaran');
 const { extractBusinessSection } = require('./filingText');
 const { createPriceProvider } = require('./priceData');
@@ -250,38 +255,81 @@ function createSecService({ client, marketData, treasury, priceData } = {}) {
   }
 
   // GET /api/sec/segments (revenue by segment/geography/product from inline XBRL)
-  async function getSegments(rawTicker) {
+  // Merges the most recent N 10-K filings for more years of history.
+  async function getSegments(rawTicker, { filings } = {}) {
     const resolved = await resolveTicker(rawTicker);
     const submissions = await client.getJson(submissionsUrl(resolved.cik));
     const recent = submissions.filings && submissions.filings.recent;
     if (!recent || !Array.isArray(recent.form)) {
       throw notFound(`No filing history found for "${resolved.ticker}".`);
     }
-    const idx = recent.form.findIndex((f) => f === '10-K');
-    if (idx === -1) throw notFound(`No 10-K filing found for "${resolved.ticker}".`);
 
-    const accession = recent.accessionNumber[idx];
-    const primaryDoc = recent.primaryDocument[idx];
-    const reportDate = recent.reportDate ? recent.reportDate[idx] : null;
-    if (!primaryDoc) throw notFound('Latest 10-K has no primary document to parse.');
+    const max = Math.min(Math.max(Number(filings) || 3, 1), 6);
+    const indices = [];
+    for (let i = 0; i < recent.form.length && indices.length < max; i += 1) {
+      if (recent.form[i] === '10-K' && recent.primaryDocument[i]) indices.push(i);
+    }
+    if (indices.length === 0) throw notFound(`No 10-K filing found for "${resolved.ticker}".`);
 
-    const accnNoDash = String(accession).replace(/-/g, '');
-    const sourceDocument = `https://www.sec.gov/Archives/edgar/data/${resolved.cikNumber}/${accnNoDash}/${primaryDoc}`;
-    const xml = await client.getText(sourceDocument);
-    const grouped = extractSegments(xml);
+    const docFor = (i) => {
+      const accession = recent.accessionNumber[i];
+      const accnNoDash = String(accession).replace(/-/g, '');
+      return {
+        accession,
+        filed: recent.filingDate ? recent.filingDate[i] : null,
+        reportDate: recent.reportDate ? recent.reportDate[i] : null,
+        sourceDocument: `https://www.sec.gov/Archives/edgar/data/${resolved.cikNumber}/${accnNoDash}/${recent.primaryDocument[i]}`,
+      };
+    };
+
+    const parsed = await Promise.all(
+      indices.map(async (i) => {
+        const doc = docFor(i);
+        try {
+          const xml = await client.getText(doc.sourceDocument);
+          const revFacts = parseRevenueFacts(xml);
+          return { doc, revFacts, ok: true };
+        } catch (err) {
+          return { doc, revFacts: [], ok: false, error: err.message };
+        }
+      })
+    );
+
+    const allRevFacts = [];
+    const allSingle = [];
+    const sources = [];
+    for (const p of parsed) {
+      sources.push({
+        accessionNumber: p.doc.accession,
+        filed: p.doc.filed,
+        reportDate: p.doc.reportDate,
+        sourceDocument: p.doc.sourceDocument,
+        parsed: p.ok,
+        revenueFacts: p.revFacts.length,
+        error: p.error,
+      });
+      allRevFacts.push(...p.revFacts);
+      allSingle.push(...toSingleAxisFacts(p.revFacts.map((f) => ({ ...f, filed: p.doc.filed }))));
+    }
+
+    const grouped = groupSegments(allSingle);
+    const latest = docFor(indices[0]);
 
     return {
       ticker: resolved.ticker,
       cik: resolved.cik,
       companyName: submissions.name || resolved.title,
-      accessionNumber: accession,
-      reportDate,
-      sourceDocument,
+      accessionNumber: latest.accession,
+      reportDate: latest.reportDate,
+      sourceDocument: latest.sourceDocument,
+      filingsParsed: sources.filter((s) => s.parsed).length,
+      sources,
+      ...grouped,
+      diagnostics: buildDiagnostics(allRevFacts),
       note:
         grouped.axes.length === 0
-          ? 'No single-axis revenue breakdowns found. The filing may use older (non-inline) XBRL, custom axes, or only multi-dimensional cells.'
+          ? 'No single-axis revenue breakdowns found. See diagnostics.axisCombinations — the company may only tag multi-axis (e.g. product x geography) cells, or use custom axes.'
           : undefined,
-      ...grouped,
     };
   }
 
