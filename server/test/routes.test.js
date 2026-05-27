@@ -96,6 +96,17 @@ describe('GET /api/sec/profile', () => {
   });
 });
 
+describe('GET /api/sec/income-statement', () => {
+  test('returns a Schedule III P&L per period', async () => {
+    const app = makeApp();
+    const r = await request(app).get('/api/sec/income-statement?ticker=NFLX');
+    expect(r.status).toBe(200);
+    expect(r.body.format).toMatch(/Schedule III/);
+    expect(r.body.statements.length).toBeGreaterThan(0);
+    expect(r.body.statements[0].lines.find((l) => l.key === 'pfp')).toBeTruthy();
+  });
+});
+
 describe('GET /api/sec/balance-sheet', () => {
   test('returns a Schedule III statement per period', async () => {
     const app = makeApp();

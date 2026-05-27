@@ -7,6 +7,7 @@ const { createMarketDataProvider } = require('./marketData');
 const { createTreasuryProvider } = require('./treasury');
 const { computeWacc, effectiveTaxRate } = require('./wacc');
 const { buildScheduleIII } = require('./balanceSheet');
+const { buildScheduleIIIPL } = require('./incomeStatement');
 const {
   parseRevenueFacts,
   toSingleAxisFacts,
@@ -139,6 +140,20 @@ function createSecService({ client, marketData, treasury, priceData } = {}) {
       companyName: modelData.companyName || resolved.title,
       format: 'Companies Act 2013 — Schedule III (Division I), vertical',
       statements: modelData.periods.map((p) => buildScheduleIII(p)),
+    };
+  }
+
+  // GET /api/sec/income-statement (Companies Act 2013 Schedule III, Part II)
+  async function getIncomeStatement(rawTicker, { years } = {}) {
+    const resolved = await resolveTicker(rawTicker);
+    const facts = await client.getJson(companyFactsUrl(resolved.cik));
+    const modelData = normalizeCompanyFacts(facts, { years });
+    return {
+      ticker: resolved.ticker,
+      cik: resolved.cik,
+      companyName: modelData.companyName || resolved.title,
+      format: 'Companies Act 2013 — Schedule III (Division I), Part II — Statement of Profit & Loss',
+      statements: modelData.periods.map((p) => buildScheduleIIIPL(p)),
     };
   }
 
@@ -397,6 +412,7 @@ function createSecService({ client, marketData, treasury, priceData } = {}) {
     getProfile,
     getBusinessSummary,
     getBalanceSheet,
+    getIncomeStatement,
     getRatios,
     getWacc,
     getSegments,

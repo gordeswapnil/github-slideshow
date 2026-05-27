@@ -80,6 +80,7 @@ Copy `server/.env.example` to `server/.env` and set your email before deploying.
 | `GET /api/sec/model-data?ticker=NFLX&years=5` | Latest 5 annual 10-K periods |
 | `GET /api/sec/profile?ticker=NFLX` | Case-study profile: industry, HQ, filings + financial snapshot |
 | `GET /api/sec/business?ticker=NFLX` | "Item 1 — Business" narrative extracted from the latest 10-K |
+| `GET /api/sec/income-statement?ticker=NFLX` | P&L recast into Companies Act 2013 Schedule III (Part II) |
 | `GET /api/sec/balance-sheet?ticker=NFLX` | Balance sheet recast into Companies Act 2013 Schedule III vertical format |
 | `GET /api/sec/ratios?ticker=NFLX` | Working-capital, liquidity, leverage & return ratios per year |
 | `GET /api/sec/wacc?ticker=NFLX` | Cost of capital (see WACC section below) |
@@ -144,6 +145,16 @@ snapshot (revenue, YoY growth, margins, ROE) — a quick case-study brief.
 ratio, working capital, **DSO / DPO / DIO and the cash-conversion cycle**,
 debt/equity, debt/assets, interest coverage, net margin, ROE and ROA — all
 computed from the normalized SEC figures.
+
+## Statements — Companies Act 2013, Schedule III
+
+`income-statement` recasts the P&L into **Schedule III, Part II**: Revenue from
+operations → Other income → **Total Income** → Expenses (cost of revenue, finance
+costs, other expenses) → **Profit Before Tax** → tax (current/deferred) → **Profit
+for the period** → EPS (basic/diluted). US-GAAP uses *functional* expense
+classification, so the reconciling **"Other expenses"** line absorbs operating
+costs (R&D, S&M, G&A) and embedded D&A, anchored so Total Income − Total
+Expenses = the reported Profit Before Tax.
 
 ## Balance sheet — Companies Act 2013, Schedule III
 

@@ -442,6 +442,78 @@
           `<p class="legend">Recast from US-GAAP into Schedule III buckets. SEC-reported control totals are authoritative; "Other …" lines absorb company-specific items (e.g. content liabilities) so every subtotal and the grand total reconcile.</p></section>`;
       }
 
+      // Schedule III, Part II — Statement of Profit & Loss (mirrors
+      // server/src/incomeStatement.js): anchor on PBT, "Other expenses" plugs
+      // the functional operating costs so Total Income − Total Expenses = PBT.
+      function scheduleIIIPL(period) {
+        const v = period || {};
+        const n = (x) => (typeof x === 'number' && isFinite(x) ? x : null);
+        const add = (arr) => { let s = 0, any = false; for (const x of arr) if (x != null) { s += x; any = true; } return any ? s : null; };
+
+        const revenue = n(v.revenue);
+        const otherIncome = add([n(v.interestIncome), n(v.otherIncomeExpense)]);
+        const totalIncome = add([revenue, otherIncome]);
+        let pbt = n(v.pretaxIncome);
+        if (pbt == null && n(v.netIncome) != null && n(v.incomeTaxExpense) != null) pbt = v.netIncome + v.incomeTaxExpense;
+        const totalExpenses = totalIncome != null && pbt != null ? totalIncome - pbt : null;
+        const cor = n(v.costOfRevenue), fc = n(v.interestExpense);
+        const otherExp = totalExpenses != null ? totalExpenses - (add([cor, fc]) || 0) : null;
+        const totalTax = n(v.incomeTaxExpense), deferredTax = n(v.deferredIncomeTaxes);
+        const currentTax = totalTax != null ? totalTax - (deferredTax || 0) : null;
+        const pat = pbt != null && totalTax != null ? pbt - totalTax : null;
+        const netIncome = n(v.netIncome);
+        const otherItems = netIncome != null && pat != null ? netIncome - pat : null;
+
+        const L = (label, kind, level, value, unit) => ({ label, kind, level, value, unit: unit || 'USD' });
+        const lines = [
+          L('I. Revenue from operations', 'item', 1, revenue),
+          L('II. Other income', 'item', 1, otherIncome),
+          L('III. Total Income (I + II)', 'subtotal', 0, totalIncome),
+          L('IV. Expenses', 'header', 1, null),
+          L('Cost of revenue / materials & services', 'item', 2, cor),
+          L('Finance costs', 'item', 2, fc),
+          L('Other expenses (operating & unmapped)', 'item', 2, otherExp),
+          L('Total Expenses', 'subtotal', 1, totalExpenses),
+          L('V. Profit Before Tax (III − IV)', 'subtotal', 0, pbt),
+          L('VI. Tax expense', 'header', 1, null),
+          L('(1) Current tax', 'item', 2, currentTax),
+          L('(2) Deferred tax', 'item', 2, deferredTax),
+          L('Total tax expense', 'subtotal', 1, totalTax),
+          L('VII. Profit After Tax (V − VI)', 'subtotal', 0, pat),
+          L('VIII. Other items (NCI, discontinued ops)', 'item', 1, otherItems),
+          L('IX. Profit for the period', 'grandtotal', 0, netIncome),
+          L('X. Earnings per equity share', 'header', 1, null),
+          L('(1) Basic', 'item', 2, n(v.epsBasic), 'USD/shares'),
+          L('(2) Diluted', 'item', 2, n(v.dilutedEPS), 'USD/shares'),
+        ];
+        return { lines };
+      }
+      function renderScheduleTable(title, schedules, periods, yearHeads, legend) {
+        const lines = schedules[0].lines;
+        const body = lines.map((ln, idx) => {
+          const cls = { header: 'bs-header', subtotal: 'bs-subtotal', grandtotal: 'bs-grand', sub: 'bs-sub', item: 'bs-item' }[ln.kind] || '';
+          const pad = (0.5 + ln.level * 1.1).toFixed(2);
+          const cells = (ln.kind === 'header' && ln.value == null)
+            ? periods.map(() => '<td></td>').join('')
+            : schedules.map((s) => {
+                const c = s.lines[idx];
+                return `<td>${c.value == null ? '<span class="na">—</span>' : esc(fmtByUnit(c.unit || 'USD', c.value))}</td>`;
+              }).join('');
+          return `<tr class="${cls}"><td class="metric" style="padding-left:${pad}rem">${esc(ln.label)}</td>${cells}</tr>`;
+        }).join('');
+        return `<section class="group"><h2>${esc(title)}</h2><div class="scroll"><table>` +
+          `<thead><tr><th class="metric">Particulars</th>${yearHeads}</tr></thead><tbody>${body}</tbody></table></div>` +
+          (legend ? `<p class="legend">${legend}</p>` : '') + `</section>`;
+      }
+      function renderIncomeStatement(periods, yearHeads) {
+        if (!periods.length) return '';
+        return renderScheduleTable(
+          'Statement of Profit & Loss — Companies Act 2013, Schedule III',
+          periods.map(scheduleIIIPL), periods, yearHeads,
+          'US-GAAP (functional) expenses recast into Schedule III natural heads; "Other expenses" absorbs operating costs (R&D, sales & marketing, G&A) and embedded D&A so Total Income − Total Expenses = Profit Before Tax.'
+        );
+      }
+
       // ---- curated model rendering -----------------------------------------
       function render(data) {
         const periods = data.periods || [];
@@ -463,9 +535,9 @@
           periods.map((p) => `<td class="na">${esc(p.accessionNumber || '—')}</td>`).join('') + `</tr>` +
           `</tbody></table></div></section>`;
 
-        // Income statement and per-share render as flat tables; the balance
-        // sheet is recast into the Schedule III vertical format below.
-        const groupsHtml = ['inc', 'ps'].map((g) => {
+        // Income statement and balance sheet are recast into Schedule III
+        // vertical format; per-share renders as a flat table.
+        const groupsHtml = ['ps'].map((g) => {
           const fields = FIELD_DEFS.filter((f) => f[2] === g);
           const rows = fields.map(([key, label]) => {
             if (!periods.some((p) => p[key] !== null && p[key] !== undefined)) return '';
@@ -480,8 +552,8 @@
           .map((w) => `<div class="banner">⚠ ${esc(w)}</div>`)
           .join('');
         document.getElementById('sections').innerHTML =
-          warnHtml + filingsHtml + groupsHtml + renderBalanceSheet(periods, yearHeads) +
-          renderCashFlow(periods, yearHeads);
+          warnHtml + filingsHtml + renderIncomeStatement(periods, yearHeads) + groupsHtml +
+          renderBalanceSheet(periods, yearHeads) + renderCashFlow(periods, yearHeads);
         renderRatios(periods);
         initWacc(periods[0]);
         document.getElementById('raw').textContent = JSON.stringify(data, null, 2);
