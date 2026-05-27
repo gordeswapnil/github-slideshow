@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SEC EDGAR 10-K Financials</title>
+    <style>
+      :root {
+        --bg: #0b1120; --panel: #111c33; --panel2: #16243f; --line: #2b3b5b;
+        --text: #e6edf6; --muted: #8aa0c0; --accent: #4cc4ff; --good: #4ade80;
+        --bad: #f87171; --warn: #fbbf24;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background: radial-gradient(1200px 600px at 80% -10%, #15233f 0%, var(--bg) 55%);
+        color: var(--text); min-height: 100vh; padding: 2rem 1rem 4rem;
+      }
+      .wrap { max-width: 1240px; margin: 0 auto; }
+      h1 { font-size: 1.5rem; margin: 0 0 0.25rem; }
+      p.sub { color: var(--muted); margin: 0; font-size: 0.9rem; max-width: 780px; }
+      .controls {
+        display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: flex-end;
+        background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+        padding: 1rem; margin: 1.25rem 0;
+      }
+      .field { display: flex; flex-direction: column; gap: 0.3rem; }
+      .field label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+      input, button, select {
+        background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+        border-radius: 8px; padding: 0.6rem 0.7rem; font-size: 0.95rem;
+      }
+      input#ticker { text-transform: uppercase; width: 120px; font-weight: 700; letter-spacing: 0.05em; }
+      input#api { width: 230px; }
+      button { cursor: pointer; font-weight: 700; }
+      button.primary { background: var(--accent); color: #04243a; border-color: var(--accent); }
+      button.ghost { color: var(--accent); }
+      button:disabled { opacity: 0.5; cursor: not-allowed; }
+      .status { margin: 0.5rem 0 1rem; font-size: 0.95rem; min-height: 1.2rem; }
+      .status.error { color: var(--bad); }
+      .status.loading { color: var(--accent); }
+      .banner {
+        background: rgba(251, 191, 36, 0.12); border: 1px solid var(--warn); color: var(--warn);
+        padding: 0.55rem 0.8rem; border-radius: 8px; font-size: 0.82rem; margin-bottom: 1rem;
+      }
+      .company {
+        display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: baseline;
+        border-bottom: 1px solid var(--line); padding-bottom: 0.9rem; margin-bottom: 1.25rem;
+      }
+      .company .name { font-size: 1.35rem; font-weight: 800; }
+      .company .pill { font-size: 0.72rem; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0.15rem 0.6rem; }
+      .chk { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--text); padding: 0.55rem 0; cursor: pointer; }
+      .chk input { width: auto; }
+      section.group { margin-bottom: 1.1rem; }
+      section.group > h2 { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin: 0 0 0.35rem; }
+      .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+      table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+      th, td { padding: 0.34rem 0.7rem; text-align: right; white-space: nowrap; }
+      thead th { background: var(--panel); color: var(--muted); font-weight: 600; position: sticky; top: 0; border-bottom: 1px solid var(--line); }
+      tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.018); }
+      tbody tr:hover { background: rgba(76, 196, 255, 0.08); }
+      th.metric, td.metric { text-align: left; position: sticky; left: 0; background: var(--panel); font-weight: 500; min-width: 175px; }
+      tbody tr:nth-child(even) td.metric { background: #131f37; }
+      th.tag, td.tagcol { text-align: left; min-width: 230px; }
+      tbody tr:hover td.metric { background: var(--panel2); }
+      td .val { font-variant-numeric: tabular-nums; }
+      td.derived .val::after { content: " ∗"; color: var(--warn); }
+      tr.cf-sub td { font-weight: 700; border-top: 1px solid var(--line); background: rgba(76, 196, 255, 0.05); }
+      tr.cf-sub td.metric { background: #16243f; }
+      tr.bs-header td.metric { font-weight: 800; color: var(--accent); text-transform: none; padding-top: 0.5rem; }
+      tr.bs-item td.metric { color: var(--text); font-weight: 400; }
+      tr.bs-sub td { color: var(--muted); font-size: 0.8rem; }
+      tr.bs-subtotal td { font-weight: 700; border-top: 1px solid var(--line); }
+      tr.bs-subtotal td.metric { background: #16243f; }
+      tr.bs-grand td { font-weight: 800; border-top: 2px solid var(--accent); border-bottom: 2px solid var(--accent); color: var(--accent); }
+      tr.bs-grand td.metric { background: #16243f; }
+      tr.bs-check td { font-size: 0.78rem; color: var(--muted); }
+      tr.drill { cursor: pointer; }
+      tr.drill td.metric .caret { color: var(--accent); display: inline-block; width: 0.9rem; }
+      tr.drill:hover td.metric { color: var(--accent); }
+      tr.bs-detail td { color: var(--muted); font-size: 0.8rem; }
+      tr.bs-detail td.metric { font-weight: 400; }
+      td .tag, td.tagcol .tag { display: block; font-size: 0.68rem; color: var(--muted); margin-top: 0.05rem; }
+      .na { color: #56688a; }
+      .allctrl { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.6rem; }
+      .allctrl input { width: 280px; }
+      .allctrl .count { color: var(--muted); font-size: 0.82rem; }
+      code.tagname { color: var(--accent); font-size: 0.8rem; }
+      .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; margin-bottom: 1.4rem; }
+      .card h3 { margin: 0 0 0.6rem; font-size: 0.95rem; }
+      .facts { display: flex; flex-wrap: wrap; gap: 0.4rem 1.4rem; font-size: 0.85rem; margin-bottom: 0.6rem; }
+      .facts .f { color: var(--muted); }
+      .facts .f b { color: var(--text); font-weight: 600; }
+      .narrative { font-size: 0.88rem; line-height: 1.55; color: var(--text); margin: 0.4rem 0 0.9rem; max-width: 900px; }
+      .snap, .wacc-out { display: flex; flex-wrap: wrap; gap: 0.7rem; }
+      .kpi { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 0.45rem 0.8rem; min-width: 118px; }
+      .kpi .label { font-size: 0.66rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+      .kpi .num { font-size: 1.05rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+      .kpi.big { border-color: var(--accent); }
+      .kpi .num.big { font-size: 1.5rem; color: var(--accent); }
+      .num.pos { color: var(--good); } .num.neg { color: var(--bad); }
+      .wacc-inputs { display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: flex-end; margin-bottom: 0.9rem; }
+      .wacc-inputs .field input { width: 130px; }
+      .muted { color: var(--muted); font-size: 0.8rem; margin: 0.6rem 0 0; max-width: 900px; }
+      details.raw { margin-top: 1.5rem; }
+      details.raw summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+      pre { background: var(--panel); border: 1px solid var(--line); padding: 1rem; border-radius: 10px; overflow: auto; font-size: 0.74rem; max-height: 420px; }
+      .legend { color: var(--muted); font-size: 0.76rem; margin-top: 0.6rem; }
+      .hidden { display: none; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="app">
+        <h1>SEC EDGAR · 10-K Financials</h1>
+        <p class="sub">
+          Structured annual financial-statement data from the official SEC EDGAR XBRL JSON APIs —
+          no API key, no PDF extraction. A curated full three-statement model, plus an
+          "all reported facts" explorer for everything the company tagged. Each value links back to
+          its exact US-GAAP tag.
+        </p>
+      </header>
+
+      <div class="controls">
+        <div class="field">
+          <label for="ticker">Ticker</label>
+          <input id="ticker" list="tickerList" value="NFLX" placeholder="NFLX" autocomplete="off" />
+          <datalist id="tickerList"></datalist>
+        </div>
+        <div class="field">
+          <label for="years">Periods</label>
+          <select id="years">
+            <option value="">All years</option>
+            <option value="3">Last 3</option>
+            <option value="5" selected>Last 5</option>
+            <option value="10">Last 10</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="api">Backend URL</label>
+          <input id="api" placeholder="http://localhost:5050" />
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <button id="fetchBtn" class="primary" type="button">Load live data</button>
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <button id="demoBtn" class="ghost" type="button">Load sample data</button>
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <label class="chk"><input type="checkbox" id="showTags" /> Show source tags</label>
+        </div>
+      </div>
+
+      <div id="status" class="status"></div>
+      <div id="banner" class="banner hidden"></div>
+
+      <div id="result" class="hidden">
+        <div class="company" id="company"></div>
+        <div id="profile"></div>
+        <div id="sections"></div>
+        <div id="ratiosSection"></div>
+        <div id="waccSection"></div>
+
+        <section class="group" id="segmentsSection">
+          <h2>Segment / Geographic / Product Revenue</h2>
+          <div class="allctrl">
+            <button id="segBtn" class="ghost" type="button">Load segment revenue</button>
+            <span class="count" id="segCount"></span>
+          </div>
+          <div id="segTables"></div>
+          <p class="legend" id="segNote"></p>
+        </section>
+
+        <section class="group" id="allFactsSection">
+          <h2>All reported facts — everything SEC has</h2>
+          <div class="allctrl">
+            <button id="allFactsBtn" class="ghost" type="button">Load all reported facts</button>
+            <input id="allSearch" placeholder="Filter by tag or label…" disabled />
+            <span class="count" id="allCount"></span>
+          </div>
+          <div id="allScroll" class="scroll hidden">
+            <table>
+              <thead><tr id="allHead"></tr></thead>
+              <tbody id="allBody"></tbody>
+            </table>
+          </div>
+          <p class="legend" id="allNote"></p>
+        </section>
+
+        <p class="legend">
+          Hover any value to see its source US-GAAP tag, unit, accession number and filed date — or
+          tick <em>Show source tags</em> above to display them inline.
+          <strong>∗</strong> marks a derived value (e.g. total liabilities computed from current +
+          non-current). <span class="na">—</span> means the company did not report that tag for the
+          period. Empty rows are hidden automatically.
+        </p>
+
+        <details class="raw">
+          <summary>Raw normalized JSON (full audit trail)</summary>
+          <pre id="raw"></pre>
+        </details>
+      </div>
+    </div>
+
+    <script>
+      // ---- curated field metadata (mirrors server/src/tagMap.js) -----------
+      // [key, label, group, unit]   group: inc | ps | bs | cf
+      const FIELD_DEFS = [
+        ['revenue', 'Revenue', 'inc', 'USD'],
+        ['costOfRevenue', 'Cost of Revenue', 'inc', 'USD'],
+        ['grossProfit', 'Gross Profit', 'inc', 'USD'],
+        ['researchAndDevelopment', 'R&D Expense', 'inc', 'USD'],
+        ['sellingAndMarketing', 'Selling & Marketing', 'inc', 'USD'],
+        ['generalAndAdministrative', 'General & Administrative', 'inc', 'USD'],
+        ['sellingGeneralAndAdministrative', 'SG&A (combined)', 'inc', 'USD'],
+        ['totalOperatingExpenses', 'Total Operating Expenses', 'inc', 'USD'],
+        ['operatingIncome', 'Operating Income', 'inc', 'USD'],
+        ['interestExpense', 'Interest Expense', 'inc', 'USD'],
+        ['interestIncome', 'Interest / Investment Income', 'inc', 'USD'],
+        ['otherIncomeExpense', 'Other Non-Operating Income', 'inc', 'USD'],
+        ['pretaxIncome', 'Pre-Tax Income', 'inc', 'USD'],
+        ['incomeTaxExpense', 'Income Tax Expense', 'inc', 'USD'],
+        ['netIncome', 'Net Income', 'inc', 'USD'],
+        ['epsBasic', 'EPS (Basic)', 'ps', 'USD/shares'],
+        ['dilutedEPS', 'EPS (Diluted)', 'ps', 'USD/shares'],
+        ['sharesBasic', 'Shares (Basic)', 'ps', 'shares'],
+        ['dilutedShares', 'Shares (Diluted)', 'ps', 'shares'],
+        ['dividendsPerShare', 'Dividends per Share', 'ps', 'USD/shares'],
+        ['cashAndEquivalents', 'Cash & Equivalents', 'bs', 'USD'],
+        ['shortTermInvestments', 'Short-Term Investments', 'bs', 'USD'],
+        ['accountsReceivable', 'Accounts Receivable', 'bs', 'USD'],
+        ['inventory', 'Inventory', 'bs', 'USD'],
+        ['otherCurrentAssets', 'Other Current Assets', 'bs', 'USD'],
+        ['currentAssets', 'Total Current Assets', 'bs', 'USD'],
+        ['propertyPlantEquipmentNet', 'PP&E, Net', 'bs', 'USD'],
+        ['goodwill', 'Goodwill', 'bs', 'USD'],
+        ['intangibleAssets', 'Intangible Assets', 'bs', 'USD'],
+        ['otherNoncurrentAssets', 'Other Non-Current Assets', 'bs', 'USD'],
+        ['totalAssets', 'Total Assets', 'bs', 'USD'],
+        ['accountsPayable', 'Accounts Payable', 'bs', 'USD'],
+        ['accruedLiabilities', 'Accrued Liabilities', 'bs', 'USD'],
+        ['otherCurrentLiabilities', 'Other Current Liabilities', 'bs', 'USD'],
+        ['shortTermDebt', 'Short-Term / Current Debt', 'bs', 'USD'],
+        ['deferredRevenueCurrent', 'Deferred Revenue (Current)', 'bs', 'USD'],
+        ['currentLiabilities', 'Total Current Liabilities', 'bs', 'USD'],
+        ['longTermDebt', 'Long-Term Debt', 'bs', 'USD'],
+        ['otherNoncurrentLiabilities', 'Other Non-Current Liabilities', 'bs', 'USD'],
+        ['deferredTaxLiabilities', 'Deferred Tax Liabilities', 'bs', 'USD'],
+        ['totalLiabilities', 'Total Liabilities', 'bs', 'USD'],
+        ['commonStockValue', 'Common Stock', 'bs', 'USD'],
+        ['additionalPaidInCapital', 'Additional Paid-In Capital', 'bs', 'USD'],
+        ['retainedEarnings', 'Retained Earnings', 'bs', 'USD'],
+        ['treasuryStock', 'Treasury Stock', 'bs', 'USD'],
+        ['accumulatedOCI', 'Accumulated OCI', 'bs', 'USD'],
+        ['stockholdersEquity', "Stockholders' Equity", 'bs', 'USD'],
+        ['depreciationAmortization', 'Depreciation & Amortization', 'cf', 'USD'],
+        ['amortizationOfIntangibles', 'Amortization of Intangibles/Content', 'cf', 'USD'],
+        ['stockBasedCompensation', 'Stock-Based Compensation', 'cf', 'USD'],
+        ['deferredIncomeTaxes', 'Deferred Income Taxes', 'cf', 'USD'],
+        ['otherNoncashItems', 'Other Non-Cash Items', 'cf', 'USD'],
+        ['changeInWorkingCapital', 'Change in Working Capital', 'cf', 'USD'],
+        ['operatingCashFlow', 'Operating Cash Flow', 'cf', 'USD'],
+        ['capitalExpenditure', 'Capital Expenditure', 'cf', 'USD'],
+        ['acquisitions', 'Acquisitions, Net', 'cf', 'USD'],
+        ['investingCashFlow', 'Investing Cash Flow', 'cf', 'USD'],
+        ['debtIssued', 'Debt Issued', 'cf', 'USD'],
+        ['debtRepaid', 'Debt Repaid', 'cf', 'USD'],
+        ['stockRepurchased', 'Stock Repurchased', 'cf', 'USD'],
+        ['stockIssued', 'Stock Issued', 'cf', 'USD'],
+        ['dividendsPaid', 'Dividends Paid', 'cf', 'USD'],
+        ['financingCashFlow', 'Financing Cash Flow', 'cf', 'USD'],
+        ['effectOfExchangeRate', 'Effect of Exchange Rate on Cash', 'cf', 'USD'],
+        ['netChangeInCash', 'Net Change in Cash', 'cf', 'USD'],
+      ];
+      const GROUP_TITLES = { inc: 'Income Statement', ps: 'Per Share', bs: 'Balance Sheet', cf: 'Cash Flow' };
+      const GROUP_ORDER = ['inc', 'ps', 'bs', 'cf'];
+      const ALL_KEYS = FIELD_DEFS.map((f) => f[0]);
+
+      function fmtByUnit(unit, v) {
+        if (v === null || v === undefined) return null;
+        if (unit === 'USD/shares') return '$' + Number(v).toFixed(2);
+        if (unit === 'shares') {
+          const a = Math.abs(v);
+          if (a >= 1e9) return (v / 1e9).toFixed(2) + 'B';
+          if (a >= 1e6) return (v / 1e6).toFixed(1) + 'M';
+          return Number(v).toLocaleString();
+        }
+        const sign = v < 0 ? '-' : '';
+        const a = Math.abs(v);
+        if (a >= 1e12) return sign + '$' + (a / 1e12).toFixed(2) + 'T';
+        if (a >= 1e9) return sign + '$' + (a / 1e9).toFixed(2) + 'B';
+        if (a >= 1e6) return sign + '$' + (a / 1e6).toFixed(1) + 'M';
+        if (a >= 1e3) return sign + '$' + (a / 1e3).toFixed(0) + 'K';
+        return sign + '$' + a;
+      }
+      const esc = (s) =>
+        String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+      const FIELD_BY_KEY = Object.fromEntries(FIELD_DEFS.map((f) => [f[0], f]));
+
+      function cellHtml(p, key) {
+        const def = FIELD_BY_KEY[key];
+        const unit = def ? def[3] : 'USD';
+        const raw = p[key];
+        const audit = p.rawTagsUsed ? p.rawTagsUsed[key] : null;
+        const text = fmtByUnit(unit, raw);
+        if (text === null) return `<td><span class="val na">—</span></td>`;
+        const derived = audit && audit.derived ? ' derived' : '';
+        const tip = audit
+          ? `tag: ${audit.tag}\nunit: ${audit.unit}\nfiscal year: ${audit.fiscalYear}\nfiled: ${audit.filed}\naccession: ${audit.accessionNumber}\nform: ${audit.form}\nexact value: ${raw}`
+          : `exact value: ${raw}`;
+        return `<td class="${derived}" title="${esc(tip)}"><span class="val">${esc(text)}</span>` +
+          (showTags && audit ? `<span class="tag">${esc(audit.tag)}</span>` : '') + `</td>`;
+      }
+
+      // Cash flow grouped into the three AS 3 / IAS 7 activities (indirect method).
+      const CF_GROUPS = [
+        { title: 'Cash Flow — Operating Activities (Indirect)',
+          lead: [['netIncome', 'Net income (starting point)']],
+          rows: [['depreciationAmortization'], ['amortizationOfIntangibles'], ['stockBasedCompensation'],
+            ['deferredIncomeTaxes'], ['otherNoncashItems'], ['changeInWorkingCapital'],
+            ['operatingCashFlow', 'Net cash from operating activities', true]] },
+        { title: 'Cash Flow — Investing Activities',
+          rows: [['capitalExpenditure'], ['acquisitions'], ['investingCashFlow', 'Net cash from investing activities', true]] },
+        { title: 'Cash Flow — Financing Activities',
+          rows: [['debtIssued'], ['debtRepaid'], ['stockRepurchased'], ['stockIssued'], ['dividendsPaid'],
+            ['financingCashFlow', 'Net cash from financing activities', true]] },
+        { title: 'Cash Flow — Reconciliation',
+          rows: [['effectOfExchangeRate'], ['netChangeInCash', 'Net change in cash', true]] },
+      ];
+      function renderCashFlow(periods, yearHeads) {
+        return CF_GROUPS.map((g) => {
+          const out = [];
+          (g.lead || []).forEach(([key, label]) => {
+            if (periods.some((p) => p[key] != null)) {
+              out.push(`<tr><td class="metric">${esc(label)}</td>${periods.map((p) => cellHtml(p, key)).join('')}</tr>`);
+            }
+          });
+          g.rows.forEach(([key, label, sub]) => {
+            if (!sub && !periods.some((p) => p[key] != null)) return;
+            const lbl = label || (FIELD_BY_KEY[key] ? FIELD_BY_KEY[key][1] : key);
+            out.push(`<tr class="${sub ? 'cf-sub' : ''}"><td class="metric">${esc(lbl)}</td>${periods.map((p) => cellHtml(p, key)).join('')}</tr>`);
+          });
+          if (!out.length) return '';
+          return `<section class="group"><h2>${esc(g.title)}</h2><div class="scroll"><table>` +
+            `<thead><tr><th class="metric">Line item</th>${yearHeads}</tr></thead><tbody>${out.join('')}</tbody></table></div></section>`;
+        }).join('');
+      }
+
+      // Companies Act 2013, Schedule III (Division I) vertical balance sheet.
+      // Mirrors server/src/balanceSheet.js: SEC control totals are authoritative,
+      // balancing "Other" lines absorb unmapped items so every group reconciles.
+      function scheduleIII(period) {
+        const v = period || {};
+        const n = (x) => (typeof x === 'number' && isFinite(x) ? x : null);
+        const add = (arr) => { let s = 0, any = false; for (const x of arr) if (x != null) { s += x; any = true; } return any ? s : null; };
+        const resid = (ctrl, parts) => (ctrl == null ? add(parts) : ctrl - (add(parts) || 0));
+
+        const totalAssets = n(v.totalAssets), currentAssets = n(v.currentAssets);
+        const totalLiab = n(v.totalLiabilities), currentLiab = n(v.currentLiabilities);
+        const equity = n(v.stockholdersEquity);
+        const nca = totalAssets != null && currentAssets != null ? totalAssets - currentAssets : null;
+        const ncl = totalLiab != null && currentLiab != null ? totalLiab - currentLiab : null;
+
+        const ppe = n(v.propertyPlantEquipmentNet), intang = n(v.intangibleAssets), gw = n(v.goodwill);
+        const otherNCA = resid(nca, [ppe, intang, gw]);
+        const cash = n(v.cashAndEquivalents), curInv = n(v.shortTermInvestments), inv = n(v.inventory), recv = n(v.accountsReceivable);
+        const otherCA = resid(currentAssets, [cash, curInv, inv, recv]);
+
+        const shareCap = add([n(v.commonStockValue), n(v.additionalPaidInCapital)]);
+        const reserves = equity != null ? equity - (shareCap || 0) : null;
+        const otherRes = resid(reserves, [n(v.retainedEarnings), n(v.treasuryStock), n(v.accumulatedOCI)]);
+        const ltb = n(v.longTermDebt), dtl = n(v.deferredTaxLiabilities);
+        const otherLTL = resid(ncl, [ltb, dtl]);
+        const stb = n(v.shortTermDebt), tp = n(v.accountsPayable);
+        const otherCL = resid(currentLiab, [stb, tp]);
+
+        const elTotal = add([equity, totalLiab]);
+        const diff = totalAssets != null && elTotal != null ? totalAssets - elTotal : null;
+        const balances = diff == null ? null : Math.abs(diff) <= Math.max(1, Math.abs(totalAssets || 0) * 0.005);
+
+        const L = (label, kind, level, value) => ({ label, kind, level, value });
+        const lines = [
+          L('I. EQUITY AND LIABILITIES', 'header', 0, null),
+          L('(1) Shareholders’ Funds', 'header', 1, null),
+          L('(a) Share Capital', 'item', 2, shareCap),
+          L('(b) Reserves & Surplus', 'item', 2, reserves),
+          L('Retained earnings', 'sub', 3, n(v.retainedEarnings)),
+          L('Treasury stock', 'sub', 3, n(v.treasuryStock)),
+          L('Other comprehensive income', 'sub', 3, n(v.accumulatedOCI)),
+          L('Other reserves (balancing)', 'sub', 3, otherRes),
+          L('Total Shareholders’ Funds', 'subtotal', 1, equity),
+          L('(2) Non-Current Liabilities', 'header', 1, null),
+          L('(a) Long-term borrowings', 'item', 2, ltb),
+          L('(b) Deferred tax liabilities (net)', 'item', 2, dtl),
+          L('(c) Other long-term liabilities & provisions', 'item', 2, otherLTL),
+          L('Total Non-Current Liabilities', 'subtotal', 1, ncl),
+          L('(3) Current Liabilities', 'header', 1, null),
+          L('(a) Short-term borrowings', 'item', 2, stb),
+          L('(b) Trade payables', 'item', 2, tp),
+          L('(c) Other current liabilities & provisions', 'item', 2, otherCL),
+          L('Total Current Liabilities', 'subtotal', 1, currentLiab),
+          L('TOTAL EQUITY AND LIABILITIES', 'grandtotal', 0, elTotal),
+          L('II. ASSETS', 'header', 0, null),
+          L('(1) Non-Current Assets', 'header', 1, null),
+          L('(a) Property, Plant & Equipment', 'item', 2, ppe),
+          L('(b) Intangible assets', 'item', 2, intang),
+          L('(c) Goodwill', 'item', 2, gw),
+          L('(d) Other non-current assets', 'item', 2, otherNCA),
+          L('Total Non-Current Assets', 'subtotal', 1, nca),
+          L('(2) Current Assets', 'header', 1, null),
+          L('(a) Current investments', 'item', 2, curInv),
+          L('(b) Inventories', 'item', 2, inv),
+          L('(c) Trade receivables', 'item', 2, recv),
+          L('(d) Cash & cash equivalents', 'item', 2, cash),
+          L('(e) Other current assets', 'item', 2, otherCA),
+          L('Total Current Assets', 'subtotal', 1, currentAssets),
+          L('TOTAL ASSETS', 'grandtotal', 0, totalAssets),
+        ];
+        return { lines, balances, difference: diff };
+      }
+      function renderBalanceSheet(periods, yearHeads) {
+        if (!periods.length) return '';
+        const schedules = periods.map(scheduleIII);
+        const lines = schedules[0].lines;
+        const body = lines.map((ln, idx) => {
+          const cls = { header: 'bs-header', subtotal: 'bs-subtotal', grandtotal: 'bs-grand', sub: 'bs-sub', item: 'bs-item' }[ln.kind] || '';
+          const pad = (0.5 + ln.level * 1.1).toFixed(2);
+          const cells = (ln.kind === 'header' && ln.value == null)
+            ? periods.map(() => '<td></td>').join('')
+            : schedules.map((s) => {
+                const v = s.lines[idx].value;
+                return `<td>${v == null ? '<span class="na">—</span>' : esc(fmtByUnit('USD', v))}</td>`;
+              }).join('');
+          return `<tr class="${cls}"><td class="metric" style="padding-left:${pad}rem">${esc(ln.label)}</td>${cells}</tr>`;
+        }).join('');
+        const checkCells = schedules.map((s) =>
+          s.balances == null ? '<td class="na">—</td>'
+            : s.balances ? '<td style="color:var(--good)">✓ balances</td>'
+              : `<td style="color:var(--bad)">off ${esc(fmtByUnit('USD', s.difference))}</td>`).join('');
+        const checkRow = `<tr class="bs-check"><td class="metric" style="padding-left:0.5rem">Balance check (Assets = Equity + Liabilities)</td>${checkCells}</tr>`;
+        return `<section class="group"><h2>Balance Sheet — Companies Act 2013, Schedule III (vertical)</h2>` +
+          `<div class="scroll"><table><thead><tr><th class="metric">Particulars</th>${yearHeads}</tr></thead>` +
+          `<tbody>${body}${checkRow}</tbody></table></div>` +
+          `<p class="legend">Recast from US-GAAP into Schedule III buckets. SEC-reported control totals are authoritative; "Other …" lines absorb company-specific items (e.g. content liabilities) so every subtotal and the grand total reconcile.</p></section>`;
+      }
+
+      // Schedule III, Part II — Statement of Profit & Loss (mirrors
+      // server/src/incomeStatement.js): anchor on PBT, "Other expenses" plugs
+      // the functional operating costs so Total Income − Total Expenses = PBT.
+      function scheduleIIIPL(period) {
+        const v = period || {};
+        const n = (x) => (typeof x === 'number' && isFinite(x) ? x : null);
+        const add = (arr) => { let s = 0, any = false; for (const x of arr) if (x != null) { s += x; any = true; } return any ? s : null; };
+
+        const revenue = n(v.revenue);
+        const otherIncome = add([n(v.interestIncome), n(v.otherIncomeExpense)]);
+        const totalIncome = add([revenue, otherIncome]);
+        let pbt = n(v.pretaxIncome);
+        if (pbt == null && n(v.netIncome) != null && n(v.incomeTaxExpense) != null) pbt = v.netIncome + v.incomeTaxExpense;
+        const totalExpenses = totalIncome != null && pbt != null ? totalIncome - pbt : null;
+        const cor = n(v.costOfRevenue), fc = n(v.interestExpense);
+        const otherExp = totalExpenses != null ? totalExpenses - (add([cor, fc]) || 0) : null;
+        const totalTax = n(v.incomeTaxExpense), deferredTax = n(v.deferredIncomeTaxes);
+        const currentTax = totalTax != null ? totalTax - (deferredTax || 0) : null;
+        const pat = pbt != null && totalTax != null ? pbt - totalTax : null;
+        const netIncome = n(v.netIncome);
+        const otherItems = netIncome != null && pat != null ? netIncome - pat : null;
+
+        const L = (key, label, kind, level, value, unit) => ({ key, label, kind, level, value, unit: unit || 'USD' });
+        const lines = [
+          L('rev', 'I. Revenue from operations', 'item', 1, revenue),
+          L('oi', 'II. Other income', 'item', 1, otherIncome),
+          L('ti', 'III. Total Income (I + II)', 'subtotal', 0, totalIncome),
+          L('exp', 'IV. Expenses', 'header', 1, null),
+          L('cor', 'Cost of revenue / materials & services', 'item', 2, cor),
+          L('fc', 'Finance costs', 'item', 2, fc),
+          L('oe', 'Other expenses (operating & unmapped)', 'item', 2, otherExp),
+          L('te', 'Total Expenses', 'subtotal', 1, totalExpenses),
+          L('pbt', 'V. Profit Before Tax (III − IV)', 'subtotal', 0, pbt),
+          L('tax', 'VI. Tax expense', 'header', 1, null),
+          L('ct', '(1) Current tax', 'item', 2, currentTax),
+          L('dt', '(2) Deferred tax', 'item', 2, deferredTax),
+          L('tt', 'Total tax expense', 'subtotal', 1, totalTax),
+          L('pat', 'VII. Profit After Tax (V − VI)', 'subtotal', 0, pat),
+          L('oth', 'VIII. Other items (NCI, discontinued ops)', 'item', 1, otherItems),
+          L('pfp', 'IX. Profit for the period', 'grandtotal', 0, netIncome),
+          L('eps', 'X. Earnings per equity share', 'header', 1, null),
+          L('epsb', '(1) Basic', 'item', 2, n(v.epsBasic), 'USD/shares'),
+          L('epsd', '(2) Diluted', 'item', 2, n(v.dilutedEPS), 'USD/shares'),
+        ];
+        return { lines };
+      }
+      // Drill-down detail for aggregated P&L lines (built from the loaded period
+      // fields; a balancing "Other / unallocated" row makes detail tie to the
+      // heading). field = model-data key on each period.
+      const PL_DETAIL = {
+        oi: { items: [['Interest / investment income', 'interestIncome'], ['Other non-operating income', 'otherIncomeExpense']] },
+        oe: {
+          items: [['Research & development', 'researchAndDevelopment'], ['Selling & marketing', 'sellingAndMarketing'],
+            ['General & administrative', 'generalAndAdministrative'], ['Selling, general & administrative', 'sellingGeneralAndAdministrative']],
+          remainder: 'Other / unallocated operating expenses',
+        },
+      };
+      function detailRows(spec, parentIdx, groupId, schedules, periods) {
+        const rows = spec.items.map(([label, field]) => {
+          if (!periods.some((p) => p[field] != null)) return '';
+          const cells = periods.map((p) => `<td>${p[field] == null ? '<span class="na">—</span>' : esc(fmtByUnit('USD', p[field]))}</td>`).join('');
+          return `<tr class="bs-detail" data-detailof="${groupId}" style="display:none"><td class="metric" style="padding-left:3rem">↳ ${esc(label)}</td>${cells}</tr>`;
+        }).join('');
+        let rem = '';
+        if (spec.remainder) {
+          const cells = periods.map((p, i) => {
+            const parent = schedules[i].lines[parentIdx].value;
+            const mapped = spec.items.reduce((s, [, f]) => s + (p[f] != null ? p[f] : 0), 0);
+            const v = parent == null ? null : parent - mapped;
+            return `<td>${v == null ? '<span class="na">—</span>' : esc(fmtByUnit('USD', v))}</td>`;
+          }).join('');
+          rem = `<tr class="bs-detail" data-detailof="${groupId}" style="display:none"><td class="metric" style="padding-left:3rem">↳ ${esc(spec.remainder)}</td>${cells}</tr>`;
+        }
+        return rows + rem;
+      }
+      function renderScheduleTable(title, schedules, periods, yearHeads, legend, detailMap, prefix) {
+        const lines = schedules[0].lines;
+        const body = lines.map((ln, idx) => {
+          const cls = { header: 'bs-header', subtotal: 'bs-subtotal', grandtotal: 'bs-grand', sub: 'bs-sub', item: 'bs-item' }[ln.kind] || '';
+          const pad = (0.5 + ln.level * 1.1).toFixed(2);
+          const cells = (ln.kind === 'header' && ln.value == null)
+            ? periods.map(() => '<td></td>').join('')
+            : schedules.map((s) => {
+                const c = s.lines[idx];
+                return `<td>${c.value == null ? '<span class="na">—</span>' : esc(fmtByUnit(c.unit || 'USD', c.value))}</td>`;
+              }).join('');
+          const spec = detailMap && ln.key ? detailMap[ln.key] : null;
+          const groupId = spec ? `${prefix}-${ln.key}` : '';
+          const caret = spec ? '<span class="caret">▸</span> ' : '';
+          let row = `<tr class="${cls}${spec ? ' drill' : ''}"${spec ? ` data-drill="${groupId}"` : ''}>` +
+            `<td class="metric" style="padding-left:${pad}rem">${caret}${esc(ln.label)}</td>${cells}</tr>`;
+          if (spec) row += detailRows(spec, idx, groupId, schedules, periods);
+          return row;
+        }).join('');
+        return `<section class="group"><h2>${esc(title)}</h2><div class="scroll"><table>` +
+          `<thead><tr><th class="metric">Particulars</th>${yearHeads}</tr></thead><tbody>${body}</tbody></table></div>` +
+          (legend ? `<p class="legend">${legend}</p>` : '') + `</section>`;
+      }
+      function renderIncomeStatement(periods, yearHeads) {
+        if (!periods.length) return '';
+        return renderScheduleTable(
+          'Statement of Profit & Loss — Companies Act 2013, Schedule III',
+          periods.map(scheduleIIIPL), periods, yearHeads,
+          'Click a ▸ line (e.g. Other expenses) to expand its detail. US-GAAP (functional) expenses are recast into Schedule III natural heads; "Other expenses" absorbs operating costs (R&D, sales & marketing, G&A) and embedded D&A so Total Income − Total Expenses = Profit Before Tax.',
+          PL_DETAIL, 'il'
+        );
+      }
+
+      // ---- curated model rendering -----------------------------------------
+      function render(data) {
+        const periods = data.periods || [];
+        document.getElementById('company').innerHTML = [
+          `<span class="name">${esc(data.companyName || data.ticker)}</span>`,
+          `<span class="pill">Ticker ${esc(data.ticker)}</span>`,
+          `<span class="pill">CIK ${esc(data.cik)}</span>`,
+          `<span class="pill">${periods.length} annual 10-K period(s)</span>`,
+        ].join('');
+
+        const yearHeads = periods.map((p) => `<th>FY ${p.fiscalYear}</th>`).join('');
+
+        const filingsHtml =
+          `<section class="group"><h2>Filings</h2><div class="scroll"><table>` +
+          `<thead><tr><th class="metric">Metric</th>${yearHeads}</tr></thead><tbody>` +
+          `<tr><td class="metric">Filed</td>` +
+          periods.map((p) => `<td class="na">${esc(p.filed || '—')}</td>`).join('') + `</tr>` +
+          `<tr><td class="metric">Accession #</td>` +
+          periods.map((p) => `<td class="na">${esc(p.accessionNumber || '—')}</td>`).join('') + `</tr>` +
+          `</tbody></table></div></section>`;
+
+        // Income statement and balance sheet are recast into Schedule III
+        // vertical format; per-share renders as a flat table.
+        const groupsHtml = ['ps'].map((g) => {
+          const fields = FIELD_DEFS.filter((f) => f[2] === g);
+          const rows = fields.map(([key, label]) => {
+            if (!periods.some((p) => p[key] !== null && p[key] !== undefined)) return '';
+            return `<tr><td class="metric">${esc(label)}</td>${periods.map((p) => cellHtml(p, key)).join('')}</tr>`;
+          }).join('');
+          if (!rows) return '';
+          return `<section class="group"><h2>${esc(GROUP_TITLES[g])}</h2><div class="scroll"><table>` +
+            `<thead><tr><th class="metric">Metric</th>${yearHeads}</tr></thead><tbody>${rows}</tbody></table></div></section>`;
+        }).join('');
+
+        const warnHtml = (data.warnings || [])
+          .map((w) => `<div class="banner">⚠ ${esc(w)}</div>`)
+          .join('');
+        document.getElementById('sections').innerHTML =
+          warnHtml + filingsHtml + renderIncomeStatement(periods, yearHeads) + groupsHtml +
+          renderBalanceSheet(periods, yearHeads) + renderCashFlow(periods, yearHeads);
+        renderRatios(periods);
+        initWacc(periods[0]);
+        document.getElementById('raw').textContent = JSON.stringify(data, null, 2);
+        document.getElementById('result').classList.remove('hidden');
+        lastData = data;
+        resetAllFacts();
+        resetSegments();
+      }
+
+      // ---- all reported facts ----------------------------------------------
+      let allFactsData = null;
+      function resetAllFacts() {
+        allFactsData = null;
+        document.getElementById('allScroll').classList.add('hidden');
+        document.getElementById('allCount').textContent = '';
+        document.getElementById('allNote').textContent = '';
+        const search = document.getElementById('allSearch');
+        search.value = '';
+        search.disabled = true;
+        document.getElementById('allFactsBtn').disabled = false;
+      }
+
+      function renderAllFacts(filter) {
+        if (!allFactsData) return;
+        const years = allFactsData.fiscalYears;
+        document.getElementById('allHead').innerHTML =
+          `<th class="tag">US-GAAP Tag</th>` + years.map((y) => `<th>FY ${y}</th>`).join('');
+        const f = (filter || '').trim().toLowerCase();
+        const concepts = f
+          ? allFactsData.concepts.filter(
+              (c) => c.tag.toLowerCase().includes(f) || (c.label || '').toLowerCase().includes(f)
+            )
+          : allFactsData.concepts;
+        document.getElementById('allBody').innerHTML = concepts.map((c) => {
+          const cells = years.map((y) => {
+            const cell = c.values[y];
+            if (!cell) return `<td><span class="na">—</span></td>`;
+            const tip = `unit: ${cell.unit}\nfiled: ${cell.filed}\naccession: ${cell.accessionNumber}\nperiod end: ${cell.periodEnd}\nexact value: ${cell.value}`;
+            return `<td title="${esc(tip)}">${esc(fmtByUnit(c.unit, cell.value))}</td>`;
+          }).join('');
+          return `<tr><td class="tagcol"><code class="tagname">${esc(c.tag)}</code>` +
+            (c.label && c.label !== c.tag ? `<span class="tag">${esc(c.label)}</span>` : '') +
+            `</td>${cells}</tr>`;
+        }).join('');
+        document.getElementById('allCount').textContent =
+          concepts.length + ' / ' + allFactsData.concepts.length + ' concepts';
+        document.getElementById('allScroll').classList.remove('hidden');
+      }
+
+      async function loadAllFacts() {
+        if (isDemo) {
+          document.getElementById('allNote').textContent =
+            'All-facts is a live-only feature (it returns hundreds of concepts straight from SEC). Click "Load live data" against a running backend to use it.';
+          return;
+        }
+        const ticker = currentTicker;
+        const years = document.getElementById('years').value;
+        const base = apiBase();
+        const btn = document.getElementById('allFactsBtn');
+        btn.disabled = true;
+        document.getElementById('allNote').textContent = 'Loading every reported concept…';
+        try {
+          const params = new URLSearchParams({ ticker });
+          if (years) params.set('years', years);
+          const res = await fetch(base + '/api/sec/all-facts?' + params.toString());
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
+          allFactsData = data;
+          document.getElementById('allNote').textContent = '';
+          document.getElementById('allSearch').disabled = false;
+          renderAllFacts('');
+        } catch (err) {
+          document.getElementById('allNote').textContent = 'Error: ' + err.message;
+          btn.disabled = false;
+        }
+      }
+
+      // ---- data sources -----------------------------------------------------
+      const statusEl = document.getElementById('status');
+      const bannerEl = document.getElementById('banner');
+      const fetchBtn = document.getElementById('fetchBtn');
+      const demoBtn = document.getElementById('demoBtn');
+      let isDemo = true;
+      let currentTicker = 'NFLX';
+      let showTags = false;
+      let lastData = null;
+
+      const setStatus = (msg, kind) => { statusEl.className = 'status' + (kind ? ' ' + kind : ''); statusEl.textContent = msg || ''; };
+      const showBanner = (msg) => { if (!msg) { bannerEl.classList.add('hidden'); return; } bannerEl.textContent = msg; bannerEl.classList.remove('hidden'); };
+      const defaultApiBase = () => (location.protocol === 'http:' || location.protocol === 'https:') ? location.origin : 'http://localhost:5050';
+      const apiBase = () => (document.getElementById('api').value.trim() || defaultApiBase()).replace(/\/$/, '');
+
+      async function fetchLive() {
+        const ticker = document.getElementById('ticker').value.trim().toUpperCase();
+        const years = document.getElementById('years').value;
+        const base = apiBase();
+        if (!ticker) { setStatus('Enter a ticker first.', 'error'); return; }
+        showBanner('');
+        setStatus('Loading ' + ticker + ' from ' + base + ' …', 'loading');
+        document.getElementById('result').classList.add('hidden');
+        fetchBtn.disabled = true;
+        try {
+          const params = new URLSearchParams({ ticker });
+          if (years) params.set('years', years);
+          const res = await fetch(base + '/api/sec/model-data?' + params.toString());
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
+          if (!data.periods || !data.periods.length) { setStatus('No annual 10-K data found for ' + ticker + '.', 'error'); return; }
+          isDemo = false;
+          currentTicker = ticker;
+          setStatus('Loaded ' + ticker + ' — live SEC data.');
+          render(data);
+          fetchProfile(base, ticker, data.periods);
+          fetchWaccInputs();
+        } catch (err) {
+          setStatus('Error: ' + err.message + ' — is the backend running at ' + base + '?', 'error');
+        } finally {
+          fetchBtn.disabled = false;
+        }
+      }
+
+      function loadDemo() {
+        isDemo = true;
+        showBanner('Sample data shown for layout preview — approximate Netflix figures, not a live SEC pull. Click "Load live data" against a running backend for real numbers (and the full all-facts explorer).');
+        setStatus('');
+        const d = buildDemo();
+        render(d);
+        renderProfile(DEMO_PROFILE, d.periods);
+        renderBusiness(DEMO_BUSINESS);
+        renderSegments(DEMO_SEGMENTS);
+      }
+
+      // ---- bundled sample dataset ------------------------------------------
+      function buildDemo() {
+        const TAG = {
+          revenue: 'Revenues', costOfRevenue: 'CostOfGoodsAndServicesSold', grossProfit: 'GrossProfit',
+          researchAndDevelopment: 'ResearchAndDevelopmentExpense', sellingAndMarketing: 'SellingAndMarketingExpense',
+          generalAndAdministrative: 'GeneralAndAdministrativeExpense', totalOperatingExpenses: 'OperatingExpenses',
+          operatingIncome: 'OperatingIncomeLoss', interestExpense: 'InterestExpense', interestIncome: 'InvestmentIncomeInterest',
+          otherIncomeExpense: 'NonoperatingIncomeExpense', pretaxIncome: 'IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest',
+          incomeTaxExpense: 'IncomeTaxExpenseBenefit', netIncome: 'NetIncomeLoss', epsBasic: 'EarningsPerShareBasic',
+          dilutedEPS: 'EarningsPerShareDiluted', sharesBasic: 'WeightedAverageNumberOfSharesOutstandingBasic',
+          dilutedShares: 'WeightedAverageNumberOfDilutedSharesOutstanding', cashAndEquivalents: 'CashAndCashEquivalentsAtCarryingValue',
+          shortTermInvestments: 'ShortTermInvestments', currentAssets: 'AssetsCurrent', propertyPlantEquipmentNet: 'PropertyPlantAndEquipmentNet',
+          goodwill: 'Goodwill', totalAssets: 'Assets', accountsPayable: 'AccountsPayableCurrent', shortTermDebt: 'LongTermDebtCurrent',
+          deferredRevenueCurrent: 'ContractWithCustomerLiabilityCurrent', currentLiabilities: 'LiabilitiesCurrent',
+          longTermDebt: 'LongTermDebtNoncurrent', totalLiabilities: 'Liabilities', additionalPaidInCapital: 'AdditionalPaidInCapital',
+          retainedEarnings: 'RetainedEarningsAccumulatedDeficit', accumulatedOCI: 'AccumulatedOtherComprehensiveIncomeLossNetOfTax',
+          stockholdersEquity: 'StockholdersEquity', depreciationAmortization: 'DepreciationDepletionAndAmortization',
+          stockBasedCompensation: 'ShareBasedCompensation', operatingCashFlow: 'NetCashProvidedByUsedInOperatingActivities',
+          capitalExpenditure: 'PaymentsToAcquirePropertyPlantAndEquipment', investingCashFlow: 'NetCashProvidedByUsedInInvestingActivities',
+          debtIssued: 'ProceedsFromIssuanceOfLongTermDebt', debtRepaid: 'RepaymentsOfLongTermDebt',
+          stockRepurchased: 'PaymentsForRepurchaseOfCommonStock', financingCashFlow: 'NetCashProvidedByUsedInFinancingActivities',
+        };
+        const UNIT = (k) => (FIELD_DEFS.find((f) => f[0] === k) || [])[3] || 'USD';
+        const RAW = [
+          { fy: 2024, filed: '2025-01-27', accn: '0001065280-25-000044', v: {
+            revenue: 39000966000, costOfRevenue: 21038000000, grossProfit: 17962966000, researchAndDevelopment: 2925000000,
+            sellingAndMarketing: 2554000000, generalAndAdministrative: 1700000000, totalOperatingExpenses: 28583092000,
+            operatingIncome: 10417874000, interestExpense: 718733000, interestIncome: 690000000, otherIncomeExpense: -266000000,
+            pretaxIncome: 10124000000, incomeTaxExpense: 1254000000, netIncome: 8711631000, epsBasic: 20.27, dilutedEPS: 19.83,
+            sharesBasic: 429700000, dilutedShares: 439380000, cashAndEquivalents: 7804000000, shortTermInvestments: 432000000,
+            currentAssets: 9792000000, propertyPlantEquipmentNet: 1631000000, goodwill: 284000000, totalAssets: 53629000000,
+            accountsPayable: 747000000, shortTermDebt: 1784000000, deferredRevenueCurrent: 1442000000, currentLiabilities: 9621000000,
+            longTermDebt: 13682000000, totalLiabilities: 28886000000, additionalPaidInCapital: 5184000000, retainedEarnings: 22790000000,
+            accumulatedOCI: -300000000, stockholdersEquity: 24743000000, depreciationAmortization: 14400000000, stockBasedCompensation: 575000000,
+            operatingCashFlow: 6921000000, capitalExpenditure: 439000000, investingCashFlow: -325000000, debtIssued: 1797000000,
+            debtRepaid: 1809000000, stockRepurchased: 6072000000, financingCashFlow: -3722000000 } },
+          { fy: 2023, filed: '2024-01-26', accn: '0001065280-24-000029', v: {
+            revenue: 33723297000, costOfRevenue: 19715368000, grossProfit: 14007929000, researchAndDevelopment: 2675000000,
+            sellingAndMarketing: 2657000000, generalAndAdministrative: 1492000000, totalOperatingExpenses: 26769000000,
+            operatingIncome: 6954303000, interestExpense: 699826000, interestIncome: 460000000, otherIncomeExpense: -48000000,
+            pretaxIncome: 6206000000, incomeTaxExpense: 797000000, netIncome: 5407990000, epsBasic: 12.21, dilutedEPS: 12.03,
+            sharesBasic: 442800000, dilutedShares: 449498000, cashAndEquivalents: 7116913000, shortTermInvestments: 1390000000,
+            currentAssets: 9918133000, propertyPlantEquipmentNet: 1491000000, goodwill: 284000000, totalAssets: 48731992000,
+            accountsPayable: 747412000, shortTermDebt: 399844000, deferredRevenueCurrent: 1442969000, currentLiabilities: 8860655000,
+            longTermDebt: 14143417000, totalLiabilities: 28107976000, additionalPaidInCapital: 4905000000, retainedEarnings: 17489000000,
+            accumulatedOCI: -350000000, stockholdersEquity: 20624016000, depreciationAmortization: 14296000000, stockBasedCompensation: 432000000,
+            operatingCashFlow: 7273885000, capitalExpenditure: 348428000, investingCashFlow: -252000000, debtIssued: 0,
+            debtRepaid: 1198000000, stockRepurchased: 6043000000, financingCashFlow: -8480000000 } },
+          { fy: 2022, filed: '2023-01-27', accn: '0001065280-23-000017', v: {
+            revenue: 31615550000, costOfRevenue: 19168285000, grossProfit: 12447265000, operatingIncome: 5632831000,
+            netIncome: 4491924000, dilutedEPS: 9.95, dilutedShares: 451290000, cashAndEquivalents: 5147176000,
+            totalAssets: 48594768000, stockholdersEquity: 20777401000, operatingCashFlow: 2021131000, capitalExpenditure: 407719000 } },
+          { fy: 2021, filed: '2022-01-28', accn: '0001065280-22-000036', v: {
+            revenue: 29697844000, operatingIncome: 6194509000, netIncome: 5116228000, dilutedEPS: 11.24, dilutedShares: 455372000,
+            cashAndEquivalents: 6027804000, stockholdersEquity: 15849248000, operatingCashFlow: 392610000, capitalExpenditure: 524585000 } },
+        ];
+        const periods = RAW.map((p) => {
+          const period = { fiscalYear: p.fy, form: '10-K', filed: p.filed, accessionNumber: p.accn };
+          const rawTagsUsed = {};
+          for (const key of ALL_KEYS) {
+            const val = p.v[key];
+            period[key] = val === undefined ? null : val;
+            if (val === undefined || val === null) continue;
+            rawTagsUsed[key] = {
+              tag: TAG[key] || key, unit: UNIT(key), value: val, fiscalYear: p.fy, reportFiscalYear: p.fy,
+              accessionNumber: p.accn, filed: p.filed, form: '10-K', periodEnd: p.fy + '-12-31',
+            };
+          }
+          period.rawTagsUsed = rawTagsUsed;
+          return period;
+        });
+        return { ticker: 'NFLX', cik: '0001065280', companyName: 'NETFLIX INC', periods };
+      }
+
+      // ---- profile ----------------------------------------------------------
+      const DEMO_PROFILE = {
+        industry: 'Streaming Entertainment (SIC 7841)', exchanges: ['NASDAQ'],
+        stateOfIncorporation: 'DE', fiscalYearEnd: '1231',
+        headquarters: { city: 'Los Gatos', state: 'CA' },
+        narrative: 'Sample profile — Netflix is a subscription streaming entertainment service. Figures shown are approximate and for layout preview only; load live data for the real profile.',
+      };
+      const moneyStr = (v) => (v == null ? '—' : fmtByUnit('USD', v));
+      const pctStr = (v, dp = 1) => (v == null ? '—' : (v * 100).toFixed(dp) + '%');
+      const kpi = (label, num, cls = '') => `<div class="kpi ${cls}"><div class="label">${esc(label)}</div><div class="num ${cls}">${num}</div></div>`;
+
+      const xRatio = (v) => (v == null ? '—' : v.toFixed(2) + '×');
+      function snapshotClient(periods) {
+        if (!periods || !periods.length) return null;
+        const L = periods[0], P = periods[1] || null;
+        const div = (a, b) => (a == null || b == null || b === 0 ? null : a / b);
+        const totalDebt = (L.shortTermDebt || 0) + (L.longTermDebt || 0) || null;
+        return {
+          fiscalYear: L.fiscalYear, revenue: L.revenue,
+          revenueGrowth: P ? div((L.revenue || 0) - (P.revenue || 0), P.revenue) : null,
+          grossMargin: div(L.grossProfit, L.revenue), operatingMargin: div(L.operatingIncome, L.revenue),
+          netMargin: div(L.netIncome, L.revenue),
+          returnOnEquity: div(L.netIncome, L.stockholdersEquity), returnOnAssets: div(L.netIncome, L.totalAssets),
+          currentRatio: div(L.currentAssets, L.currentLiabilities), debtToEquity: div(totalDebt, L.stockholdersEquity),
+          freeCashFlow: L.operatingCashFlow != null && L.capitalExpenditure != null ? L.operatingCashFlow - L.capitalExpenditure : null,
+        };
+      }
+      const DEMO_BUSINESS = {
+        sourceDocument: '(sample data)',
+        business: { excerpt: 'Item 1. Business — Netflix is one of the world\'s leading entertainment services, offering TV series, films and games across a wide variety of genres and languages to paying members in over 190 countries. (Sample text for layout preview; load live data for the real 10-K business description.)', truncated: false },
+      };
+      function renderProfile(meta, periods) {
+        const s = snapshotClient(periods);
+        const f = (l, v) => (v ? `<span class="f">${esc(l)}: <b>${esc(v)}</b></span>` : '');
+        const facts = [
+          f('Industry', meta.industry),
+          f('Exchange', (meta.exchanges || []).join(', ')),
+          meta.headquarters ? f('HQ', [meta.headquarters.city, meta.headquarters.state].filter(Boolean).join(', ')) : '',
+          f('Incorporated', meta.stateOfIncorporation),
+          f('Fiscal year end', meta.fiscalYearEnd),
+        ].join('');
+        let snap = '';
+        if (s) {
+          const g = s.revenueGrowth == null ? '' :
+            `<div class="num ${s.revenueGrowth >= 0 ? 'pos' : 'neg'}" style="font-size:0.8rem">${(s.revenueGrowth * 100).toFixed(1)}% YoY</div>`;
+          snap = `<div class="snap">` +
+            `<div class="kpi"><div class="label">Revenue FY${s.fiscalYear}</div><div class="num">${moneyStr(s.revenue)}</div>${g}</div>` +
+            kpi('Gross margin', pctStr(s.grossMargin)) +
+            kpi('Operating margin', pctStr(s.operatingMargin)) +
+            kpi('Net margin', pctStr(s.netMargin)) +
+            kpi('Return on equity', pctStr(s.returnOnEquity)) +
+            kpi('Return on assets', pctStr(s.returnOnAssets)) +
+            kpi('Current ratio', xRatio(s.currentRatio)) +
+            kpi('Debt / Equity', xRatio(s.debtToEquity)) +
+            kpi('Free cash flow', moneyStr(s.freeCashFlow)) +
+            `</div>`;
+        }
+        document.getElementById('profile').innerHTML =
+          `<div class="card"><h3>Company profile</h3>` +
+          `<div class="facts">${facts}</div>` +
+          (meta.narrative ? `<p class="narrative">${esc(meta.narrative)}</p>` : '') + snap +
+          `<div id="bizBox"></div></div>`;
+      }
+      function renderBusiness(data) {
+        const box = document.getElementById('bizBox');
+        if (!box) return;
+        if (!data || !data.business || !data.business.excerpt) { box.innerHTML = ''; return; }
+        const src = data.sourceDocument && data.sourceDocument.startsWith('http')
+          ? ` · <a href="${esc(data.sourceDocument)}" target="_blank" rel="noopener" style="color:var(--accent)">source 10-K</a>` : '';
+        box.innerHTML = `<details style="margin-top:0.7rem"><summary style="cursor:pointer;color:var(--accent);font-weight:600">Business overview (10-K, Item 1)${src}</summary>` +
+          `<p class="narrative" style="white-space:pre-wrap">${esc(data.business.excerpt)}</p></details>`;
+      }
+      async function fetchBusiness(base, ticker) {
+        try {
+          const res = await fetch(base + '/api/sec/business?ticker=' + encodeURIComponent(ticker));
+          const data = await res.json();
+          if (!res.ok) return;
+          renderBusiness(data);
+        } catch (_) { /* leave empty */ }
+      }
+      async function fetchProfile(base, ticker, periods) {
+        try {
+          const res = await fetch(base + '/api/sec/profile?ticker=' + encodeURIComponent(ticker));
+          const data = await res.json();
+          if (!res.ok) throw new Error('profile');
+          renderProfile({
+            industry: data.industry, exchanges: data.exchanges, stateOfIncorporation: data.stateOfIncorporation,
+            fiscalYearEnd: data.fiscalYearEnd, headquarters: data.headquarters, narrative: data.narrative,
+          }, periods);
+          fetchBusiness(base, ticker);
+        } catch (_) {
+          document.getElementById('profile').innerHTML = '';
+        }
+      }
+
+      // ---- ratios -----------------------------------------------------------
+      const RATIO_ROWS = [
+        ['currentRatio', 'Current Ratio', 'x'],
+        ['quickRatio', 'Quick Ratio', 'x'],
+        ['workingCapital', 'Working Capital', 'money'],
+        ['daysSalesOutstanding', 'Days Sales Outstanding (DSO)', 'days'],
+        ['daysPayablesOutstanding', 'Days Payables Outstanding (DPO)', 'days'],
+        ['daysInventoryOutstanding', 'Days Inventory Outstanding (DIO)', 'days'],
+        ['cashConversionCycle', 'Cash Conversion Cycle', 'days'],
+        ['debtToEquity', 'Debt / Equity', 'x'],
+        ['debtToAssets', 'Debt / Assets', 'x'],
+        ['interestCoverage', 'Interest Coverage', 'x'],
+        ['netMargin', 'Net Margin', 'pct'],
+        ['returnOnEquity', 'Return on Equity', 'pct'],
+        ['returnOnAssets', 'Return on Assets', 'pct'],
+      ];
+      function fmtRatio(type, v) {
+        if (v == null) return null;
+        if (type === 'pct') return (v * 100).toFixed(1) + '%';
+        if (type === 'days') return v.toFixed(0) + 'd';
+        if (type === 'money') return fmtByUnit('USD', v);
+        return v.toFixed(2) + '×';
+      }
+      function computeRatiosClient(periods) {
+        const div = (a, b) => (a == null || b == null || b === 0 ? null : a / b);
+        const days = (bal, flow) => (bal == null || flow == null || flow === 0 ? null : (bal / Math.abs(flow)) * 365);
+        return (periods || []).map((p) => {
+          const totalDebt = (p.shortTermDebt || 0) + (p.longTermDebt || 0) || null;
+          const dso = days(p.accountsReceivable, p.revenue);
+          const dpo = days(p.accountsPayable, p.costOfRevenue);
+          const dio = days(p.inventory, p.costOfRevenue);
+          const ccc = dso == null && dpo == null && dio == null ? null : (dso || 0) + (dio || 0) - (dpo || 0);
+          return {
+            fiscalYear: p.fiscalYear,
+            currentRatio: div(p.currentAssets, p.currentLiabilities),
+            quickRatio: div(p.currentAssets != null ? p.currentAssets - (p.inventory || 0) : null, p.currentLiabilities),
+            workingCapital: p.currentAssets != null && p.currentLiabilities != null ? p.currentAssets - p.currentLiabilities : null,
+            daysSalesOutstanding: dso, daysPayablesOutstanding: dpo, daysInventoryOutstanding: dio, cashConversionCycle: ccc,
+            debtToEquity: div(totalDebt, p.stockholdersEquity), debtToAssets: div(totalDebt, p.totalAssets),
+            interestCoverage: div(p.operatingIncome, p.interestExpense),
+            netMargin: div(p.netIncome, p.revenue), returnOnEquity: div(p.netIncome, p.stockholdersEquity), returnOnAssets: div(p.netIncome, p.totalAssets),
+          };
+        });
+      }
+      function renderRatios(periods) {
+        const rows = computeRatiosClient(periods);
+        const yearHeads = periods.map((p) => `<th>FY ${p.fiscalYear}</th>`).join('');
+        const body = RATIO_ROWS.map(([key, label, type]) => {
+          if (!rows.some((r) => r[key] != null)) return '';
+          const cells = rows.map((r) => {
+            const t = fmtRatio(type, r[key]);
+            return `<td>${t == null ? '<span class="na">—</span>' : esc(t)}</td>`;
+          }).join('');
+          return `<tr><td class="metric">${esc(label)}</td>${cells}</tr>`;
+        }).join('');
+        document.getElementById('ratiosSection').innerHTML = body
+          ? `<section class="group"><h2>Ratios &amp; Working Capital</h2><div class="scroll"><table>` +
+            `<thead><tr><th class="metric">Ratio</th>${yearHeads}</tr></thead><tbody>${body}</tbody></table></div></section>`
+          : '';
+      }
+
+      // ---- WACC -------------------------------------------------------------
+      let waccPeriod = null;
+      const waccState = { beta: null, marketCap: null, rf: '4.3', erp: '5.5' };
+
+      function computeWaccClient(period, inp) {
+        const n = (v) => (typeof v === 'number' && isFinite(v) ? v : null);
+        const totalDebt = (period.shortTermDebt || 0) + (period.longTermDebt || 0) || null;
+        const interest = n(period.interestExpense);
+        const costOfDebt = interest != null && totalDebt ? interest / totalDebt : null;
+        let taxRate = null;
+        if (n(period.incomeTaxExpense) != null && n(period.pretaxIncome) && period.pretaxIncome !== 0) {
+          taxRate = Math.min(Math.max(period.incomeTaxExpense / period.pretaxIncome, 0), 0.5);
+        }
+        const rf = n(inp.rf), beta = n(inp.beta), erp = n(inp.erp), E = n(inp.marketCap);
+        const costOfEquity = rf != null && beta != null && erp != null ? rf + beta * erp : null;
+        const afterTaxCoD = costOfDebt != null && taxRate != null ? costOfDebt * (1 - taxRate) : null;
+        let we = null, wd = null, wacc = null;
+        if (E != null && totalDebt != null && E + totalDebt > 0) {
+          const V = E + totalDebt; we = E / V; wd = totalDebt / V;
+          if (costOfEquity != null && afterTaxCoD != null) wacc = we * costOfEquity + wd * afterTaxCoD;
+        }
+        return { totalDebt, interest, costOfDebt, taxRate, costOfEquity, afterTaxCoD, we, wd, wacc };
+      }
+      const waccField = (id, label, val, ph) =>
+        `<div class="field"><label for="${id}">${esc(label)}</label>` +
+        `<input id="${id}" value="${val === '' || val == null ? '' : esc(val)}" placeholder="${esc(ph)}" inputmode="decimal" /></div>`;
+
+      function initWacc(period) {
+        if (!period) { document.getElementById('waccSection').innerHTML = ''; return; }
+        waccPeriod = period;
+        document.getElementById('waccSection').innerHTML =
+          `<section class="group"><h2>WACC — Cost of Capital (FY${period.fiscalYear})</h2><div class="card">` +
+          `<div class="wacc-inputs">` +
+            waccField('wBeta', 'Beta (β)', waccState.beta, 'e.g. 1.25') +
+            waccField('wRf', 'Risk-free %', waccState.rf, '4.3') +
+            waccField('wErp', 'Equity risk premium %', waccState.erp, '5.5') +
+            waccField('wMc', 'Market cap ($)', waccState.marketCap, 'e.g. 350000000000') +
+            `<div class="field"><label>&nbsp;</label><button id="waccFetch" class="ghost" type="button">Fetch industry β, market cap & risk-free</button></div>` +
+          `</div><div id="waccOut" class="wacc-out"></div><p class="muted" id="waccNote"></p></div></section>`;
+        ['wBeta', 'wRf', 'wErp', 'wMc'].forEach((id) =>
+          document.getElementById(id).addEventListener('input', recomputeWacc));
+        document.getElementById('waccFetch').addEventListener('click', fetchWaccInputs);
+        recomputeWacc();
+      }
+      function recomputeWacc() {
+        if (!waccPeriod) return;
+        const beta = parseFloat(document.getElementById('wBeta').value);
+        const rfPct = document.getElementById('wRf').value, erpPct = document.getElementById('wErp').value;
+        const mcInput = parseFloat(document.getElementById('wMc').value);
+        // Fall back to book equity so WACC always computes (flagged in the note).
+        const bookEq = isFinite(waccPeriod.stockholdersEquity) ? waccPeriod.stockholdersEquity : null;
+        const eqUsed = isFinite(mcInput) ? mcInput : bookEq;
+        const eqBasis = isFinite(mcInput) ? 'market' : 'book';
+        waccState.beta = isFinite(beta) ? beta : null;
+        waccState.marketCap = isFinite(mcInput) ? mcInput : null;
+        waccState.rf = rfPct; waccState.erp = erpPct;
+        const r = computeWaccClient(waccPeriod, {
+          beta: isFinite(beta) ? beta : null,
+          rf: isFinite(parseFloat(rfPct)) ? parseFloat(rfPct) / 100 : null,
+          erp: isFinite(parseFloat(erpPct)) ? parseFloat(erpPct) / 100 : null,
+          marketCap: eqUsed,
+        });
+        const p2 = (v) => (v == null ? '—' : (v * 100).toFixed(2) + '%');
+        document.getElementById('waccOut').innerHTML = [
+          kpi('WACC', p2(r.wacc), 'big'),
+          kpi('Cost of equity', p2(r.costOfEquity)),
+          kpi('Cost of debt (pre-tax)', p2(r.costOfDebt)),
+          kpi('After-tax cost of debt', p2(r.afterTaxCoD)),
+          kpi('Tax rate', pctStr(r.taxRate)),
+          kpi('Equity weight', pctStr(r.we)),
+          kpi('Debt weight', pctStr(r.wd)),
+          kpi('Equity (' + eqBasis + ')', moneyStr(eqUsed)),
+          kpi('Total debt (book)', moneyStr(r.totalDebt)),
+        ].join('');
+        const notes = ['Cost of debt, tax rate and book debt are SEC-derived; β is an industry beta; risk-free defaults to the US Treasury 10-yr (override above).'];
+        if (eqBasis === 'book') notes.push('Market cap unavailable — equity weight uses BOOK equity. Enter Market cap above for proper market weights.');
+        if (r.costOfDebt == null) notes.push('No interest expense/debt reported, so pre-tax cost of debt is blank — enter it manually if known.');
+        document.getElementById('waccNote').textContent = notes.join(' ');
+      }
+      async function fetchWaccInputs() {
+        if (isDemo) {
+          document.getElementById('waccNote').textContent =
+            'Auto-fetch needs a running backend with a market-data API key. In sample mode, enter β and market cap manually.';
+          return;
+        }
+        const btn = document.getElementById('waccFetch');
+        btn.disabled = true;
+        try {
+          const res = await fetch(apiBase() + '/api/sec/wacc?ticker=' + encodeURIComponent(currentTicker));
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
+          if (data.inputs.beta != null) document.getElementById('wBeta').value = Number(data.inputs.beta).toFixed(2);
+          if (data.inputs.marketValueOfEquity != null) document.getElementById('wMc').value = data.inputs.marketValueOfEquity;
+          if (data.inputs.riskFreeRate != null) document.getElementById('wRf').value = (data.inputs.riskFreeRate * 100).toFixed(2);
+          recomputeWacc();
+          const b = data.beta || {};
+          let note = '';
+          if (b.industry) {
+            const rel = b.releveredBeta != null ? b.releveredBeta.toFixed(2) : '—';
+            const de = b.deRatioUsed != null ? b.deRatioUsed.toFixed(2) : 'n/a';
+            const tax = b.taxRateUsed != null ? (b.taxRateUsed * 100).toFixed(0) + '%' : 'n/a';
+            note += `β = ${b.industry} industry asset β ${b.unleveredBeta} re-levered to ${rel} (D/E ${de} ${b.deRatioBasis || ''}, tax ${tax}; ${b.vintage}). `;
+          }
+          const mc = data.inputs.marketValueOfEquity;
+          note += mc != null
+            ? `Market cap (equity) = ${fmtByUnit('USD', mc)} via ${data.meta.marketCapSource || 'provided'}.`
+            : `Market cap not fetched (${data.meta.priceError || 'no source'}); WACC above uses BOOK equity — type a market cap for market weights.`;
+          document.getElementById('waccNote').textContent = note;
+        } catch (err) {
+          document.getElementById('waccNote').textContent = 'Fetch error: ' + err.message;
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      // ---- segments ---------------------------------------------------------
+      const DEMO_SEGMENTS = {
+        accessionNumber: '0001065280-25-000044', reportDate: '2024-12-31', sourceDocument: '(sample data)',
+        fiscalYears: [2024, 2023],
+        axes: [{
+          axis: 'srt:StatementGeographicalAxis', label: 'Geographical (Region)',
+          members: [
+            { member: 'UCAN', label: 'United States & Canada', values: { 2024: 17359000000, 2023: 14874000000 } },
+            { member: 'EMEA', label: 'Europe, Middle East & Africa', values: { 2024: 12387000000, 2023: 10557000000 } },
+            { member: 'LATAM', label: 'Latin America', values: { 2024: 4896000000, 2023: 4489000000 } },
+            { member: 'APAC', label: 'Asia-Pacific', values: { 2024: 4358000000, 2023: 3763000000 } },
+          ],
+        }],
+      };
+      function resetSegments() {
+        document.getElementById('segTables').innerHTML = '';
+        document.getElementById('segCount').textContent = '';
+        document.getElementById('segNote').textContent = '';
+        const b = document.getElementById('segBtn');
+        if (b) b.disabled = false;
+      }
+      function renderSegments(data) {
+        const note = document.getElementById('segNote');
+        if (!data.axes || !data.axes.length) {
+          document.getElementById('segTables').innerHTML = '';
+          note.textContent = data.note || 'No single-axis revenue breakdowns found in the latest 10-K.';
+          document.getElementById('segCount').textContent = '';
+          return;
+        }
+        const years = data.fiscalYears;
+        document.getElementById('segTables').innerHTML = data.axes.map((ax) => {
+          const yearHeads = years.map((y) => `<th>FY ${y}</th>`).join('');
+          const rows = ax.members.map((m) => {
+            const cells = years.map((y) => {
+              const v = m.values[y];
+              return `<td>${v == null ? '<span class="na">—</span>' : esc(fmtByUnit('USD', v))}</td>`;
+            }).join('');
+            return `<tr><td class="metric">${esc(m.label)}</td>${cells}</tr>`;
+          }).join('');
+          return `<div style="margin-bottom:0.9rem"><div class="muted" style="margin:0.2rem 0">${esc(ax.label)} — <code class="tagname">${esc(ax.axis)}</code></div>` +
+            `<div class="scroll"><table><thead><tr><th class="metric">Member</th>${yearHeads}</tr></thead><tbody>${rows}</tbody></table></div></div>`;
+        }).join('');
+        const src = data.sourceDocument && data.sourceDocument.startsWith('http')
+          ? ` · <a href="${esc(data.sourceDocument)}" target="_blank" rel="noopener" style="color:var(--accent)">source 10-K</a>` : '';
+        let diag = '';
+        if (data.diagnostics) {
+          const ax = data.diagnostics.axesSeen
+            .map((a) => `<li><code class="tagname">${esc(a.axis)}</code>: ${a.members.map(esc).join(', ')}</li>`).join('');
+          const combos = data.diagnostics.axisCombinations
+            .map((c) => `<li>${esc(c.axes)} — ${c.count} fact(s)</li>`).join('');
+          diag = `<details style="margin-top:0.6rem"><summary style="cursor:pointer;color:var(--accent)">Diagnostics — all axes & combinations seen (${data.diagnostics.totalRevenueFacts} dimensional revenue facts)</summary>` +
+            `<div class="muted"><strong>Axes &amp; members:</strong><ul>${ax || '<li>none</li>'}</ul>` +
+            `<strong>Axis combinations:</strong><ul>${combos || '<li>none</li>'}</ul></div></details>`;
+        }
+        document.getElementById('segTables').insertAdjacentHTML('beforeend', diag);
+        const merged = data.filingsParsed ? `Merged ${data.filingsParsed} 10-K filing(s). ` : '';
+        note.innerHTML = `${merged}Latest filing ${esc(data.accessionNumber || '')}${src}. Only single-axis full-year breakdowns are tabled; multi-axis cells appear in diagnostics.`;
+        document.getElementById('segCount').textContent = data.axes.length + ' breakdown(s)';
+      }
+      async function loadSegments() {
+        if (isDemo) {
+          renderSegments(DEMO_SEGMENTS);
+          document.getElementById('segNote').textContent =
+            'Sample segment data (approximate Netflix regions). Load live data for the real breakdown parsed from the filing.';
+          return;
+        }
+        const btn = document.getElementById('segBtn');
+        btn.disabled = true;
+        const years = document.getElementById('years').value;
+        const params = new URLSearchParams({ ticker: currentTicker });
+        // Each 10-K tags ~3 years, so more years => merge more filings.
+        if (years) params.set('years', years);
+        else params.set('filings', '10');
+        document.getElementById('segNote').textContent =
+          `Fetching and parsing ${years ? '~' + Math.max(Math.round(Number(years) - 2), 1) : 'up to 10'} 10-K filing(s) — this can take several seconds…`;
+        try {
+          const res = await fetch(apiBase() + '/api/sec/segments?' + params.toString());
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
+          renderSegments(data);
+        } catch (err) {
+          document.getElementById('segNote').textContent = 'Error: ' + err.message;
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      // ~100 NASDAQ-100 / large-cap NASDAQ tickers for the ticker dropdown.
+      // Any other ticker can still be typed in.
+      const NASDAQ_TICKERS = [
+        ['AAPL', 'Apple Inc.'], ['MSFT', 'Microsoft'], ['NVDA', 'NVIDIA'], ['AMZN', 'Amazon.com'],
+        ['GOOGL', 'Alphabet (Class A)'], ['GOOG', 'Alphabet (Class C)'], ['META', 'Meta Platforms'],
+        ['AVGO', 'Broadcom'], ['TSLA', 'Tesla'], ['COST', 'Costco Wholesale'], ['NFLX', 'Netflix'],
+        ['ADBE', 'Adobe'], ['PEP', 'PepsiCo'], ['AMD', 'Advanced Micro Devices'], ['CSCO', 'Cisco Systems'],
+        ['TMUS', 'T-Mobile US'], ['INTC', 'Intel'], ['CMCSA', 'Comcast'], ['INTU', 'Intuit'],
+        ['QCOM', 'Qualcomm'], ['AMGN', 'Amgen'], ['TXN', 'Texas Instruments'], ['HON', 'Honeywell'],
+        ['AMAT', 'Applied Materials'], ['ISRG', 'Intuitive Surgical'], ['BKNG', 'Booking Holdings'],
+        ['VRTX', 'Vertex Pharmaceuticals'], ['ADP', 'Automatic Data Processing'], ['GILD', 'Gilead Sciences'],
+        ['ADI', 'Analog Devices'], ['REGN', 'Regeneron Pharmaceuticals'], ['MDLZ', 'Mondelez International'],
+        ['MELI', 'MercadoLibre'], ['LRCX', 'Lam Research'], ['PANW', 'Palo Alto Networks'], ['SBUX', 'Starbucks'],
+        ['KLAC', 'KLA Corporation'], ['SNPS', 'Synopsys'], ['CDNS', 'Cadence Design Systems'], ['CRWD', 'CrowdStrike'],
+        ['MAR', 'Marriott International'], ['ABNB', 'Airbnb'], ['ORLY', "O'Reilly Automotive"], ['CSX', 'CSX Corporation'],
+        ['ASML', 'ASML Holding'], ['CTAS', 'Cintas'], ['NXPI', 'NXP Semiconductors'], ['PYPL', 'PayPal'],
+        ['MNST', 'Monster Beverage'], ['WDAY', 'Workday'], ['MRVL', 'Marvell Technology'], ['FTNT', 'Fortinet'],
+        ['ADSK', 'Autodesk'], ['PCAR', 'PACCAR'], ['ROP', 'Roper Technologies'], ['CPRT', 'Copart'],
+        ['PAYX', 'Paychex'], ['KDP', 'Keurig Dr Pepper'], ['MCHP', 'Microchip Technology'], ['AEP', 'American Electric Power'],
+        ['DXCM', 'DexCom'], ['IDXX', 'IDEXX Laboratories'], ['ROST', 'Ross Stores'], ['KHC', 'Kraft Heinz'],
+        ['FAST', 'Fastenal'], ['EA', 'Electronic Arts'], ['BKR', 'Baker Hughes'], ['GEHC', 'GE HealthCare'],
+        ['CCEP', 'Coca-Cola Europacific Partners'], ['EXC', 'Exelon'], ['VRSK', 'Verisk Analytics'],
+        ['CTSH', 'Cognizant Technology'], ['XEL', 'Xcel Energy'], ['CSGP', 'CoStar Group'], ['ON', 'ON Semiconductor'],
+        ['TTD', 'The Trade Desk'], ['DASH', 'DoorDash'], ['BIIB', 'Biogen'], ['ANSS', 'Ansys'], ['ZS', 'Zscaler'],
+        ['DDOG', 'Datadog'], ['TEAM', 'Atlassian'], ['WBD', 'Warner Bros. Discovery'], ['ILMN', 'Illumina'],
+        ['GFS', 'GlobalFoundries'], ['MDB', 'MongoDB'], ['LULU', 'Lululemon Athletica'], ['FANG', 'Diamondback Energy'],
+        ['SIRI', 'Sirius XM'], ['ALGN', 'Align Technology'], ['ARM', 'Arm Holdings'], ['SMCI', 'Super Micro Computer'],
+        ['MRNA', 'Moderna'], ['DLTR', 'Dollar Tree'], ['EBAY', 'eBay'], ['CDW', 'CDW Corporation'],
+        ['TTWO', 'Take-Two Interactive'], ['ZM', 'Zoom Communications'], ['OKTA', 'Okta'], ['PDD', 'PDD Holdings'],
+      ];
+
+      // ---- wiring -----------------------------------------------------------
+      document.getElementById('api').value = defaultApiBase();
+      document.getElementById('tickerList').innerHTML =
+        NASDAQ_TICKERS.map(([t, name]) => `<option value="${t}">${esc(name)}</option>`).join('');
+      document.getElementById('segBtn').addEventListener('click', loadSegments);
+      // Drill-down: clicking a ▸ heading toggles its detail rows (delegated so it
+      // survives re-renders).
+      document.addEventListener('click', (e) => {
+        const tr = e.target.closest && e.target.closest('tr.drill');
+        if (!tr) return;
+        const id = tr.getAttribute('data-drill');
+        const open = tr.classList.toggle('open');
+        document.querySelectorAll('tr.bs-detail[data-detailof="' + id + '"]').forEach((r) => {
+          r.style.display = open ? '' : 'none';
+        });
+        const caret = tr.querySelector('.caret');
+        if (caret) caret.textContent = open ? '▾' : '▸';
+      });
+      fetchBtn.addEventListener('click', fetchLive);
+      demoBtn.addEventListener('click', loadDemo);
+      document.getElementById('allFactsBtn').addEventListener('click', loadAllFacts);
+      document.getElementById('allSearch').addEventListener('input', (e) => renderAllFacts(e.target.value));
+      document.getElementById('showTags').addEventListener('change', (e) => {
+        showTags = e.target.checked;
+        if (lastData) render(lastData);
+      });
+      document.getElementById('ticker').addEventListener('keydown', (e) => { if (e.key === 'Enter') fetchLive(); });
+
+      loadDemo(); // show the formatted sample immediately on load
+    </script>
+  </body>
+</html>
