@@ -124,7 +124,8 @@
       <div class="controls">
         <div class="field">
           <label for="ticker">Ticker</label>
-          <input id="ticker" value="NFLX" autocomplete="off" placeholder="NFLX" />
+          <input id="ticker" list="tickerList" value="NFLX" placeholder="NFLX" autocomplete="off" />
+          <datalist id="tickerList"></datalist>
         </div>
         <div class="field">
           <label for="years">Periods</label>
@@ -1159,8 +1160,41 @@
         }
       }
 
+      // ~100 NASDAQ-100 / large-cap NASDAQ tickers for the ticker dropdown.
+      // Any other ticker can still be typed in.
+      const NASDAQ_TICKERS = [
+        ['AAPL', 'Apple Inc.'], ['MSFT', 'Microsoft'], ['NVDA', 'NVIDIA'], ['AMZN', 'Amazon.com'],
+        ['GOOGL', 'Alphabet (Class A)'], ['GOOG', 'Alphabet (Class C)'], ['META', 'Meta Platforms'],
+        ['AVGO', 'Broadcom'], ['TSLA', 'Tesla'], ['COST', 'Costco Wholesale'], ['NFLX', 'Netflix'],
+        ['ADBE', 'Adobe'], ['PEP', 'PepsiCo'], ['AMD', 'Advanced Micro Devices'], ['CSCO', 'Cisco Systems'],
+        ['TMUS', 'T-Mobile US'], ['INTC', 'Intel'], ['CMCSA', 'Comcast'], ['INTU', 'Intuit'],
+        ['QCOM', 'Qualcomm'], ['AMGN', 'Amgen'], ['TXN', 'Texas Instruments'], ['HON', 'Honeywell'],
+        ['AMAT', 'Applied Materials'], ['ISRG', 'Intuitive Surgical'], ['BKNG', 'Booking Holdings'],
+        ['VRTX', 'Vertex Pharmaceuticals'], ['ADP', 'Automatic Data Processing'], ['GILD', 'Gilead Sciences'],
+        ['ADI', 'Analog Devices'], ['REGN', 'Regeneron Pharmaceuticals'], ['MDLZ', 'Mondelez International'],
+        ['MELI', 'MercadoLibre'], ['LRCX', 'Lam Research'], ['PANW', 'Palo Alto Networks'], ['SBUX', 'Starbucks'],
+        ['KLAC', 'KLA Corporation'], ['SNPS', 'Synopsys'], ['CDNS', 'Cadence Design Systems'], ['CRWD', 'CrowdStrike'],
+        ['MAR', 'Marriott International'], ['ABNB', 'Airbnb'], ['ORLY', "O'Reilly Automotive"], ['CSX', 'CSX Corporation'],
+        ['ASML', 'ASML Holding'], ['CTAS', 'Cintas'], ['NXPI', 'NXP Semiconductors'], ['PYPL', 'PayPal'],
+        ['MNST', 'Monster Beverage'], ['WDAY', 'Workday'], ['MRVL', 'Marvell Technology'], ['FTNT', 'Fortinet'],
+        ['ADSK', 'Autodesk'], ['PCAR', 'PACCAR'], ['ROP', 'Roper Technologies'], ['CPRT', 'Copart'],
+        ['PAYX', 'Paychex'], ['KDP', 'Keurig Dr Pepper'], ['MCHP', 'Microchip Technology'], ['AEP', 'American Electric Power'],
+        ['DXCM', 'DexCom'], ['IDXX', 'IDEXX Laboratories'], ['ROST', 'Ross Stores'], ['KHC', 'Kraft Heinz'],
+        ['FAST', 'Fastenal'], ['EA', 'Electronic Arts'], ['BKR', 'Baker Hughes'], ['GEHC', 'GE HealthCare'],
+        ['CCEP', 'Coca-Cola Europacific Partners'], ['EXC', 'Exelon'], ['VRSK', 'Verisk Analytics'],
+        ['CTSH', 'Cognizant Technology'], ['XEL', 'Xcel Energy'], ['CSGP', 'CoStar Group'], ['ON', 'ON Semiconductor'],
+        ['TTD', 'The Trade Desk'], ['DASH', 'DoorDash'], ['BIIB', 'Biogen'], ['ANSS', 'Ansys'], ['ZS', 'Zscaler'],
+        ['DDOG', 'Datadog'], ['TEAM', 'Atlassian'], ['WBD', 'Warner Bros. Discovery'], ['ILMN', 'Illumina'],
+        ['GFS', 'GlobalFoundries'], ['MDB', 'MongoDB'], ['LULU', 'Lululemon Athletica'], ['FANG', 'Diamondback Energy'],
+        ['SIRI', 'Sirius XM'], ['ALGN', 'Align Technology'], ['ARM', 'Arm Holdings'], ['SMCI', 'Super Micro Computer'],
+        ['MRNA', 'Moderna'], ['DLTR', 'Dollar Tree'], ['EBAY', 'eBay'], ['CDW', 'CDW Corporation'],
+        ['TTWO', 'Take-Two Interactive'], ['ZM', 'Zoom Communications'], ['OKTA', 'Okta'], ['PDD', 'PDD Holdings'],
+      ];
+
       // ---- wiring -----------------------------------------------------------
       document.getElementById('api').value = defaultApiBase();
+      document.getElementById('tickerList').innerHTML =
+        NASDAQ_TICKERS.map(([t, name]) => `<option value="${t}">${esc(name)}</option>`).join('');
       document.getElementById('segBtn').addEventListener('click', loadSegments);
       // Drill-down: clicking a ▸ heading toggles its detail rows (delegated so it
       // survives re-renders).
