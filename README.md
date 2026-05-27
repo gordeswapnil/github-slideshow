@@ -80,6 +80,7 @@ Copy `server/.env.example` to `server/.env` and set your email before deploying.
 | `GET /api/sec/model-data?ticker=NFLX&years=5` | Latest 5 annual 10-K periods |
 | `GET /api/sec/profile?ticker=NFLX` | Case-study profile: industry, HQ, filings + financial snapshot |
 | `GET /api/sec/business?ticker=NFLX` | "Item 1 — Business" narrative extracted from the latest 10-K |
+| `GET /api/sec/balance-sheet?ticker=NFLX` | Balance sheet recast into Companies Act 2013 Schedule III vertical format |
 | `GET /api/sec/ratios?ticker=NFLX` | Working-capital, liquidity, leverage & return ratios per year |
 | `GET /api/sec/wacc?ticker=NFLX` | Cost of capital (see WACC section below) |
 | `GET /api/sec/segments?ticker=NFLX` | Revenue by segment / geography / product (parsed from the 10-K) |
@@ -140,6 +141,21 @@ snapshot (revenue, YoY growth, margins, ROE) — a quick case-study brief.
 ratio, working capital, **DSO / DPO / DIO and the cash-conversion cycle**,
 debt/equity, debt/assets, interest coverage, net margin, ROE and ROA — all
 computed from the normalized SEC figures.
+
+## Balance sheet — Companies Act 2013, Schedule III
+
+`balance-sheet` recasts the US-GAAP figures into the **vertical Schedule III
+(Division I)** format: *I. Equity and Liabilities* (Shareholders' Funds →
+Non-Current Liabilities → Current Liabilities) then *II. Assets* (Non-Current →
+Current), with `TOTAL EQUITY AND LIABILITIES = TOTAL ASSETS`.
+
+Reconciliation logic: the SEC-reported control totals (Total/Current Assets,
+Total/Current Liabilities, Equity) are authoritative. Mapped US-GAAP items fill
+the Schedule III buckets, and a balancing **"Other …"** line in each group
+absorbs whatever isn't directly mapped (e.g. a streaming company's content
+liabilities). This guarantees every subtotal and the grand total tie out — the
+response includes a `balances`/`difference` check. The UI shows this in place of
+the flat balance-sheet table, with a ✓ balance check per year.
 
 ## WACC (cost of capital)
 

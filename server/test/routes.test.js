@@ -96,6 +96,19 @@ describe('GET /api/sec/profile', () => {
   });
 });
 
+describe('GET /api/sec/balance-sheet', () => {
+  test('returns a Schedule III statement per period', async () => {
+    const app = makeApp();
+    const r = await request(app).get('/api/sec/balance-sheet?ticker=NFLX');
+    expect(r.status).toBe(200);
+    expect(r.body.format).toMatch(/Schedule III/);
+    expect(r.body.statements.length).toBeGreaterThan(0);
+    const s = r.body.statements[0];
+    expect(s.lines.find((l) => l.key === 'asTotal')).toBeTruthy();
+    expect(s.lines.find((l) => l.key === 'elTotal')).toBeTruthy();
+  });
+});
+
 describe('GET /api/sec/ratios', () => {
   test('returns one ratio set per period', async () => {
     const app = makeApp();
