@@ -204,6 +204,50 @@ function groupSegments(facts) {
   return { fiscalYears: [...yearSet].sort((a, b) => b - a), factCount: facts.length, axes };
 }
 
+// Derive a single-axis breakdown by summing MULTI-axis cells over the other
+// dimension(s) — e.g. revenue by geography summed across products. Only uses
+// facts with >=2 segment axes (single-axis ones are already grouped directly),
+// de-duping the same dimensional cell across filings (latest filed wins) before
+// summing. Clearly flagged derived; verify against the filing.
+function aggregateAxis(revFacts, axis) {
+  const dedup = new Map();
+  for (const f of revFacts) {
+    if (f.segmentDims.length < 2) continue;
+    if (!f.segmentDims.some((d) => d.axis === axis)) continue;
+    const sig = f.segmentDims.map((d) => `${d.axis}=${d.member}`).sort().join('|') + '@' + f.fiscalYear;
+    const prev = dedup.get(sig);
+    const newer = !prev || (f.filed && (!prev.filed || Date.parse(f.filed) > Date.parse(prev.filed)));
+    if (newer) dedup.set(sig, f);
+  }
+  const members = new Map();
+  const years = new Set();
+  for (const f of dedup.values()) {
+    years.add(f.fiscalYear);
+    const member = f.segmentDims.find((d) => d.axis === axis).member;
+    if (!members.has(member)) members.set(member, { member, label: humanize(member, 'Member'), values: {} });
+    const vals = members.get(member).values;
+    vals[f.fiscalYear] = (vals[f.fiscalYear] || 0) + f.value;
+  }
+  return {
+    axis,
+    label: `${humanize(axis, 'Axis')} (summed across other dimensions)`,
+    derived: true,
+    members: [...members.values()].sort((x, y) => {
+      const yr = Math.max(...Object.keys({ ...x.values, ...y.values }).map(Number));
+      return (y.values[yr] || 0) - (x.values[yr] || 0);
+    }),
+  };
+}
+
+// Derived axes for every axis that appears in any multi-axis (>=2) combination.
+function deriveCombinedAxes(revFacts) {
+  const axes = new Set();
+  for (const f of revFacts) {
+    if (f.segmentDims.length >= 2) for (const d of f.segmentDims) axes.add(d.axis);
+  }
+  return [...axes].map((a) => aggregateAxis(revFacts, a)).filter((a) => a.members.length > 0);
+}
+
 // Reveal every axis/member and axis-combination seen (incl. multi-axis cells).
 function buildDiagnostics(revFacts) {
   const axisMembers = new Map();
@@ -240,6 +284,8 @@ module.exports = {
   parseRevenueFacts,
   toSingleAxisFacts,
   groupSegments,
+  aggregateAxis,
+  deriveCombinedAxes,
   buildDiagnostics,
   extractSegments,
   humanize,

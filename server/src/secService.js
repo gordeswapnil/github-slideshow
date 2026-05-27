@@ -12,6 +12,7 @@ const {
   parseRevenueFacts,
   toSingleAxisFacts,
   groupSegments,
+  deriveCombinedAxes,
   buildDiagnostics,
 } = require('./segments');
 const { getIndustryBeta } = require('./damodaran');
@@ -201,7 +202,12 @@ function createSecService({ client, marketData, treasury, priceData } = {}) {
     let marketCap = overview.marketCap;
     let marketCapSource = overview.marketCap != null ? overview.source : null;
     let priceError = null;
-    const shares = sharesOutstanding(facts);
+    // Prefer cover-page shares outstanding; fall back to weighted diluted/basic
+    // shares from the financials if the dei value is absent.
+    const shares =
+      sharesOutstanding(facts) ||
+      (period.dilutedShares != null ? period.dilutedShares : null) ||
+      (period.sharesBasic != null ? period.sharesBasic : null);
     if (marketCap == null) {
       try {
         const close = await price.getClose(resolved.ticker);
@@ -361,11 +367,15 @@ function createSecService({ client, marketData, treasury, priceData } = {}) {
         revenueFacts: p.revFacts.length,
         error: p.error,
       });
-      allRevFacts.push(...p.revFacts);
-      allSingle.push(...toSingleAxisFacts(p.revFacts.map((f) => ({ ...f, filed: p.doc.filed }))));
+      const tagged = p.revFacts.map((f) => ({ ...f, filed: p.doc.filed }));
+      allRevFacts.push(...tagged);
+      allSingle.push(...toSingleAxisFacts(tagged));
     }
 
     const grouped = groupSegments(allSingle);
+    // Surface breakdowns hidden inside multi-axis cells (e.g. revenue by region
+    // when it is tagged as region x product), summed across the other dimension.
+    grouped.axes = grouped.axes.concat(deriveCombinedAxes(allRevFacts));
     const latest = docFor(indices[0]);
 
     return {

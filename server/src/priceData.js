@@ -4,6 +4,9 @@
 //
 // Stooq CSV: https://stooq.com/q/l/?s=aapl.us&f=sd2t2ohlcv&h&e=csv
 //   Symbol,Date,Time,Open,High,Low,Close,Volume
+//
+// Stooq can reject unusual User-Agents, so we request it directly with a
+// browser-like UA rather than via the SEC client (which sends the SEC UA).
 
 function parseStooqCsv(csv) {
   if (!csv || typeof csv !== 'string') return null;
@@ -17,11 +20,25 @@ function parseStooqCsv(csv) {
   return Number.isFinite(close) && close > 0 ? close : null;
 }
 
-function createPriceProvider({ client, baseUrl = 'https://stooq.com' } = {}) {
+function createPriceProvider({ client, fetchImpl = globalThis.fetch, baseUrl = 'https://stooq.com' } = {}) {
   async function getClose(ticker) {
     const sym = encodeURIComponent(String(ticker).toLowerCase()) + '.us';
     const url = `${baseUrl}/q/l/?s=${sym}&f=sd2t2ohlcv&h&e=csv`;
-    const csv = await client.getText(url);
+    let csv;
+    if (typeof fetchImpl === 'function') {
+      const res = await fetchImpl(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; FinancialModellingEducationApp/1.0)',
+          Accept: 'text/csv,text/plain,*/*',
+        },
+      });
+      if (!res.ok) return null;
+      csv = await res.text();
+    } else if (client && client.getText) {
+      csv = await client.getText(url);
+    } else {
+      return null;
+    }
     return parseStooqCsv(csv);
   }
   return { getClose, source: 'stooq' };

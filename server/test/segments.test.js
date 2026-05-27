@@ -1,6 +1,8 @@
 const {
   parseInlineXbrlSegments,
+  parseRevenueFacts,
   groupSegments,
+  deriveCombinedAxes,
   extractSegments,
   humanize,
 } = require('../src/segments');
@@ -69,5 +71,25 @@ describe('groupSegments', () => {
 
   test('extractSegments is parse + group', () => {
     expect(extractSegments(inlineXbrl)).toEqual(grouped);
+  });
+});
+
+describe('deriveCombinedAxes', () => {
+  // The fixture has one multi-axis cell: Streaming x US = 12,000,000 (scale 3).
+  const derived = deriveCombinedAxes(parseRevenueFacts(inlineXbrl));
+
+  test('surfaces a summed breakdown for each axis in a multi-axis cell', () => {
+    const geo = derived.find((a) => a.axis === 'srt:StatementGeographicalAxis');
+    expect(geo).toBeTruthy();
+    expect(geo.derived).toBe(true);
+    expect(geo.label).toMatch(/summed across other dimensions/);
+    const us = geo.members.find((m) => m.member === 'country:US');
+    expect(us.values[2024]).toBe(12000000 * 1000);
+  });
+
+  test('ignores single-axis facts (only sums multi-axis cells)', () => {
+    // Single-axis US revenue (15,000,000) must NOT inflate the derived figure.
+    const geo = derived.find((a) => a.axis === 'srt:StatementGeographicalAxis');
+    expect(geo.members.find((m) => m.member === 'country:US').values[2024]).toBe(12000000 * 1000);
   });
 });
