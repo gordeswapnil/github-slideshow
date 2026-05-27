@@ -60,7 +60,23 @@ describe('computeWacc', () => {
     });
     expect(r.wacc).toBeNull();
     expect(r.complete).toBe(false);
-    expect(r.missing).toEqual(expect.arrayContaining(['beta', 'marketCap', 'costOfDebt']));
+    expect(r.missing).toEqual(expect.arrayContaining(['beta', 'equity', 'costOfDebt']));
+  });
+
+  test('falls back to book equity for the weight when market cap is absent', () => {
+    const r = computeWacc({
+      period: basePeriod, // totalDebt 10000
+      beta: 1.2,
+      bookEquity: 30000, // no marketCap
+      riskFreeRate: 0.04,
+      equityRiskPremium: 0.05,
+    });
+    expect(r.inputs.equityBasis).toBe('book');
+    expect(r.inputs.marketValueOfEquity).toBeNull();
+    expect(r.inputs.equityUsed).toBe(30000);
+    // E/V = 30000/40000 = 0.75, D/V = 0.25
+    expect(r.components.weightEquity).toBeCloseTo(0.75, 6);
+    expect(r.wacc).not.toBeNull();
   });
 });
 

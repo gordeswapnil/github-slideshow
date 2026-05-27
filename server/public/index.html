@@ -964,15 +964,19 @@
         if (!waccPeriod) return;
         const beta = parseFloat(document.getElementById('wBeta').value);
         const rfPct = document.getElementById('wRf').value, erpPct = document.getElementById('wErp').value;
-        const mc = parseFloat(document.getElementById('wMc').value);
+        const mcInput = parseFloat(document.getElementById('wMc').value);
+        // Fall back to book equity so WACC always computes (flagged in the note).
+        const bookEq = isFinite(waccPeriod.stockholdersEquity) ? waccPeriod.stockholdersEquity : null;
+        const eqUsed = isFinite(mcInput) ? mcInput : bookEq;
+        const eqBasis = isFinite(mcInput) ? 'market' : 'book';
         waccState.beta = isFinite(beta) ? beta : null;
-        waccState.marketCap = isFinite(mc) ? mc : null;
+        waccState.marketCap = isFinite(mcInput) ? mcInput : null;
         waccState.rf = rfPct; waccState.erp = erpPct;
         const r = computeWaccClient(waccPeriod, {
           beta: isFinite(beta) ? beta : null,
           rf: isFinite(parseFloat(rfPct)) ? parseFloat(rfPct) / 100 : null,
           erp: isFinite(parseFloat(erpPct)) ? parseFloat(erpPct) / 100 : null,
-          marketCap: isFinite(mc) ? mc : null,
+          marketCap: eqUsed,
         });
         const p2 = (v) => (v == null ? '—' : (v * 100).toFixed(2) + '%');
         document.getElementById('waccOut').innerHTML = [
@@ -983,11 +987,12 @@
           kpi('Tax rate', pctStr(r.taxRate)),
           kpi('Equity weight', pctStr(r.we)),
           kpi('Debt weight', pctStr(r.wd)),
-          kpi('Equity (market cap)', moneyStr(isFinite(mc) ? mc : null)),
+          kpi('Equity (' + eqBasis + ')', moneyStr(eqUsed)),
           kpi('Total debt (book)', moneyStr(r.totalDebt)),
         ].join('');
-        const notes = ['Cost of debt, tax rate and book debt are SEC-derived; β and market cap come from the market-data provider or your input; risk-free defaults to the US Treasury 10-yr (override above).'];
-        if (r.costOfDebt == null) notes.push('This company did not report interest expense and/or debt, so pre-tax cost of debt is blank — enter it manually if known.');
+        const notes = ['Cost of debt, tax rate and book debt are SEC-derived; β is an industry beta; risk-free defaults to the US Treasury 10-yr (override above).'];
+        if (eqBasis === 'book') notes.push('Market cap unavailable — equity weight uses BOOK equity. Enter Market cap above for proper market weights.');
+        if (r.costOfDebt == null) notes.push('No interest expense/debt reported, so pre-tax cost of debt is blank — enter it manually if known.');
         document.getElementById('waccNote').textContent = notes.join(' ');
       }
       async function fetchWaccInputs() {
@@ -1016,8 +1021,8 @@
           }
           const mc = data.inputs.marketValueOfEquity;
           note += mc != null
-            ? `Market cap (equity) = ${fmtByUnit('USD', mc)} via ${data.meta.marketCapSource || 'provided'}. Market value of equity is normally far larger than book equity.`
-            : 'Market cap unavailable — enter it manually for the equity weight.';
+            ? `Market cap (equity) = ${fmtByUnit('USD', mc)} via ${data.meta.marketCapSource || 'provided'}.`
+            : `Market cap not fetched (${data.meta.priceError || 'no source'}); WACC above uses BOOK equity — type a market cap for market weights.`;
           document.getElementById('waccNote').textContent = note;
         } catch (err) {
           document.getElementById('waccNote').textContent = 'Fetch error: ' + err.message;

@@ -173,10 +173,14 @@ function createSecService({ client, marketData, treasury, priceData } = {}) {
   // GET /api/sec/wacc (cost of capital; market inputs from the configured provider)
   async function getWacc(rawTicker, overrides = {}) {
     const resolved = await resolveTicker(rawTicker);
-    const [facts, submissions] = await Promise.all([
-      client.getJson(companyFactsUrl(resolved.cik)),
-      client.getJson(submissionsUrl(resolved.cik)),
-    ]);
+    const facts = await client.getJson(companyFactsUrl(resolved.cik));
+    // Submissions (only needed for the industry SIC) must not break WACC.
+    let submissions = {};
+    try {
+      submissions = await client.getJson(submissionsUrl(resolved.cik));
+    } catch (_) {
+      submissions = {};
+    }
     const modelData = normalizeCompanyFacts(facts, { years: 2 });
     const period = modelData.periods[0];
     if (!period) throw notFound(`No annual 10-K data to compute WACC for "${resolved.ticker}".`);
@@ -196,16 +200,22 @@ function createSecService({ client, marketData, treasury, priceData } = {}) {
     // (Stooq latest close × SEC shares outstanding).
     let marketCap = overview.marketCap;
     let marketCapSource = overview.marketCap != null ? overview.source : null;
+    let priceError = null;
+    const shares = sharesOutstanding(facts);
     if (marketCap == null) {
       try {
         const close = await price.getClose(resolved.ticker);
-        const shares = sharesOutstanding(facts);
         if (close != null && shares != null) {
           marketCap = close * shares;
           marketCapSource = `${price.source}(close ${close}) × SEC(shares ${shares})`;
+        } else {
+          priceError =
+            close == null
+              ? `no price returned from ${price.source} for ${resolved.ticker}`
+              : 'no EntityCommonStockSharesOutstanding in SEC data';
         }
-      } catch (_) {
-        /* market cap stays null; user can pass ?marketCap= */
+      } catch (err) {
+        priceError = err.message;
       }
     }
 
@@ -222,6 +232,7 @@ function createSecService({ client, marketData, treasury, priceData } = {}) {
       period,
       beta: betaInfo.releveredBeta,
       marketCap,
+      bookEquity: period.stockholdersEquity,
       riskFreeRate: rf.riskFreeRate,
       equityRiskPremium: config.equityRiskPremiumDefault,
       overrides,
@@ -243,13 +254,16 @@ function createSecService({ client, marketData, treasury, priceData } = {}) {
         marketDataConfigured: market.configured,
         marketCapSource: marketCapSource || 'unavailable',
         marketDataError: marketError,
+        priceError,
+        sharesOutstanding: shares,
+        equityBasis: result.inputs.equityBasis,
         riskFreeRateSource: rf.source,
         equityRiskPremiumDefault: config.equityRiskPremiumDefault,
         betaNote:
           'Beta is an industry (Damodaran) asset beta re-levered with this company. Override with ?beta=.',
         marketCapNote:
           marketCap == null
-            ? 'Could not determine market cap (no API key and no free price) — pass ?marketCap= for the equity weight.'
+            ? `Market cap unavailable (${priceError || 'no source'}); WACC uses book equity for the weight — pass ?marketCap= for market weights.`
             : undefined,
       },
     };

@@ -23,7 +23,7 @@ function effectiveTaxRate(period) {
   return Math.min(Math.max(rate, 0), 0.5);
 }
 
-function computeWacc({ period, beta, marketCap, riskFreeRate, equityRiskPremium, overrides = {} }) {
+function computeWacc({ period, beta, marketCap, bookEquity, riskFreeRate, equityRiskPremium, overrides = {} }) {
   const o = overrides;
 
   const totalDebtBook = (num(period.shortTermDebt) || 0) + (num(period.longTermDebt) || 0) || null;
@@ -41,7 +41,11 @@ function computeWacc({ period, beta, marketCap, riskFreeRate, equityRiskPremium,
   const rf = num(o.riskFreeRate) != null ? o.riskFreeRate : num(riskFreeRate);
   const b = num(o.beta) != null ? o.beta : num(beta);
   const erp = num(o.equityRiskPremium) != null ? o.equityRiskPremium : num(equityRiskPremium);
-  const equityMV = num(o.marketCap) != null ? o.marketCap : num(marketCap);
+  // Equity value for the weight: true market cap if available, else fall back to
+  // book equity so WACC still computes (flagged via equityBasis).
+  const trueMarketCap = num(o.marketCap) != null ? o.marketCap : num(marketCap);
+  const equityMV = trueMarketCap != null ? trueMarketCap : num(bookEquity);
+  const equityBasis = trueMarketCap != null ? 'market' : num(bookEquity) != null ? 'book' : null;
 
   const costOfEquity = rf != null && b != null && erp != null ? rf + b * erp : null;
   const afterTaxCostOfDebt =
@@ -61,7 +65,7 @@ function computeWacc({ period, beta, marketCap, riskFreeRate, equityRiskPremium,
 
   const missing = [];
   if (b == null) missing.push('beta');
-  if (equityMV == null) missing.push('marketCap');
+  if (equityMV == null) missing.push('equity');
   if (rf == null) missing.push('riskFreeRate');
   if (erp == null) missing.push('equityRiskPremium');
   if (costOfDebtPreTax == null) missing.push('costOfDebt');
@@ -82,7 +86,9 @@ function computeWacc({ period, beta, marketCap, riskFreeRate, equityRiskPremium,
       beta: b,
       riskFreeRate: rf,
       equityRiskPremium: erp,
-      marketValueOfEquity: equityMV,
+      marketValueOfEquity: trueMarketCap,
+      equityUsed: equityMV,
+      equityBasis,
       totalDebt,
       interestExpense,
     },
