@@ -1,0 +1,22 @@
+name: Deploy to Hostinger
+
+on:
+  push:
+    branches:
+      - claude/rubriQ-analytics-phase-1-e2Zi6
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: u377360944
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: 65002
+          command_timeout: 10m
+          script: |
+            cd ~/domains/rubriq.swapnilgorde.com/nodejs
+            bash rubriq-analytics/deploy.sh
