@@ -2,7 +2,8 @@ const prisma = require('../db');
 const router = require('express').Router();
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const { logAudit } = require('../utils/audit');
-const { hardDeleteCourse } = require('./courses');
+const coursesRouter = require('./courses');
+const hardDeleteCourse = coursesRouter.hardDeleteCourse;
 
 router.get('/', authenticate, async (req, res, next) => {
   try {

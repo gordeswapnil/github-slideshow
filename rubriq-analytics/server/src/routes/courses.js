@@ -90,8 +90,6 @@ async function hardDeleteCourse(tx, courseId) {
   await tx.course.delete({ where: { id: courseId } });
 }
 
-module.exports.hardDeleteCourse = hardDeleteCourse;
-
 router.get('/', authenticate, async (req, res, next) => {
   try {
     const { programId } = req.query;
@@ -186,4 +184,5 @@ router.post('/:id/outcomes', authenticate, requireAdmin, async (req, res, next) 
   } catch (err) { next(err); }
 });
 
+router.hardDeleteCourse = hardDeleteCourse;
 module.exports = router;
