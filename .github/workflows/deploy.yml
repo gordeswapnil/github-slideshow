@@ -14,7 +14,7 @@ jobs:
         with:
           host: ${{ secrets.SSH_HOST }}
           username: u377360944
-          password: ${{ secrets.SSH_PASSWORD }}
+          key: ${{ secrets.SSH_KEY }}
           port: 65002
           command_timeout: 10m
           script: |
