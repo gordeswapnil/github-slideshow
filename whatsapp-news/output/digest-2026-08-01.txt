@@ -1,0 +1,31 @@
+*📰 Daily Briefing — August 01, 2026*
+_Artificial Intelligence • Higher Education • Ed-Tech_
+
+*🤖 Artificial Intelligence*
+1. World AI Conference 2026 closes in Shanghai; 29 nations found the World Artificial Intelligence Cooperation Organization (UN News)
+   https://news.un.org/en/story/2026/07/1167848
+2. July model wave: Google's Gemini 3.6 Flash adds built-in computer use; Anthropic's Claude Sonnet 5 and Black Forest Labs' FLUX 3 released (ThursdAI)
+   https://thursdai.news/releases/2026-07
+3. European Commission orders Google to open Android to rival AI assistants and share search data with competitors (AI News)
+   https://www.artificialintelligence-news.com/
+4. EU AI Act enters new phase: transparency and documentation duties for general-purpose and high-risk systems now legally binding (ScienceDaily)
+   https://www.sciencedaily.com/news/computers_math/artificial_intelligence/
+
+*🎓 Higher Education & Accreditation*
+1. Ministry of Education committee moves to merge NAAC and NBA into a single National Accreditation Council (NAC) under NEP 2020 (Careers360)
+   https://news.careers360.com/nac-replace-naac-nba-education-ministry-committee-heci-bill-nep-ugc-aicte-nirf/amp
+2. NAAC Binary Accreditation Framework (Maturity-Based Graded Levels 1–5) rolls forward under the 2025 reforms (Edhitch)
+   https://www.edhitch.com/naac-accreditation-guide-steps-strategies-tips.html
+3. 'One Nation One Data' platform now cross-verifies institutional claims against UGC, AICTE, AISHE and NIRF records, automating DVV (IITMS)
+   https://www.iitms.co.in/blog/new-norms-of-NEP-2020-for-NAAC-UGC-AICTE.html
+
+*💡 Ed-Tech & Research*
+1. AI in education is the fastest-growing ed-tech segment (+42% CAGR), projected at $23B in 2026 (Searchlab)
+   https://searchlab.nl/en/statistics/education-edtech-statistics-2026
+2. OpenAI expands in India: 100M+ weekly ChatGPT users and 100,000+ ChatGPT Edu licences across universities (ETIH)
+   https://www.edtechinnovationhub.com/news/top-ten-edtech-stories-of-the-week-ai-training-governance-debates-and-new-market-funding
+3. AI curriculum becomes compulsory from Grade 3 as national classroom mandate takes effect (Modern Adhyapak)
+   https://modernadhyapak.com/ai-in-indian-classrooms-in-2026/
+
+—
+_Curated daily for our community. Follow the channel for tomorrow's briefing._
