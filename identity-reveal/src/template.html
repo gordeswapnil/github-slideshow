@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Swapnil Gorde — Identity Reveal</title>
+<meta name="description" content="15-second cinematic identity reveal for Swapnil Gorde. Finance | FinTech | Academia | Innovation. Three.js, deterministic frame rendering.">
+<style>
+  :root { --bg: #000; --fg: #e9e7e3; --muted: #8a8a8a; --accent: #ff6a1f; }
+  html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; }
+  body { display: grid; place-items: center; font: 500 12px/1.4 Inter, system-ui, -apple-system, Segoe UI, sans-serif; color: var(--fg); }
+  canvas#c { display: block; width: min(100vw, calc(100vh * 16 / 9)); height: auto; aspect-ratio: 16 / 9; background: #000; }
+  .ui { position: fixed; left: 16px; right: 16px; bottom: 14px; display: flex; gap: 12px; align-items: center;
+        opacity: 0; transition: opacity .35s; letter-spacing: .08em; }
+  body:hover .ui, .ui:focus-within { opacity: 1; }
+  .ui button { background: none; border: 1px solid #333; color: var(--fg); padding: 6px 12px; cursor: pointer; font: inherit; letter-spacing: .12em; }
+  .ui button:hover { border-color: var(--accent); }
+  .ui input[type=range] { flex: 1; accent-color: var(--accent); }
+  .ui .tc { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 92px; text-align: right; }
+  body.render .ui { display: none; }
+  body.render { display: block; }
+  body.render canvas#c { width: 1920px; height: 1080px; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<div class="ui" aria-label="Playback controls">
+  <button id="play" type="button">PAUSE</button>
+  <button id="replay" type="button">REPLAY</button>
+  <input id="scrub" type="range" min="0" max="450" step="1" value="0" aria-label="Frame">
+  <span class="tc" id="tc">00.00 / 15.00</span>
+</div>
+<script>
+  // ?render=1 → headless capture mode (no clock, no UI). ?t=7.5 → hold a still at 7.5 s.
+  window.__params = new URLSearchParams(location.search);
+  if (__params.has('render')) document.body.classList.add('render');
+</script>
+<script>/*__BUNDLE__*/</script>
+<script>
+(function () {
+  const R = window.REVEAL, P = window.__params;
+  if (!R || P.has('render')) return;
+  const total = Math.round(R.DURATION * R.FPS);
+  const scrub = document.getElementById('scrub'), tc = document.getElementById('tc'), play = document.getElementById('play');
+  scrub.max = total;
+  let playing = !P.has('t'), t = P.has('t') ? parseFloat(P.get('t')) : 0, last = null;
+  function show() { const f = Math.round(t * R.FPS); R.renderFrame(f / R.FPS); scrub.value = f; tc.textContent = t.toFixed(2).padStart(5, '0') + ' / ' + R.DURATION.toFixed(2); }
+  function loop(now) {
+    if (playing) {
+      if (last !== null) t += (now - last) / 1000;
+      if (t >= R.DURATION) { t = R.DURATION; playing = false; play.textContent = 'PLAY'; }
+      show();
+    }
+    last = now; requestAnimationFrame(loop);
+  }
+  play.onclick = () => { if (t >= R.DURATION) t = 0; playing = !playing; play.textContent = playing ? 'PAUSE' : 'PLAY'; last = null; };
+  document.getElementById('replay').onclick = () => { t = 0; playing = true; play.textContent = 'PAUSE'; last = null; };
+  scrub.oninput = () => { playing = false; play.textContent = 'PLAY'; t = scrub.value / R.FPS; show(); };
+  addEventListener('keydown', (e) => {
+    if (e.code === 'Space') { e.preventDefault(); play.onclick(); }
+    if (e.code === 'ArrowRight' || e.code === 'ArrowLeft') { playing = false; play.textContent = 'PLAY'; t = Math.min(R.DURATION, Math.max(0, t + (e.code === 'ArrowRight' ? 1 : -1) / R.FPS)); show(); }
+  });
+  play.textContent = playing ? 'PAUSE' : 'PLAY';
+  show(); requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
