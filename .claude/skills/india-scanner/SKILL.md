@@ -61,8 +61,8 @@ symbol with `&` in the shell: `--symbols "M&M,RELIANCE"`.
 ## The universe
 
 `universe` reads NSE's list of listed equities, `EQUITY_L.csv`, from
-`https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv` (the
-legacy host `archives.nseindia.com` serves the same path: use `--url`). The
+`https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv` (NSE's
+older host `archives.nseindia.com` used the same path; `--url` takes any URL). The
 header is `SYMBOL,NAME OF COMPANY, SERIES, DATE OF LISTING, PAID UP VALUE,
 MARKET LOT, ISIN NUMBER, FACE VALUE`; the stray spaces are stripped. It
 keeps a row when its `SERIES` is in `allowed_series` (default EQ) and its
