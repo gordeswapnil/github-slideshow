@@ -1,0 +1,24 @@
+{
+  "created_by": "india-entry",
+  "symbol": "SYNTH",
+  "exchange": "NSE",
+  "setup": "orb",
+  "side": "buy",
+  "date": "2026-10-19",
+  "timezone": "IST",
+  "status": "triggered",
+  "time": "10:00",
+  "bar_start": "09:55",
+  "bar_index": 8,
+  "price": 364.18,
+  "level": 362.18,
+  "interval": "5m",
+  "opening_range": {
+    "high": 362.18,
+    "low": 354.47,
+    "minutes": 15
+  },
+  "source": "yahoo",
+  "checked_at": "2026-10-19T04:30:00Z",
+  "reason": "the 09:55 bar closed above the range high"
+}

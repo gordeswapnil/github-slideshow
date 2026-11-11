@@ -20,7 +20,7 @@ argument-hint: "[symbol] [price]"
 # india-alerts
 
 Price Alerts watches the numbers so the user does not have to stare at a
-chart. An alert is information, never an order: when a stop alert rings,
+chart. An alert is information, not an order: when a stop alert rings,
 nothing is sold by this skill. With a bracket the stop-loss and the target
 already sit at the broker (a Dhan Super Order, or separate orders at Angel
 One) and do the work; the alerts tell the user what happened and when it is
