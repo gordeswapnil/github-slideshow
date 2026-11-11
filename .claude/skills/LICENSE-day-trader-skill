@@ -1,5 +1,6 @@
 Source: https://github.com/Jakeschincariol/day-trader-skill (commit 3d0f4ef)
-Applies to the trader-* skill folders in this directory.
+Applies to the trader-* skill folders in this directory, and to the india-* folders,
+which are an adaptation of them for India's NSE (changes made in 2026).
 
 MIT License
 
