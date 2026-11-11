@@ -1,0 +1,49 @@
+{
+  "_fixture": "SYNTHETIC test data for india-insider in the shape of NSE's corporates-pit-gg answer. Not NSE data: every symbol, name, number and link is made up.",
+  "data": [
+    {
+      "symbol": "SYNTH",
+      "companyName": "Synth Industries Limited (synthetic)",
+      "broadcastDateTime": "11-Nov-2026 18:42:10",
+      "typeOfSubmission": "Original",
+      "revisionRemark": "-",
+      "appId": "9000101",
+      "prevAppId": "-",
+      "xmlFileName": "https://example.invalid/synthetic-pit/pit-9000101.xml",
+      "ixbrl": "https://example.invalid/synthetic-pit/pit-9000101.html"
+    },
+    {
+      "symbol": "SYN&Y",
+      "companyName": "Syn and Y Motors Limited (synthetic)",
+      "broadcastDateTime": "06-Nov-2026 10:15:00",
+      "typeOfSubmission": "Revision",
+      "revisionRemark": "Corrected number of shares",
+      "appId": "9000103",
+      "prevAppId": "9000099",
+      "xmlFileName": "https://example.invalid/synthetic-pit/pit-9000103.xml",
+      "ixbrl": "-"
+    },
+    {
+      "symbol": "SYN-X",
+      "companyName": "Syn-X Chemicals Limited (synthetic)",
+      "broadcastDateTime": "09-Nov-2026 21:05:00",
+      "typeOfSubmission": "Original",
+      "revisionRemark": "-",
+      "appId": "9000102",
+      "prevAppId": "-",
+      "xmlFileName": "https://example.invalid/synthetic-pit/pit-9000102.xml",
+      "ixbrl": "https://example.invalid/synthetic-pit/pit-9000102.html"
+    },
+    {
+      "symbol": "SYNTH",
+      "companyName": "Synth Industries Limited (synthetic)",
+      "broadcastDateTime": "02-Nov-2026 17:00:00",
+      "typeOfSubmission": "Original",
+      "revisionRemark": "-",
+      "appId": "9000090",
+      "prevAppId": "-",
+      "xmlFileName": "https://example.invalid/synthetic-pit/pit-9000090.xml",
+      "ixbrl": "-"
+    }
+  ]
+}

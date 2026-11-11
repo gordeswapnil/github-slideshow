@@ -1,0 +1,24 @@
+{
+  "created_by": "synthetic fixture for the india-broker tests (india-risk writes the real trader-india/state/risk.json)",
+  "date": "2026-10-19",
+  "now_india": "2026-10-19 09:55",
+  "paper": true,
+  "results": [
+    {
+      "index": 1,
+      "symbol": "SYNTH",
+      "side": "buy",
+      "kind": "entry",
+      "stop": 358.30,
+      "target": 370.00,
+      "max_loss": 908.78,
+      "fingerprint": "92feb92367c35e18",
+      "verdict": "PASS",
+      "reasons": [],
+      "warnings": []
+    }
+  ],
+  "pass": 1,
+  "block": 0,
+  "warnings": []
+}

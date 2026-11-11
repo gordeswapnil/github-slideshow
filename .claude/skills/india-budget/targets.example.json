@@ -1,0 +1,9 @@
+{
+  "source": "example weights for four synthetic symbols (not real NSE stocks, not a recommendation)",
+  "weights": [
+    {"symbol": "SYN-A", "name": "synthetic A", "weight": 40},
+    {"symbol": "SYN-B", "name": "synthetic B", "weight": 25},
+    {"symbol": "SYN-C", "name": "synthetic C", "weight": 20},
+    {"symbol": "SYN-D", "name": "synthetic D", "weight": 15}
+  ]
+}

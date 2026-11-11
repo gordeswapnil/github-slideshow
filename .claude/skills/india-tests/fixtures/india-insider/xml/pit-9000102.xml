@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SYNTHETIC test fixture for india-insider. Not NSE data. This one uses the
+     correctly spelled "PostAcquisition" names and another (fake) prefix. -->
+<x:xbrl xmlns:x="http://www.xbrl.org/2003/instance" xmlns:pit="http://example.invalid/synthetic-pit-2">
+  <x:context id="MainI"><x:entity><x:identifier scheme="http://example.invalid/synthetic">SYN-X</x:identifier></x:entity></x:context>
+  <x:context id="Disclosure1"><x:entity><x:identifier scheme="http://example.invalid/synthetic">SYN-X</x:identifier></x:entity></x:context>
+  <x:context id="Disclosure2"><x:entity><x:identifier scheme="http://example.invalid/synthetic">SYN-X</x:identifier></x:entity></x:context>
+  <pit:NameOfTheCompany contextRef="MainI">Syn-X Chemicals Limited (synthetic)</pit:NameOfTheCompany>
+
+  <pit:NameOfThePerson contextRef="Disclosure1">SYNTH HOLDINGS PRIVATE LIMITED (FAKE)</pit:NameOfThePerson>
+  <pit:CategoryOfPerson contextRef="Disclosure1">Promoter</pit:CategoryOfPerson>
+  <pit:SecuritiesHeldPriorToAcquisitionOrDisposalNumberOfSecurity contextRef="Disclosure1" unitRef="shares" decimals="0">5000000</pit:SecuritiesHeldPriorToAcquisitionOrDisposalNumberOfSecurity>
+  <pit:SecuritiesAcquiredOrDisposedNumberOfSecurity contextRef="Disclosure1" unitRef="shares" decimals="0">200000</pit:SecuritiesAcquiredOrDisposedNumberOfSecurity>
+  <pit:SecuritiesAcquiredOrDisposedValueOfSecurity contextRef="Disclosure1" unitRef="INR" decimals="2">30000000</pit:SecuritiesAcquiredOrDisposedValueOfSecurity>
+  <pit:SecuritiesAcquiredOrDisposedTransactionType contextRef="Disclosure1">Pledge Created</pit:SecuritiesAcquiredOrDisposedTransactionType>
+  <pit:SecuritiesHeldPostAcquisitionOrDisposalNumberOfSecurity contextRef="Disclosure1" unitRef="shares" decimals="0">5000000</pit:SecuritiesHeldPostAcquisitionOrDisposalNumberOfSecurity>
+  <pit:DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyFromDate contextRef="Disclosure1">2026-10-26</pit:DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyFromDate>
+  <pit:ModeOfAcquisitionOrDisposal contextRef="Disclosure1">Pledge</pit:ModeOfAcquisitionOrDisposal>
+
+  <pit:NameOfThePerson contextRef="Disclosure2">SYNTH FAMILY MEMBER (FAKE)</pit:NameOfThePerson>
+  <pit:CategoryOfPerson contextRef="Disclosure2">Promoter Group</pit:CategoryOfPerson>
+  <pit:SecuritiesHeldPriorToAcquisitionOrDisposalNumberOfSecurity contextRef="Disclosure2" unitRef="shares" decimals="0">300000</pit:SecuritiesHeldPriorToAcquisitionOrDisposalNumberOfSecurity>
+  <pit:SecuritiesAcquiredOrDisposedNumberOfSecurity contextRef="Disclosure2" unitRef="shares" decimals="0">25000</pit:SecuritiesAcquiredOrDisposedNumberOfSecurity>
+  <pit:SecuritiesAcquiredOrDisposedValueOfSecurity contextRef="Disclosure2" unitRef="INR" decimals="2">3750000</pit:SecuritiesAcquiredOrDisposedValueOfSecurity>
+  <pit:SecuritiesAcquiredOrDisposedTransactionType contextRef="Disclosure2">Sell</pit:SecuritiesAcquiredOrDisposedTransactionType>
+  <pit:SecuritiesHeldPostAcquisitionOrDisposalNumberOfSecurity contextRef="Disclosure2" unitRef="shares" decimals="0">275000</pit:SecuritiesHeldPostAcquisitionOrDisposalNumberOfSecurity>
+  <pit:DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyFromDate contextRef="Disclosure2">2026-11-05</pit:DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyFromDate>
+  <pit:ModeOfAcquisitionOrDisposal contextRef="Disclosure2">Market Sale</pit:ModeOfAcquisitionOrDisposal>
+</x:xbrl>

@@ -1,0 +1,8 @@
+[
+  {"token": "88880001", "symbol": "SYNTH-EQ", "name": "SYNTH", "exch_seg": "NSE"},
+  {"token": "88880002", "symbol": "SYNTH", "name": "SYNTH", "exch_seg": "BSE"},
+  {"token": "88880003", "symbol": "SYNTH-BE", "name": "SYNTH", "exch_seg": "NSE"},
+  {"token": "88880004", "symbol": "SYN-X-EQ", "name": "SYN-X", "exch_seg": "NSE"},
+  {"token": "88880005", "symbol": "SYN&M-EQ", "name": "SYN&M", "exch_seg": "NSE"},
+  {"token": "88880006", "symbol": "SYNTH26NOVFUT", "name": "SYNTH", "exch_seg": "NFO"}
+]

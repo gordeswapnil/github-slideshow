@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SYNTHETIC test fixture for india-insider. Not NSE data: names, numbers and
+     the namespace are made up. Facts are flat and grouped by contextRef, the
+     layout a community parser describes for NSE's PIT XBRL. -->
+<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:syn="http://example.invalid/synthetic-pit">
+  <xbrli:context id="MainI">
+    <xbrli:entity><xbrli:identifier scheme="http://example.invalid/synthetic">SYNTH</xbrli:identifier></xbrli:entity>
+    <xbrli:period><xbrli:instant>2026-11-11</xbrli:instant></xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="Disclosure1">
+    <xbrli:entity><xbrli:identifier scheme="http://example.invalid/synthetic">SYNTH</xbrli:identifier></xbrli:entity>
+    <xbrli:period><xbrli:instant>2026-11-11</xbrli:instant></xbrli:period>
+  </xbrli:context>
+  <xbrli:context id="Disclosure2">
+    <xbrli:entity><xbrli:identifier scheme="http://example.invalid/synthetic">SYNTH</xbrli:identifier></xbrli:entity>
+    <xbrli:period><xbrli:instant>2026-11-11</xbrli:instant></xbrli:period>
+  </xbrli:context>
+  <xbrli:unit id="shares"><xbrli:measure>xbrli:shares</xbrli:measure></xbrli:unit>
+  <xbrli:unit id="INR"><xbrli:measure>iso4217:INR</xbrli:measure></xbrli:unit>
+  <xbrli:unit id="pure"><xbrli:measure>xbrli:pure</xbrli:measure></xbrli:unit>
+
+  <syn:NameOfTheCompany contextRef="MainI">Synth Industries Limited (synthetic)</syn:NameOfTheCompany>
+  <syn:Symbol contextRef="MainI">SYNTH</syn:Symbol>
+
+  <syn:NameOfThePerson contextRef="Disclosure1">SYNTH PROMOTER TRUST</syn:NameOfThePerson>
+  <syn:CategoryOfPerson contextRef="Disclosure1">Promoter Group</syn:CategoryOfPerson>
+  <syn:SecuritiesHeldPriorToAcquisitionOrDisposalNumberOfSecurity contextRef="Disclosure1" unitRef="shares" decimals="0">12000000</syn:SecuritiesHeldPriorToAcquisitionOrDisposalNumberOfSecurity>
+  <syn:SecuritiesHeldPriorToAcquisitionOrDisposalPercentageOfShareholding contextRef="Disclosure1" unitRef="pure" decimals="2">12.00</syn:SecuritiesHeldPriorToAcquisitionOrDisposalPercentageOfShareholding>
+  <syn:SecuritiesAcquiredOrDisposedNumberOfSecurity contextRef="Disclosure1" unitRef="shares" decimals="0">50000</syn:SecuritiesAcquiredOrDisposedNumberOfSecurity>
+  <syn:SecuritiesAcquiredOrDisposedValueOfSecurity contextRef="Disclosure1" unitRef="INR" decimals="2">41307500</syn:SecuritiesAcquiredOrDisposedValueOfSecurity>
+  <syn:SecuritiesAcquiredOrDisposedTransactionType contextRef="Disclosure1">Buy</syn:SecuritiesAcquiredOrDisposedTransactionType>
+  <syn:SecuritiesAcquiredOrDisposedPercentageOfShareholding contextRef="Disclosure1" unitRef="pure" decimals="2">0.05</syn:SecuritiesAcquiredOrDisposedPercentageOfShareholding>
+  <syn:SecuritiesHeldPostAcquistionOrDisposalNumberOfSecurity contextRef="Disclosure1" unitRef="shares" decimals="0">12050000</syn:SecuritiesHeldPostAcquistionOrDisposalNumberOfSecurity>
+  <syn:SecuritiesHeldPostAcquistionOrDisposalPercentageOfShareholding contextRef="Disclosure1" unitRef="pure" decimals="2">12.05</syn:SecuritiesHeldPostAcquistionOrDisposalPercentageOfShareholding>
+  <syn:DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyFromDate contextRef="Disclosure1">2026-11-06</syn:DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyFromDate>
+  <syn:DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyToDate contextRef="Disclosure1">2026-11-06</syn:DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyToDate>
+  <syn:DateOfIntimationToCompany contextRef="Disclosure1">2026-11-09</syn:DateOfIntimationToCompany>
+  <syn:ModeOfAcquisitionOrDisposal contextRef="Disclosure1">Market Purchase</syn:ModeOfAcquisitionOrDisposal>
+  <syn:ExchangeOnWhichTheTradeWasExecuted contextRef="Disclosure1">NSE</syn:ExchangeOnWhichTheTradeWasExecuted>
+
+  <syn:NameOfThePerson contextRef="Disclosure2">SYNTH DIRECTOR ONE (FAKE)</syn:NameOfThePerson>
+  <syn:CategoryOfPerson contextRef="Disclosure2">Director</syn:CategoryOfPerson>
+  <syn:SecuritiesHeldPriorToAcquisitionOrDisposalNumberOfSecurity contextRef="Disclosure2" unitRef="shares" decimals="0">0</syn:SecuritiesHeldPriorToAcquisitionOrDisposalNumberOfSecurity>
+  <syn:SecuritiesAcquiredOrDisposedNumberOfSecurity contextRef="Disclosure2" unitRef="shares" decimals="0">10000</syn:SecuritiesAcquiredOrDisposedNumberOfSecurity>
+  <syn:SecuritiesAcquiredOrDisposedValueOfSecurity contextRef="Disclosure2" unitRef="INR" decimals="2">1000000</syn:SecuritiesAcquiredOrDisposedValueOfSecurity>
+  <syn:SecuritiesAcquiredOrDisposedTransactionType contextRef="Disclosure2">Buy</syn:SecuritiesAcquiredOrDisposedTransactionType>
+  <syn:SecuritiesHeldPostAcquistionOrDisposalNumberOfSecurity contextRef="Disclosure2" unitRef="shares" decimals="0">10000</syn:SecuritiesHeldPostAcquistionOrDisposalNumberOfSecurity>
+  <syn:DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyFromDate contextRef="Disclosure2">2026-11-04</syn:DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyFromDate>
+  <syn:ModeOfAcquisitionOrDisposal contextRef="Disclosure2">ESOP</syn:ModeOfAcquisitionOrDisposal>
+</xbrli:xbrl>

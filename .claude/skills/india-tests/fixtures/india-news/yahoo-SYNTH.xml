@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<rss version="2.0">
+    <channel>
+        <copyright>Synthetic test feed for the india-news tests. Not Yahoo data.</copyright>
+        <description>Latest Financial News for SYNTH.NS</description>
+        <image>
+            <height>45</height>
+            <link>http://finance.yahoo.com/q/h?s=SYNTH.NS</link>
+            <title>Yahoo! Finance: SYNTH.NS News</title>
+            <url>https://example.invalid/logo.png</url>
+            <width>144</width>
+        </image>
+        <item>
+            <description>A synthetic preview of the quarter for the tests.</description>
+            <guid isPermaLink="false">synthetic-0006</guid>
+            <link>https://finance.yahoo.com/news/synthetic-test-0006.html</link>
+            <pubDate>Mon, 19 Oct 2026 05:30:00 +0000</pubDate>
+            <title>SYNTH Industries Q2 preview: what to expect</title>
+        </item>
+        <item>
+            <description>Shares of SYNTH Industries (SYNTH) rose in early trade after the company said its credit rating was revised.</description>
+            <guid isPermaLink="false">synthetic-0001</guid>
+            <link>https://finance.yahoo.com/news/synthetic-test-0001.html</link>
+            <pubDate>Mon, 19 Oct 2026 04:02:00 +0000</pubDate>
+            <title>SYNTH Industries shares rise in early trade after credit rating revision</title>
+        </item>
+        <item>
+            <description>A synthetic brokerage note for the tests.</description>
+            <guid isPermaLink="false">synthetic-0002</guid>
+            <link>https://finance.yahoo.com/news/synthetic-test-0002.html</link>
+            <pubDate>Mon, 19 Oct 2026 02:45:00 +0000</pubDate>
+            <title>Brokerage upgrades SYNTH Industries, raises target price ahead of Q2 results</title>
+        </item>
+        <item>
+            <description>Stocks to watch include SYNTH Industries (SYNTH) and SYN-AUTO Motors (SYN-AUTO).</description>
+            <guid isPermaLink="false">synthetic-0003</guid>
+            <link>https://finance.yahoo.com/news/synthetic-test-0003.html</link>
+            <pubDate>Mon, 19 Oct 2026 01:50:00 +0000</pubDate>
+            <title>Sensex, Nifty set for a firm start as FIIs return; GIFT Nifty up 0.4%</title>
+        </item>
+        <item>
+            <description>A synthetic deal story for the tests.</description>
+            <guid isPermaLink="false">synthetic-0004</guid>
+            <link>https://finance.yahoo.com/news/synthetic-test-0004.html</link>
+            <pubDate>Sat, 17 Oct 2026 14:00:00 +0000</pubDate>
+            <title>SYNTH Industries to buy majority stake in synthetic subsidiary</title>
+        </item>
+        <item>
+            <description>An older synthetic story for the tests.</description>
+            <guid isPermaLink="false">synthetic-0005</guid>
+            <link>https://finance.yahoo.com/news/synthetic-test-0005.html</link>
+            <pubDate>Thu, 15 Oct 2026 15:00:00 +0000</pubDate>
+            <title>SYNTH Industries names interim CFO</title>
+        </item>
+    </channel>
+</rss>

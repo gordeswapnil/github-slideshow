@@ -1,0 +1,10 @@
+{
+  "_example": "Synthetic example: SYNTH is a made-up symbol on re-timed US bars, not NSE data. Times are 24-hour India time (IST).",
+  "rules": [
+    {"id": "opening-bell", "type": "opening_bell"},
+    {"id": "synth-plan-stop", "symbol": "SYNTH", "type": "stop", "price": 358.3, "note": "plan stop: opening-range midpoint", "date": "2026-10-19"},
+    {"id": "synth-plan-target", "symbol": "SYNTH", "type": "target", "price": 370.05, "note": "plan target: 1R (one times the risk)", "date": "2026-10-19"},
+    {"id": "synth-flat-by", "symbol": "SYNTH", "type": "time", "at": "15:00", "label": "flat by", "date": "2026-10-19"},
+    {"id": "synth-move-3", "symbol": "SYNTH", "type": "pct_move", "pct": 3}
+  ]
+}

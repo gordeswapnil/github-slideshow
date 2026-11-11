@@ -1,0 +1,1 @@
+{"chart":{"result":null,"error":{"code":"Not Found","description":"No data found, symbol may be delisted"}},"_provenance":"SYNTHETIC: real US Yahoo bars (Oct 2026) re-timed onto the NSE session and renamed by india-tests/fixtures/retime.py. Not NSE data."}

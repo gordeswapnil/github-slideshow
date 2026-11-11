@@ -1,0 +1,7 @@
+{
+  "note": "Synthetic fixture: 137 SYNTH bought at 364.55 on 2026-10-19 (paper), charges 21.05 off the cash.",
+  "cash": 50035.6,
+  "positions": [
+    {"ticker": "SYNTH", "shares": 137, "lots": [{"id": "SYNTH-1", "date": "2026-10-19", "shares": 137, "cost": 49943.35}]}
+  ]
+}

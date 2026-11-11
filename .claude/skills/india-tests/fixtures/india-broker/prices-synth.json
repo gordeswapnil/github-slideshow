@@ -1,0 +1,7 @@
+{
+  "as_of": "2026-10-19T09:25:00Z",
+  "source": "synthetic fixture (not NSE data)",
+  "note": "Delayed quotes for alerts and sizing checks. Your broker's price is the one that fills.",
+  "prices": {"SYNTH": 366.10},
+  "detail": {"SYNTH": {"fetched": "2026-10-19T09:25:00Z"}}
+}

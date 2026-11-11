@@ -1,0 +1,14 @@
+{
+  "created_by": "india-exit (synthetic fixture)",
+  "symbol": "SYNTH",
+  "exchange": "NSE",
+  "timezone": "IST",
+  "side": "buy",
+  "date": "2026-10-19",
+  "setup": "orb",
+  "entry": 364.18,
+  "entry_time": "09:55",
+  "stop": 358.30,
+  "target": 370.00,
+  "flat_by": "15:00"
+}
