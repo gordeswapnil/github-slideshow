@@ -371,7 +371,7 @@ DEALS_NOTE = ("Bulk and block deals are public, published by NSE after the trade
               "information.")
 UNCONFIRMED_NOTE = ("Person, category, mode, to-date, intimation date and exchange are read from "
                     "XML element names not confirmed against a real NSE file: check them in the "
-                    "filing (links above), or run `insider.py xml FILE --raw` to see every field.")
+                    "filing itself, or run `insider.py xml FILE --raw` to see every field.")
 
 
 class InsiderError(Exception):
@@ -1051,10 +1051,11 @@ def parse_deals_bytes(data, kind=None, name=""):
         except ValueError as exc:
             raise InsiderError("%s is not valid JSON: %s" % (name or "the deals file", exc))
         kind = kind or kind_from_name(name)
-        if kind is None:
+        rows = deals_from_doc(doc, kind or "?")
+        if kind is None and rows:
             raise InsiderError("%s does not say bulk or block: add --kind bulk or --kind block "
                                "(watch: --file bulk=PATH)" % (name or "the JSON"))
-        return deals_from_doc(doc, kind)
+        return rows
     if head == "<":
         raise InsiderError("%s is a web page, not the deals CSV or JSON" % (name or "the answer"))
     return deals_from_csv(text, kind or kind_from_name(name))[0]
