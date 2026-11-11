@@ -1,0 +1,40 @@
+{
+  "note": "A synthetic example: SYNTH and SYN-AUTO are the made-up companies in the india-analyst test fixtures, run offline. Not NSE data. Figures are as NSE shows them (usually rupees in lakh).",
+  "as_of": "2026-11-11",
+  "companies": [
+    {
+      "symbol": "SYN-AUTO",
+      "name": "SYN-AUTO Motors Limited (synthetic test data)",
+      "basis": "consolidated",
+      "period_end": "2026-06-30",
+      "quarter": "Q1 FY27",
+      "units": "as NSE shows them (usually ₹ lakh; check the filing)",
+      "net_sales_ttm": 84141.3,
+      "total_income_ttm": 85061.75,
+      "net_profit_ttm": 3366.75,
+      "eps_ttm": null,
+      "net_sales_growth_yoy": 18.4,
+      "net_profit_growth_yoy": null,
+      "eps_growth_yoy": null,
+      "net_margin": 6.8,
+      "source": "NSE results comparison"
+    },
+    {
+      "symbol": "SYNTH",
+      "name": "SYNTH Industries Limited (synthetic test data)",
+      "basis": "standalone",
+      "period_end": "2026-09-30",
+      "quarter": "Q2 FY27",
+      "units": "as NSE shows them (usually ₹ lakh; check the filing)",
+      "net_sales_ttm": 233340.0,
+      "total_income_ttm": 236940.0,
+      "net_profit_ttm": 19370.0,
+      "eps_ttm": 38.74,
+      "net_sales_growth_yoy": 16.2,
+      "net_profit_growth_yoy": 19.8,
+      "eps_growth_yoy": 19.8,
+      "net_margin": 8.2,
+      "source": "NSE results comparison"
+    }
+  ]
+}
