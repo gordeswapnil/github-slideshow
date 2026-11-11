@@ -166,19 +166,19 @@ checks; india-broker shows). Broker-neutral, JSON numbers (not strings):
       "symbol": "SYNTH",
       "exchange": "NSE",
       "side": "buy",
-      "qty": 160,
+      "qty": 137,
       "order_type": "LIMIT",
       "price": 364.55,
       "trigger_price": null,
       "product": "INTRADAY",
       "validity": "DAY",
       "stop_loss": 358.30,
-      "target": 370.00,
+      "target": 375.90,
       "bracket": true,
-      "why": "opening-range breakout on SYNTH: 160 shares, bound by your ₹1,000 max loss per trade",
-      "plan": {"entry": 364.18, "stop": 358.30, "target": 370.00, "risk_per_share": 5.88,
-               "costs_at_stop": 37.9, "max_loss": 978.7, "setup": "orb",
-               "entry_time": "09:55", "flat_by": "15:00"}
+      "why": "opening-range breakout on SYNTH: 137 shares, bound by your 50% position cap",
+      "plan": {"entry": 364.18, "stop": 358.30, "target": 375.90, "risk_per_share": 5.88,
+               "costs_at_stop": 52.53, "max_loss": 908.78, "setup": "orb",
+               "entry_time": "10:00", "flat_by": "15:00"}
     }
   ]
 }
@@ -190,6 +190,10 @@ checks; india-broker shows). Broker-neutral, JSON numbers (not strings):
   market orders into limits with price protection anyway. MARKET is allowed in the file but
   india-risk warns on it.
 - Risk is measured from `price` (the worst fill the limit allows) when it is above the plan entry.
+  Worked example (synthetic SYNTH, 2R target, example config): limit 364.55, stop 358.30 -> 6.25 a
+  share. The max loss alone allows 150 (150 x 6.25 + 57.52 charges = 995.02), but the 50% position cap
+  (₹50,000) allows 137 (137 x 364.55 = 49,943.35): 137 x 6.25 = 856.25 + 52.53 charges = 908.78. `entry_time` is the trigger bar's
+  close in India time.
 - `bracket` true means: stop-loss and target are to be placed with the entry. Dhan: one
   Super Order. Angel One: ROBO orders are not confirmed for equities, so only a separate
   STOPLOSS_LIMIT sell goes in after the entry fills (limit `stop_limit_ticks` ticks below the

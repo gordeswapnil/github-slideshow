@@ -241,8 +241,8 @@ class IndiaRules(unittest.TestCase):
         self.assertEqual(verdicts(run_check([synth()], cfg(allowed_series=["EQ", "BE"]), series={"SYNTH": "BE"})),
                          ["PASS"])
         self.assertEqual(verdicts(run_check([synth(series="BZ")], series={})), ["BLOCK"])
-        self.assertEqual(check.series_map(json.load(open(WATCH_PATH))),
-                         {"SYNTH": "EQ", "SYN-BE": "BE", "SYN-A": "EQ"})
+        with open(WATCH_PATH) as fh:
+            self.assertEqual(check.series_map(json.load(fh)), {"SYNTH": "EQ", "SYN-BE": "BE", "SYN-A": "EQ"})
 
     def test_prices_off_the_tick_grid(self):
         for field, value, tick in (("price", 364.58, "0.05"), ("stop_loss", 358.32, "0.05"),
@@ -253,7 +253,7 @@ class IndiaRules(unittest.TestCase):
         o = synth(order_type="SL", trigger_price=364.52)
         self.assertIn("tick: trigger_price 364.52", reasons(run_check([o])))
         self.assertEqual(verdicts(run_check([synth(order_type="SL", trigger_price=364.50)])), ["PASS"])
-        self.assertEqual(verdicts(run_check([order("SYNTH", 2, 249.99, plan={})], v1(), series=EQ,
+        self.assertEqual(verdicts(run_check([order("SYNTH", 3, 249.99, plan={})], v1(), series=EQ,
                                             now=None, today=V1_TODAY, prices={})), ["PASS"])
 
     def test_a_market_order_warns(self):
@@ -268,10 +268,11 @@ class IndiaRules(unittest.TestCase):
         trades = [placed("SYN-%d" % i, day=d) for i, d in enumerate(("2026-10-13", "2026-10-14", "2026-10-15"))]
         trades += [placed("SYN-%d" % i, side="sell", day=d, kind="exit", status="filled", max_loss=None)
                    for i, d in enumerate(("2026-10-13", "2026-10-14", "2026-10-15"))]
+        # an old US config key for the PDT guard is ignored: three round trips in five days still pass
         res = run_check([synth()], cfg(pdt_guard=True), state={"orders": trades})
-        self.assertEqual(verdicts(res), ["PASS"])
-        self.assertIn("India has no pattern-day-trader rule", " ".join(res["warnings"]))
+        self.assertEqual((verdicts(res), res["warnings"]), (["PASS"], []))
         self.assertFalse(hasattr(check, "day_trades"))
+        self.assertNotIn("day_trades_5d", res["today"])
 
     def test_a_fresh_higher_price_is_the_risk_price(self):
         res = run_check([synth()], prices={"SYNTH": 366.50}, now="2026-10-19 10:40",
@@ -520,7 +521,8 @@ class V1Checks(unittest.TestCase):
         r = check.check([order("SYN-A", 10, 1235.80)], v1(cash_buffer_pct=0, max_position_pct=100), portfolio=pf,
                         today=V1_TODAY, holidays_path=NO_HOLIDAYS)["results"][0]
         self.assertIn("that would be margin", " ".join(r["reasons"]))
-        r = check.check([order("SYN-A", 10, 1235.80)], v1(cash_buffer_pct=0, max_position_pct=100, allow_margin=True),
+        # with leverage the position is bigger than the account itself, so the cap has to allow it too
+        r = check.check([order("SYN-A", 10, 1235.80)], v1(cash_buffer_pct=0, max_position_pct=200, allow_margin=True),
                         portfolio=pf, today=V1_TODAY, holidays_path=NO_HOLIDAYS)["results"][0]
         self.assertEqual(r["verdict"], "PASS")
         self.assertIn("borrowed from the broker", " ".join(r["warnings"]))

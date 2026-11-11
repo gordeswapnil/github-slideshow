@@ -303,9 +303,10 @@ def intraday_costs(qty, buy_price, sell_price, brokerage_flat=20, brokerage_pct=
     hundred = D(100)
 
     def brok(value):
-        pct = value * D(brokerage_pct) / hundred
         flat = D(brokerage_flat)
-        return min(flat, pct) if brokerage_pct is not None else flat
+        if brokerage_pct is None:
+            return flat
+        return min(flat, value * D(brokerage_pct) / hundred)
 
     brokerage = brok(buy) + brok(sell)
     stt = sell * D(r["stt_sell_pct"]) / hundred
@@ -352,7 +353,8 @@ NSE_PAUSE = 1.0      # seconds between NSE requests, at least
 # India-specific categories, read from the NSE subject (desc) and text
 # (attchmntText), or a headline's title and summary. Order is the print order.
 CATEGORIES = [
-    ("results", r"financial results?|(?<!voting )\bresults?\b|\bearnings\b|net profit|revenue from operations"),
+    ("results", r"financial results?|(?<!voting )\bresults?\b|\bearnings\b|net profit|revenue from operations|"
+                r"\bQ[1-4](?:\s?FY\s?'?\d{2,4})?\s+(?:preview|numbers|earnings|update)"),
     ("board meeting", r"board meeting|meeting of the board|outcome of (?:the )?board|board of directors (?:will|shall) meet"),
     ("corporate action", r"\bdividend|\bbonus\b|stock split|\bsplit\b|sub-?division|\bbuy-?back\b|record date|\bex-date\b"),
     ("fund raising", r"\bQIP\b|qualified institutions? placement|rights issue|rights entitlement|"
@@ -894,6 +896,8 @@ def results_risk(items, watch, now):
                 when = "the next trading day"
             else:
                 when = "%d trading days away" % n
+            if not calendar_known(d):
+                when += " (NSE holidays for %d are not built in, so the count may be off)" % d.year
             out.append({"symbol": sym, "level": "soon", "date": d.isoformat(), "id": it["id"],
                         "message": "RESULTS SOON   %s: the board meets on results on %s (%s), %s. Anything "
                                    "held overnight is exposed to it; a day trade closed today is not. (%s)" % (
@@ -908,7 +912,7 @@ def results_risk(items, watch, now):
 
 # ---------------------------------------------------------------- the check
 
-def collect(fetcher, watch, now, nse=True, yahoo=True, files=None, errors=None, info=None):
+def collect(fetcher, watch, now, nse=True, yahoo=True, files=None, errors=None, info=None, hours=48):
     errors = [] if errors is None else errors
     info = [] if info is None else info
     items = []
@@ -919,7 +923,7 @@ def collect(fetcher, watch, now, nse=True, yahoo=True, files=None, errors=None, 
                 items += parse_announcements(records, sym)
         else:
             today = to_ist(now).date()
-            start = today - _dt.timedelta(days=LOOKBACK_DAYS)
+            start = today - _dt.timedelta(days=max(LOOKBACK_DAYS, int(hours // 24) + 1))
             blocked, skipped = False, []
             for sym in sorted(watch):
                 if blocked:
@@ -1120,7 +1124,7 @@ def main(argv=None):
     fetcher = Fetcher(offline=args.offline)
     try:
         items = collect(fetcher, watch, now, nse=not args.no_nse, yahoo=not args.no_yahoo,
-                        files=args.file, errors=errors, info=info)
+                        files=args.file, errors=errors, info=info, hours=args.hours)
     except NewsError as exc:
         print("news: %s" % exc, file=sys.stderr)
         return 2

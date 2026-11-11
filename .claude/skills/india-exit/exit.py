@@ -303,9 +303,10 @@ def intraday_costs(qty, buy_price, sell_price, brokerage_flat=20, brokerage_pct=
     hundred = D(100)
 
     def brok(value):
-        pct = value * D(brokerage_pct) / hundred
         flat = D(brokerage_flat)
-        return min(flat, pct) if brokerage_pct is not None else flat
+        if brokerage_pct is None:
+            return flat
+        return min(flat, value * D(brokerage_pct) / hundred)
 
     brokerage = brok(buy) + brok(sell)
     stt = sell * D(r["stt_sell_pct"]) / hundred
@@ -343,7 +344,7 @@ ATR_BARS = 14
 MIN_RISK_TICKS = 4                 # a liquid NSE stock usually quotes 1 or 2 ticks wide
 MIN_RISK_PCT = Decimal("0.05")     # and never under 0.05% of the price (the US pack's floor)
 SQUARE_OFF = datetime.time(15, 10)  # Angel One and Dhan auto square-off of MIS positions (from 2026-08-03)
-CENT = Decimal("0.01")
+PAISA = Decimal("0.01")
 EPOCH = datetime.datetime(1970, 1, 1)
 ENTRY_FILE = os.path.join(DATA_DIR, "entry.json")
 PLAN_FILE = os.path.join(DATA_DIR, "plan.json")
@@ -420,12 +421,12 @@ def D(x, what="a number"):
 
 def paise(x):
     """Round half up to the paisa (0.01): the entry and the opening range as given."""
-    return D(x).quantize(CENT, rounding=ROUND_HALF_UP)
+    return D(x).quantize(PAISA, rounding=ROUND_HALF_UP)
 
 
 def down(x):
     """A long's stop or target: round DOWN to the NSE tick (core tick_down)."""
-    return D(tick_down(D(x))).quantize(CENT)
+    return D(tick_down(D(x))).quantize(PAISA)
 
 
 def money(x):
@@ -550,7 +551,7 @@ def compute(entry, stop_rule, stop_param, target_rule, target_param, or_high=Non
     if risk < floor:
         raise PlanError("the stop is %s under the entry, less than %s (the larger of %d ticks of %s and 0.05%% of %s): "
                         "too tight to survive the spread, normal wiggle would stop you out. Widen it."
-                        % (money(risk), money(floor.quantize(CENT, rounding=ROUND_CEILING)), MIN_RISK_TICKS,
+                        % (money(risk), money(floor.quantize(PAISA, rounding=ROUND_CEILING)), MIN_RISK_TICKS,
                            money(tick_size(e)), money(e)))
     if target_rule == "r":
         raw_t = e + target_param * risk
@@ -565,7 +566,7 @@ def compute(entry, stop_rule, stop_param, target_rule, target_param, or_high=Non
     if target <= e:
         raise PlanError("the target %s%s is at or below the entry %s: a long's target goes above it"
                         % (money(target), (" (%s)" % t_detail) if t_detail else "", money(e)))
-    rr = ((target - e) / risk).quantize(CENT, rounding=ROUND_HALF_UP)
+    rr = ((target - e) / risk).quantize(PAISA, rounding=ROUND_HALF_UP)
     if t_label is None:
         t_label = "your price (%sR)" % ratio(rr)
     return {"entry": e, "stop": stop, "stop_label": label, "stop_detail": detail, "target": target,
@@ -640,10 +641,11 @@ def load_chart(sym, interval, day, offline=None):
     if offline:
         path = offline
         if os.path.isdir(offline):
-            for name in (sym + ".json", sym + ".json.gz", sym + ".NS.json", sym + ".NS.json.gz"):
-                path = os.path.join(offline, name)
-                if os.path.exists(path):
-                    break
+            names = [os.path.join(offline, n) for n in (sym + ".json", sym + ".json.gz", sym + ".NS.json",
+                                                        sym + ".NS.json.gz")]
+            path = next((p for p in names if os.path.exists(p)), None)
+            if path is None:
+                raise PlanError("no offline file for %s in %s (want %s.json)" % (sym, offline, sym))
         if not os.path.exists(path):
             raise PlanError("no offline file %s" % path)
         try:
@@ -885,7 +887,7 @@ def describe(plan):
     setup = {"orb": "opening-range breakout", "level": "close above a level"}.get(plan["setup"], plan["setup"])
     e = D(plan["entry"])
     risk = D(plan["risk_per_share"])
-    pct = (risk / e * 100).quantize(CENT, rounding=ROUND_HALF_UP)
+    pct = (risk / e * 100).quantize(PAISA, rounding=ROUND_HALF_UP)
     when = ""
     if plan.get("entry_time"):
         when = " at %s IST" % plan["entry_time"]

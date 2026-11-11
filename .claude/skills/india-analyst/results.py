@@ -301,9 +301,10 @@ def intraday_costs(qty, buy_price, sell_price, brokerage_flat=20, brokerage_pct=
     hundred = D(100)
 
     def brok(value):
-        pct = value * D(brokerage_pct) / hundred
         flat = D(brokerage_flat)
-        return min(flat, pct) if brokerage_pct is not None else flat
+        if brokerage_pct is None:
+            return flat
+        return min(flat, value * D(brokerage_pct) / hundred)
 
     brokerage = brok(buy) + brok(sell)
     stt = sell * D(r["stt_sell_pct"]) / hundred
@@ -694,6 +695,8 @@ def analyse_all(doc, filings=None, quarters=6, basis=None):
         res = analyse(groups[b], quarters, b, len(other), used, banking)
         res["basis_source"] = how if b else None
         res["filings"] = filings_summary(flist, res)
+        if res["filings"] and res["filings"]["calendar_note"]:
+            res["notes"].append(res["filings"]["calendar_note"] + ".")
         res["changes"] = changes(res)
         out.append(res)
     return out
@@ -744,8 +747,14 @@ def filings_summary(flist, res):
                      latest_end, (f["basis"] + " ") if f["basis"] else "", f["end"].isoformat(),
                      f["broadcast"].strftime("%Y-%m-%d %H:%M") if f["broadcast"] else "(time unknown)",
                      release_timing(f["broadcast"]) or "time unknown", f["xbrl"] or NSE_RESULTS_PAGE))
+    unknown = sorted({f["broadcast"].year for f in quarterly
+                      if f["broadcast"] and not calendar_known(f["broadcast"].date())})
+    calendar = None
+    if unknown:
+        calendar = ("NSE holidays for %s are not built in: release times on those dates assume a normal "
+                    "trading day (add the dates to %s)" % (", ".join(str(y) for y in unknown), HOLIDAYS_FILE))
     return {"latest": [show(f) for f in newest], "history": history, "stale": stale,
-            "company": next((f["company"] for f in flist if f["company"]), None)}
+            "calendar_note": calendar, "company": next((f["company"] for f in flist if f["company"]), None)}
 
 
 # ---------------------------------------------------------------- words

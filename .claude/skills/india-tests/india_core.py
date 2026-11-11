@@ -247,9 +247,10 @@ def intraday_costs(qty, buy_price, sell_price, brokerage_flat=20, brokerage_pct=
     hundred = D(100)
 
     def brok(value):
-        pct = value * D(brokerage_pct) / hundred
         flat = D(brokerage_flat)
-        return min(flat, pct) if brokerage_pct is not None else flat
+        if brokerage_pct is None:
+            return flat
+        return min(flat, value * D(brokerage_pct) / hundred)
 
     brokerage = brok(buy) + brok(sell)
     stt = sell * D(r["stt_sell_pct"]) / hundred

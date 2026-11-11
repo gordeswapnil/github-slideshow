@@ -318,9 +318,10 @@ def intraday_costs(qty, buy_price, sell_price, brokerage_flat=20, brokerage_pct=
     hundred = D(100)
 
     def brok(value):
-        pct = value * D(brokerage_pct) / hundred
         flat = D(brokerage_flat)
-        return min(flat, pct) if brokerage_pct is not None else flat
+        if brokerage_pct is None:
+            return flat
+        return min(flat, value * D(brokerage_pct) / hundred)
 
     brokerage = brok(buy) + brok(sell)
     stt = sell * D(r["stt_sell_pct"]) / hundred
@@ -636,8 +637,6 @@ def check(orders, cfg, portfolio=None, prices=None, state=None, today=None, now=
     batch_entries, batch_loss = 0, 0.0
     if not c.get("paper", True):
         top_warn.append("LIVE account (\"paper\": false): these orders use real money")
-    if c.get("pdt_guard"):
-        top_warn.append("pdt_guard is a US rule; India has no pattern-day-trader rule, so it is ignored")
     top_warn.extend(win_warns)
 
     def fresh(sym):

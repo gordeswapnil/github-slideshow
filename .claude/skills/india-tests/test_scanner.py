@@ -745,7 +745,7 @@ class Cli(unittest.TestCase):
 
     def test_no_em_dashes_in_the_script(self):
         with open(os.path.join(os.path.dirname(scan.__file__), "scan.py"), encoding="utf-8") as fh:
-            self.assertNotIn("—", fh.read())
+            self.assertNotIn(chr(0x2014), fh.read())
 
 
 if __name__ == "__main__":

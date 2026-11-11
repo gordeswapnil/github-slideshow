@@ -660,7 +660,7 @@ class SkillDoc(unittest.TestCase):
                      "09:15", "09:30", "14:30", "pre-open", "synthetic", "trader-india/entry.json",
                      "trader-india/holidays.json", ".ns", "price band", "${claude_skill_dir}"):
             self.assertIn(must, low)
-        for never in ("—", "tick " + "by tick", "real " + "time", "pro" + "fit", "new york", "nyse"):
+        for never in ("\u2014", "tick " + "by tick", "real " + "time", "pro" + "fit", "new york", "nyse"):
             self.assertNotIn(never, low)
         self.assertIsNone(re.search(r"\$\d", text))
 

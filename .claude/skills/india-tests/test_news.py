@@ -142,6 +142,7 @@ class Categories(unittest.TestCase):
         self.assertEqual(self.t("SYNTH hits upper circuit"), ["circuit/surveillance"])
         self.assertEqual(self.t("RBI keeps the repo rate unchanged"), ["macro"])
         self.assertEqual(self.t("Brokerage upgrades SYNTH, raises target price"), ["analyst rating"])
+        self.assertEqual(self.t("SYNTH Industries Q2 preview: what to expect"), ["results"])
 
     def test_routine_and_false_friends(self):
         # a trading-window notice names the coming results, a newspaper copy names the meeting: routine
@@ -239,6 +240,10 @@ class ResultsDay(unittest.TestCase):
                           "prior intimation of a meeting to consider the financial results")
         r = news.results_risk([vague], {"SYNTH": None}, news.parse_now(MORNING))[0]
         self.assertIn("the date could not be read", r["message"])
+        next_year = self.item("2026-12-28 08:00", "Board Meeting Intimation",
+                              "Board Meeting to be held on 05-Jan-2027 to consider the financial results")
+        r = news.results_risk([next_year], {"SYNTH": None}, news.parse_now("2026-12-28 09:40"))[0]
+        self.assertIn("NSE holidays for 2027 are not built in", r["message"])
 
 
 class Check(unittest.TestCase):
@@ -413,6 +418,9 @@ class NseClient(unittest.TestCase):
         self.assertEqual(home, "https://www.nseindia.com/")
         self.assertTrue(api.startswith("https://www.nseindia.com/api/corporate-announcements?index=equities"
                                        "&symbol=SYNTH&from_date=05-10-2026&to_date=19-10-2026"))
+        f = self.fetcher([b"", b"[]"])
+        news.collect(f, {"SYNTH": None}, news.parse_now(MORNING), yahoo=False, hours=24 * 30)
+        self.assertIn("&from_date=18-09-2026&to_date=19-10-2026", f.calls[1][0])   # --hours 720: 31 days back
         self.assertEqual(h2["Referer"], "https://www.nseindia.com/companies-listing/corporate-filings-announcements")
         self.assertTrue(h2["User-Agent"].startswith("Mozilla/5.0 (Windows"))
         self.assertGreaterEqual(min(g1, g2), 1.0)

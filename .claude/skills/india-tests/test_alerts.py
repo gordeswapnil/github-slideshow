@@ -171,9 +171,12 @@ class Quotes(unittest.TestCase):
         self.assertIn("//query1.finance.yahoo.com/", alerts.yahoo_url("SYNTH", alerts.YAHOO_HOSTS[1]))
 
     def test_offline_quotes_and_errors(self):
-        q, errors = alerts.get_quotes(["SYN-AAPL", "SYN-KO", "SYN-ZZZZ", "NOPE", "not a symbol"], QDIR)
-        self.assertEqual(sorted(q), ["SYN-AAPL", "SYN-KO"])
+        q, errors = alerts.get_quotes(["SYN-AAPL", "SYN-KO", "SYN-ZZZZ", "NOPE", "not a symbol", "SYN-AXP",
+                                       "syn-googl.ns"], QDIR)
+        self.assertEqual(sorted(q), ["SYN-AAPL", "SYN-AXP", "SYN-GOOGL", "SYN-KO"])
         self.assertEqual(q["SYN-KO"]["price"], 90.11)
+        self.assertEqual((q["SYN-AXP"]["price"], q["SYN-AXP"]["prev_close"]), (309.84, 311.53))
+        self.assertEqual((q["SYN-GOOGL"]["price"], q["SYN-GOOGL"]["prev_close"]), (353.78, 352.72))
         self.assertEqual(len(errors), 3)
         self.assertIn("No data found", errors[0])
         self.assertIn("no offline quote file", errors[1])
@@ -561,7 +564,7 @@ class SkillDoc(unittest.TestCase):
                      "delayed", "price band", "not an order", "₹358.30", "₹370.05", "₹366.48",
                      "${claude_skill_dir}"):
             self.assertIn(must, low)
-        for never in ("—", "real " + "time", "pro" + "fit", "new york", "nyse", "stooq"):
+        for never in ("\u2014", "real " + "time", "pro" + "fit", "new york", "nyse", "stooq"):
             self.assertNotIn(never, low)
 
 

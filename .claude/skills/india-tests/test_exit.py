@@ -1,6 +1,7 @@
 """india-exit tests.
 
-Bars for the ATR stop reuse fixtures/india-entry/SYNTH-2026-10-19-5m.json: SYNTHETIC
+fixtures/india-exit/entry-SYNTH.json is the entry.json india-entry writes for the synthetic
+reel. Bars for the ATR stop reuse fixtures/india-entry/SYNTH-2026-10-19-5m.json: SYNTHETIC
 data (the US pack's 2026-10-19 five-minute bars re-timed onto the NSE session by
 fixtures/retime.py and renamed SYNTH, prices unchanged). Not NSE data. Every
 number below is worked out from that synthetic file and the NSE tick grid.
@@ -32,11 +33,10 @@ REEL_PLAN = {"created_by": "india-exit", "symbol": "SYNTH", "exchange": "NSE", "
              "stop": 358.30, "stop_rule": "or_mid", "stop_label": "opening-range midpoint",
              "target": 370.05, "target_r": 1.0, "target_label": "1R (one times the risk)",
              "risk_per_share": 5.88, "reward_risk": 1.0, "flat_by": "15:00", "tick": 0.05}
-REEL_ENTRY = {"created_by": "india-entry", "symbol": "SYNTH", "exchange": "NSE", "setup": "orb", "side": "buy",
-              "date": "2026-10-19", "timezone": "IST", "status": "triggered", "time": "10:00", "bar_start": "09:55",
-              "bar_index": 8, "price": 364.18, "level": 362.18, "interval": "5m",
-              "opening_range": {"high": 362.18, "low": 354.47, "minutes": 15},
-              "source": "yahoo", "checked_at": "2026-10-19T04:30:00Z"}
+# trader-india/entry.json exactly as india-entry writes it for that bar (checked below)
+ENTRY_FIX = os.path.join(FIX, "india-exit", "entry-SYNTH.json")
+with open(ENTRY_FIX, encoding="utf-8") as _fh:
+    REEL_ENTRY = json.load(_fh)
 
 
 def run(mod, argv):
@@ -204,6 +204,9 @@ class Cli(unittest.TestCase):
     def test_entry_to_plan_end_to_end(self):
         code, _, _ = run(entry, ["check", "SYNTH", "--offline", SYNTH, "--now", "2026-10-19 10:00", "--write"])
         self.assertEqual(code, 0)
+        with open(os.path.join(DATA, "entry.json"), encoding="utf-8") as fh:
+            self.assertEqual(json.load(fh), REEL_ENTRY)            # the fixture is the real hand-off
+        self.assertEqual((REEL_ENTRY["time"], REEL_ENTRY["bar_start"], REEL_ENTRY["bar_index"]), ("10:00", "09:55", 8))
         code, text, err = self.plan("--stop", "or-mid", "--target", "1R", "--write")
         self.assertEqual(code, 0, err)
         p = self.read_plan()
@@ -376,7 +379,7 @@ class SkillDoc(unittest.TestCase):
                      "₹370.05", "₹5.88", "375.90", "too tight to survive the spread", "4 ticks",
                      "synthetic", "15:00", "15:10", "trader-india/plan.json", "${claude_skill_dir}"):
             self.assertIn(must, low)
-        for never in ("—", "tick " + "by tick", "real " + "time", "pro" + "fit", "new york", "nyse"):
+        for never in ("\u2014", "tick " + "by tick", "real " + "time", "pro" + "fit", "new york", "nyse"):
             self.assertNotIn(never, low)
         self.assertIsNone(re.search(r"\$\d", text))
 
