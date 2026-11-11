@@ -105,8 +105,8 @@ Then record what happened with `ticket.py result`. Keys, tokens, PIN and TOTP se
 tool's environment variables or the broker's app. The tickets show placeholders such as
 `"dhanClientId": "<your Dhan client id>"`; never fill them in the chat.
 
-**Not live-tested.** The request shapes below come from the brokers' official SDK source and docs as
-read in late 2026. No order has ever been sent to Dhan or Angel One from this pack. Before the first
+**The request shapes below are not live-tested.** They come from the brokers' official SDK source and
+docs as read in late 2026. No order has ever been sent to Dhan or Angel One from this pack. Before the first
 live order, check each field against the broker's current docs and try 1 share.
 
 ### Dhan

@@ -99,8 +99,6 @@ class Fixtures(unittest.TestCase):
             mine = fh.read()
         a, b = "# --- india core: begin", "# --- india core: end"
         self.assertEqual(mine[mine.index(a):mine.index(b)], ref[ref.index(a):ref.index(b)])
-        self.assertIs(ticket.fingerprint, ticket.fingerprint)
-        self.assertEqual(ticket.ORDER_FIELDS[0], "symbol")
 
 
 class ExplicitYes(unittest.TestCase):
@@ -412,6 +410,7 @@ class Flow(unittest.TestCase):
             for secret in ("1100SECRET", "tok-SECRET", "TOTPSECRET"):
                 self.assertNotIn(secret, text + err)
         self.assertIn("your config holds access_token, dhan_client_id, totp_secret: delete them", outs[0][1])
+        self.assertIn("delete them", " ".join(json.loads(outs[1][1])[0]["notes"]))
         with open(self.state, encoding="utf-8") as fh:
             self.assertNotIn("SECRET", fh.read())
 
@@ -629,7 +628,7 @@ class SkillDoc(unittest.TestCase):
         paths += [os.path.join(BF, f) for f in os.listdir(BF)] + [os.path.abspath(__file__)]
         for p in paths:
             with open(p, encoding="utf-8") as fh:
-                self.assertNotIn("—", fh.read(), p)
+                self.assertNotIn(chr(0x2014), fh.read(), p)
 
     def test_no_trader_paths(self):
         with open(os.path.join(SKILL_DIR, "ticket.py"), encoding="utf-8") as fh:

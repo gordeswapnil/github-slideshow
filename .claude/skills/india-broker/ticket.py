@@ -842,8 +842,8 @@ def risk_verdict(risk, fp, today):
     return None, "this exact order was not in the last risk check (it changed or is new); run /india-risk again"
 
 
-def status_of(order, risk, state, today, mode, broker, ids, show_as=None):
-    """(ready, label, risk_result). show_as only changes what is shown, never what is READY."""
+def status_of(order, risk, state, today, mode, broker, ids):
+    """(ready, label, risk_result)."""
     v = view(order)
     fp = fingerprint(order)
     if v["problems"]:
@@ -951,9 +951,10 @@ def render(order, idx, total, cfg, risk, state, today, now, ids, show_as=None):
         shape = show_as or (broker if broker != "paper" else None)
         if shape:
             lines += broker_lines(v, order, fp, cfg, shape, ids, mode, reference=(mode == "paper"))
-        if mode == "paper":
+        if mode == "paper" and ready:
             lines.append("  Paper: after your yes, ticket.py paper --index %d [--price P] simulates the fill "
                          "here. Nothing goes to a broker." % idx)
+        if mode == "paper":
             if not shape:
                 lines.append("  To see what Dhan or Angel One would get: ticket.py show --as dhan (or angelone).")
     if ready:
@@ -961,7 +962,7 @@ def render(order, idx, total, cfg, risk, state, today, now, ids, show_as=None):
     return "\n".join(lines), ready
 
 
-def ticket_json(order, idx, cfg, risk, state, today, ids, show_as=None):
+def ticket_json(order, idx, cfg, risk, state, today, now, ids, show_as=None):
     mode, broker = mode_of(cfg)
     ready, label, rv = status_of(order, risk, state, today, mode, broker, ids)
     v = view(order)
@@ -973,7 +974,8 @@ def ticket_json(order, idx, cfg, risk, state, today, ids, show_as=None):
             "requests": requests_for(v, fp, shape, ids, cfg) if shape and not v["problems"] else [],
             "why": order.get("why", ""), "bracket": v["bracket"], "max_loss": r["total"] if r else None,
             "loss_at_stop": r["at_stop"] if r else None, "costs_at_stop": r["costs"] if r else None,
-            "stop": v["stop"], "target": v["target"], "problems": v["problems"], "notes": v["notes"]}
+            "stop": v["stop"], "target": v["target"], "problems": v["problems"],
+            "notes": config_notes(cfg) + day_notes(now) + list((rv or {}).get("warnings", [])) + v["notes"]}
 
 
 # ---------------------------------------------------------------- fills -> portfolio
@@ -1088,7 +1090,7 @@ def cmd_show(a):
         raise TicketError("your live broker is %s; --as %s is only for paper mode" % (broker, a.as_broker))
     picks = [(a.index, _pick(orders, a.index))] if a.index else list(enumerate(orders, 1))
     if a.json:
-        out = [ticket_json(o, i, cfg, risk, state, today, ids, a.as_broker) for i, o in picks]
+        out = [ticket_json(o, i, cfg, risk, state, today, now, ids, a.as_broker) for i, o in picks]
         print(json.dumps(out[0] if a.index else out, indent=2, ensure_ascii=False))
         return 0 if any(t["ready"] for t in out) else 1
     blocks, any_ready = [], False

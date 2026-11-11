@@ -190,10 +190,12 @@ checks; india-broker shows). Broker-neutral, JSON numbers (not strings):
   market orders into limits with price protection anyway. MARKET is allowed in the file but
   india-risk warns on it.
 - Risk is measured from `price` (the worst fill the limit allows) when it is above the plan entry.
-- `bracket` true means: stop-loss and target are to be placed with the entry (Dhan Super
-  Order; Angel One: a separate STOPLOSS_LIMIT sell after the entry fills, and a LIMIT sell
-  for the target, cancelling the other when one fills, because ROBO orders are not confirmed
-  for equities).
+- `bracket` true means: stop-loss and target are to be placed with the entry. Dhan: one
+  Super Order. Angel One: ROBO orders are not confirmed for equities, so only a separate
+  STOPLOSS_LIMIT sell goes in after the entry fills (limit `stop_limit_ticks` ticks below the
+  trigger, config default 5). No target sell rests at the broker at the same time: two resting
+  sells for the same INTRADAY shares could both fill and leave the user short. india-alerts
+  watches the target; when it hits, the stop is cancelled and a LIMIT sell is approved.
 - A flatten order: `side` "sell", `bracket` false, `stop_loss`/`target` null, LIMIT at the last
   price minus `limit_buffer_pct`, rounded down to the tick.
 - `fingerprint(order)` and `ORDER_FIELDS` live in the shared core. Use them; do not re-implement.
