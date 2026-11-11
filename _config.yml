@@ -104,6 +104,8 @@ reveal:
 exclude: [
   "Gemfile",
   "Gemfile.lock",
+  "CLAUDE.md",
+  "skills-lock.json",
   "vendor",
   "reveal.js/test",
   "reveal.js/index.html",
