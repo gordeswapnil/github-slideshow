@@ -1339,7 +1339,7 @@ def cmd_deals(a):
     for kind in _deal_kinds(a):
         try:
             rows, src = load_deals(net, kind, today, a.days, a.file, a.offline, a.source)
-        except NseError as exc:
+        except InsiderError as exc:
             errors.append(str(exc))
             continue
         deals += rows

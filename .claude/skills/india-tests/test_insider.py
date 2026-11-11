@@ -639,7 +639,7 @@ class SkillFolder(unittest.TestCase):
         for base, _, names in os.walk(DIR):
             files += [os.path.join(base, n) for n in names]
         for path in files:
-            self.assertNotIn("—", self.read(path), path)
+            self.assertNotIn(chr(0x2014), self.read(path), path)
         src = self.read(SKILL, "insider.py")
         for bad in ("import zoneinfo", "removeprefix(", "removesuffix("):
             self.assertNotIn(bad, src)

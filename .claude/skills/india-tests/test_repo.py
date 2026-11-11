@@ -84,7 +84,7 @@ class Pack(unittest.TestCase):
     def test_no_em_dashes(self):
         for path in pack_files():
             with open(path, encoding="utf-8", errors="replace") as fh:
-                self.assertNotIn("—", fh.read(), os.path.relpath(path, ROOT))
+                self.assertNotIn(chr(0x2014), fh.read(), os.path.relpath(path, ROOT))
 
     def test_every_tool_runs_on_python_3_8(self):
         for s in SKILLS:
