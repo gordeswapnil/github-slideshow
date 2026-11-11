@@ -1,6 +1,7 @@
 """One synthetic trade through the whole India pack, as the skills hand files to each other.
 
-entry -> exit -> budget -> risk -> broker (show, a vague reply, yes, paper fill) -> alerts,
+entry -> exit -> budget -> risk -> broker (show, a vague reply, yes, paper fill) -> time
+machine -> alerts,
 plus a second risk run that sees the first trade in the broker log. Every number below
 comes from the synthetic SYNTH bars (US TSLA bars re-timed onto the NSE clock), the
 example config and the shared core's charges. Arithmetic, all in rupees:
@@ -55,6 +56,8 @@ class Flow(unittest.TestCase):
              "--now", LATER),
             ("yes", "india-broker/ticket.py", "approve", "--index", "1", "--reply", "yes", "--now", LATER),
             ("paper", "india-broker/ticket.py", "paper", "--index", "1", "--price", "364.40", "--now", LATER),
+            ("timemachine", "india-timemachine/timemachine.py", "run", "--offline",
+             os.path.join(FIX, "india-timemachine", "SYNTH-60d5m.json.gz"), "--seed", "19"),
             ("alerts", "india-alerts/alerts.py", "add", "--from-plan"),
             ("risk2", "india-risk/check.py", "--now", LATER, "--no-write"),
         ]
@@ -100,6 +103,12 @@ class Flow(unittest.TestCase):
         self.assertEqual(port["cash"], 50056.16)
         held = {p["ticker"]: p["shares"] for p in port["positions"]}
         self.assertEqual(held, {"SYNTH": 137})
+
+    def test_time_machine_reads_the_plan_and_the_order(self):
+        out = self.log["timemachine"][1]
+        self.assertIn("10:00 to 15:00 IST", out)
+        self.assertIn("Costs on 137 shares (from trader-india/orders.json)", out)
+        self.assertIn("Average R net of costs", out)
 
     def test_alerts_from_the_plan(self):
         out = self.log["alerts"][1]

@@ -98,9 +98,10 @@ source.
     Expect bigger, faster swings and wider spreads; if they came out
     overnight, the open can gap.
   - `RESULTS TODAY`: the board meets on results today. Indian companies often
-    release results during market hours (the outcome is due within 30
-    minutes of the meeting ending, under SEBI's listing rules), and the price
-    can jump straight through a stop.
+    release results during market hours (SEBI's listing rules are understood to
+    require the outcome within 30 minutes of the meeting ending; not verified
+    for this pack, check the current rule), and the price can jump straight
+    through a stop.
   - `RESULTS SOON`: the meeting date and how many trading days away it is
     (NSE holidays counted). A day trade closed the same day is not exposed;
     anything held overnight is.

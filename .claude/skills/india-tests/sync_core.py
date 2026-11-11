@@ -34,6 +34,8 @@ def scripts():
         if not d.startswith("india-") or d == "india-tests":
             continue
         folder = os.path.join(ROOT, d)
+        if not os.path.isdir(folder):
+            continue
         for f in sorted(os.listdir(folder)):
             if f.endswith(".py"):
                 yield os.path.join(folder, f)

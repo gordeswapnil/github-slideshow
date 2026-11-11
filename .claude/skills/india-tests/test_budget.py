@@ -23,7 +23,7 @@ TARGETS = os.path.join(ROOT, "india-budget", "targets.example.json")
 NOW = "2026-10-19 10:00"          # India time: the synthetic entry bar (09:55-10:00) has closed
 TODAY = "2026-10-19"
 QUOTE_UTC = "2026-10-19T05:07:13Z"   # 10:37:13 India time
-# the CONVENTIONS config, key for key, plus limit_buffer_pct
+# the CONVENTIONS config, key for key, plus limit_buffer_pct and stop_limit_ticks (india-broker)
 CONTRACT_CFG = {
     "budget": 100000, "cash_buffer_pct": 10, "max_position_pct": 50, "max_order_inr": 80000,
     "min_order_inr": 500, "max_loss_per_trade_inr": 1000, "max_daily_loss_inr": 3000,
@@ -31,7 +31,7 @@ CONTRACT_CFG = {
     "include_costs_in_risk": True, "no_entries_before": "09:30", "no_entries_after": "14:30",
     "flat_by": "15:00", "product": "INTRADAY", "allowed_series": ["EQ"], "brokerage_flat_inr": 20,
     "brokerage_pct": 0.03, "broker": "paper", "paper": True, "blocked": [], "allow_options": False,
-    "allow_margin": False, "allow_short": False, "limit_buffer_pct": 0.1,
+    "allow_margin": False, "allow_short": False, "limit_buffer_pct": 0.1, "stop_limit_ticks": 5,
 }
 # synthetic quotes for the weights example (not NSE prices)
 PRICES = {"SYN-A": 1234.50, "SYN-B": 362.15, "SYN-C": 88.40, "SYN-D": 2510.00}
