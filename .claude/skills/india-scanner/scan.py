@@ -65,6 +65,9 @@ folder of <SYMBOL>.json v8 chart files or spark responses, or one file that
 is a spark response, a v8 chart, or a bundle {"SYNTH": <v8 json>, ...}.
 .json.gz is fine.
 
+Every hit in trader-india/watchlist.json carries `series` (EQ, ...) from the
+universe file (SYMBOL|Name|SERIES), else from an input watchlist's hits, else null.
+
 A scan is a list of charts that match a rule, not a list of stocks to buy.
 Exit code 0 when the scan found something, 1 when it did not or could not run.
 """
@@ -327,9 +330,10 @@ def intraday_costs(qty, buy_price, sell_price, brokerage_flat=20, brokerage_pct=
     hundred = D(100)
 
     def brok(value):
-        pct = value * D(brokerage_pct) / hundred
         flat = D(brokerage_flat)
-        return min(flat, pct) if brokerage_pct is not None else flat
+        if brokerage_pct is None:
+            return flat
+        return min(flat, value * D(brokerage_pct) / hundred)
 
     brokerage = brok(buy) + brok(sell)
     stt = sell * D(r["stt_sell_pct"]) / hundred
@@ -645,10 +649,10 @@ def parse_equity_list(text):
 
 
 def build_universe(rows, allowed=DEFAULT_SERIES):
-    """rows -> (kept [(SYMBOL, name)], counts). A row is kept when its series is allowed
-    and its symbol is a valid NSE symbol."""
+    """rows -> (kept [(SYMBOL, name)], counts, {SYMBOL: series}). A row is kept when its
+    series is allowed and its symbol is a valid NSE symbol."""
     allowed = {s.strip().upper() for s in allowed}
-    kept, counts = {}, {"rows": len(rows)}
+    kept, counts, series_of = {}, {"rows": len(rows)}, {}
 
     def drop(why):
         counts[why] = counts.get(why, 0) + 1
@@ -663,8 +667,50 @@ def build_universe(rows, allowed=DEFAULT_SERIES):
             drop("not an NSE symbol")
             continue
         kept[sym] = " ".join(r.get("NAME OF COMPANY", "").split())
+        series_of[sym] = series
     counts["keep"] = len(kept)
-    return sorted(kept.items()), counts
+    return sorted(kept.items()), counts, series_of
+
+
+def read_series(universe_path, watchlist_path=None):
+    """{SYMBOL: series} for the hits' `series` field: the universe file first (SYMBOL|Name|SERIES,
+    as `universe` writes it), then the `series` of the hits in a watchlist.json given as input.
+    A symbol found in neither gets None (null)."""
+    out = {}
+    if watchlist_path and os.path.exists(watchlist_path):
+        with open(watchlist_path, encoding="utf-8") as fh:
+            text = fh.read()
+        if text.lstrip().startswith("{"):
+            try:
+                hits = json.loads(text).get("hits") or []
+            except (ValueError, AttributeError):
+                hits = []
+            for h in hits:
+                try:
+                    if isinstance(h, dict) and h.get("series"):
+                        out[norm_symbol(h.get("symbol"))] = str(h["series"]).upper()
+                except CoreError:
+                    continue
+    if universe_path and os.path.exists(universe_path):
+        with open(universe_path, encoding="utf-8") as fh:
+            lines = fh.read().splitlines()
+        for ln in lines:
+            parts = [p.strip() for p in ln.split("|")]
+            if not parts[0] or parts[0].startswith(("#", "{", "[")):
+                continue
+            try:
+                sym = norm_symbol(parts[0])
+            except CoreError:
+                continue
+            if len(parts) > 2 and parts[2]:
+                out[sym] = parts[2].upper()
+    return out
+
+
+def with_series(hits, series_of):
+    """Each hit gets `series` (EQ, ...) right after its symbol, or None when unknown."""
+    return [dict([("symbol", h["symbol"]), ("series", series_of.get(h["symbol"]))],
+                 **{k: v for k, v in h.items() if k != "symbol"}) for h in hits]
 
 
 # ---------------------------------------------------------------- daily setups
@@ -1065,14 +1111,14 @@ def cmd_universe(a):
         if a.file:
             raise
         raise ScanError(browser_hint("NSE's answer was not the equity list: %s" % e, a.url))
-    kept, counts = build_universe(rows, allowed)
+    kept, counts, series_of = build_universe(rows, allowed)
     if not a.no_write and kept:
         d = os.path.dirname(a.out)
         if d:
             os.makedirs(d, exist_ok=True)
         with open(a.out, "w", encoding="utf-8") as fh:
             for sym, name in kept:
-                fh.write("%s|%s\n" % (sym, name))
+                fh.write("%s|%s|%s\n" % (sym, name, series_of[sym]))
     dropped = {k: v for k, v in counts.items() if k not in ("keep", "rows")}
     if a.json:
         print(json.dumps({"count": len(kept), "rows": counts["rows"], "allowed_series": allowed,
@@ -1088,7 +1134,7 @@ def cmd_universe(a):
                          if k.startswith("series ") and k[7:] in SERIES_WHY else "")
             for k, v in sorted(dropped.items(), key=lambda kv: (-kv[1], kv[0]))) + ".")
     if not a.no_write and kept:
-        print("Wrote %s (one SYMBOL|Name a line)." % a.out)
+        print("Wrote %s (one SYMBOL|Name|SERIES a line)." % a.out)
     return 0 if kept else 1
 
 
@@ -1108,6 +1154,7 @@ def cmd_daily(a):
                  % (_n(len(symbols)), (len(symbols) + SPARK_MAX - 1) // SPARK_MAX))
         data, failed = fetch_spark(symbols, "3mo", "1d", a.pause, a)
     hits, counts, last_date = scan_daily(data, symbols, now, a.min_price, a.min_value, a.min_volume)
+    hits = with_series(hits, read_series(a.universe or DEFAULT_UNIVERSE, a.watchlist))
     nfailed = len(symbols) - counts["fetched"]
     as_of = ("%s close" % last_date.isoformat()) if last_date else None
     doc = {"created_by": "india-scanner", "created_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "mode": "daily",
@@ -1195,6 +1242,7 @@ def cmd_orb(a):
             return parse_chart(yahoo_get(chart_path(sym, rng, "%dm" % BAR_MIN)), sym)
     hits, counts, failed2 = scan_orb(data, symbols, day, cutoff, a.or_minutes, a.min_price, a.min_value, confirm,
                                      a.max_confirm, a.min_volume)
+    hits = with_series(hits, read_series(a.universe or DEFAULT_UNIVERSE, a.watchlist))
     nfailed = len(symbols) - counts["fetched"] + len(failed2)   # no chart at all, or stage 2 failed
     range_end = slot(day, a.or_minutes // BAR_MIN)
     as_of = "%s %s IST" % (day.isoformat(), hm(cutoff))
@@ -1258,7 +1306,8 @@ def main(argv=None):
         g = p.add_mutually_exclusive_group()
         g.add_argument("--symbols", help="comma-separated NSE symbols instead of the universe")
         g.add_argument("--watchlist", metavar="FILE", help="a watchlist.json (hits) or a text file of symbols")
-        p.add_argument("--universe", help="symbol list, one SYMBOL|Name a line (default %s)" % DEFAULT_UNIVERSE)
+        p.add_argument("--universe", help="symbol list, one SYMBOL|Name|SERIES a line (default %s); "
+                       "it also gives each hit its series" % DEFAULT_UNIVERSE)
         p.add_argument("--limit", type=int, help="scan only the first N symbols")
         p.add_argument("--min-price", type=float, default=MIN_PRICE, help="rupees (default %g)" % MIN_PRICE)
         p.add_argument("--min-value", type=float, default=min_value,

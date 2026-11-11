@@ -336,9 +336,10 @@ def intraday_costs(qty, buy_price, sell_price, brokerage_flat=20, brokerage_pct=
     hundred = D(100)
 
     def brok(value):
-        pct = value * D(brokerage_pct) / hundred
         flat = D(brokerage_flat)
-        return min(flat, pct) if brokerage_pct is not None else flat
+        if brokerage_pct is None:
+            return flat
+        return min(flat, value * D(brokerage_pct) / hundred)
 
     brokerage = brok(buy) + brok(sell)
     stt = sell * D(r["stt_sell_pct"]) / hundred
@@ -683,15 +684,11 @@ def simulate(pool, entry, stop, target, k, last, replays=10000, seed=19, window=
 
 # ---------------------------------------------------------------- costs
 
-FLAT_ONLY_PCT = 1000000  # stands in for brokerage_pct None: min(flat, a huge percentage) is the flat fee
-
-
 def round_trip(qty, entry, exit_price, long, flat, pct_):
     """intraday_costs for one round trip: a buy then a sell (a sell plan sells first).
-    pct_ None means a flat fee per order; the core's intraday_costs cannot take None
-    yet, so a huge percentage stands in for it (the lower of the two is the flat fee)."""
+    pct_ None means a flat brokerage fee per order."""
     buy, sell = (entry, exit_price) if long else (exit_price, entry)
-    return intraday_costs(qty, buy, sell, flat, FLAT_ONLY_PCT if pct_ is None else pct_)
+    return intraday_costs(qty, buy, sell, flat, pct_)
 
 
 def cost_model(plan, qty, flat, pct_):
@@ -1177,7 +1174,11 @@ def cost_lines(doc):
     if not c:
         return []
     s, t = c["at_stop"], c["at_target"]
-    if c["per_share"]:
+    if c["per_share"] and c.get("brokerage_pct") is None:
+        head = ("  Costs for one share (no qty in the plan or orders) with a flat brokerage of %s an order: "
+                "%s round trip at the stop (%.3fR), %s at the target (%.3fR). Give --qty for a real figure."
+                % (inr(c["brokerage_flat_inr"]), inr(s["total"]), s["R"], inr(t["total"]), t["R"]))
+    elif c["per_share"]:
         head = ("  Costs per share (no qty in the plan or orders, so one share: the most a share can cost in R): "
                 "%s round trip at the stop (%.3fR), %s at the target (%.3fR)."
                 % (inr(s["total"]), s["R"], inr(t["total"]), t["R"]))

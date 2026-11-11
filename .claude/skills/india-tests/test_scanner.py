@@ -70,7 +70,7 @@ def read_text(path):
 class Universe(unittest.TestCase):
     def setUp(self):
         self.rows = scan.parse_equity_list(read_text(EQUITY))
-        self.kept, self.counts = scan.build_universe(self.rows)
+        self.kept, self.counts, self.series = scan.build_universe(self.rows)
 
     def test_the_synthetic_list(self):
         self.assertEqual(self.counts, {"rows": 238, "series BE": 2, "series BZ": 2, "keep": 234})
@@ -80,6 +80,8 @@ class Universe(unittest.TestCase):
         for gone in ("SYN-MPC", "SYN-BETEST", "SYN-ELV", "SYN-BZTEST"):   # BE / BZ: trade-for-trade
             self.assertNotIn(gone, syms)
         self.assertEqual(dict(self.kept)["SYN-BRK-B"], "Synthetic Test Stock BRK-B, Class B Limited")  # quoted comma
+        self.assertEqual(set(self.series.values()), {"EQ"})
+        self.assertEqual(sorted(self.series), syms)
 
     def test_header_spaces_are_stripped(self):
         self.assertEqual(read_text(EQUITY).splitlines()[0], HEADER)
@@ -94,9 +96,10 @@ class Universe(unittest.TestCase):
         self.assertEqual(scan.build_universe(rows)[0], [("20MICRONS", "20 Microns Limited")])
 
     def test_allowed_series(self):
-        kept, counts = scan.build_universe(self.rows, ["EQ", "BE"])
+        kept, counts, series = scan.build_universe(self.rows, ["EQ", "BE"])
         self.assertEqual((len(kept), counts["series BZ"]), (236, 2))
         self.assertIn("SYN-MPC", dict(kept))
+        self.assertEqual((series["SYN-MPC"], series["SYNTH"]), ("BE", "EQ"))
 
     def test_not_the_equity_list(self):
         for text, words in (("<html><body>Access Denied</body></html>", "web page"),
@@ -108,8 +111,8 @@ class Universe(unittest.TestCase):
 
     def test_bad_symbols_are_counted_not_kept(self):
         rows = scan.parse_equity_list(HEADER + "\nGOOD,Good Ltd,EQ,,,,,\nBAD SYM,Bad Ltd,EQ,,,,,\n")
-        kept, counts = scan.build_universe(rows)
-        self.assertEqual((kept, counts["not an NSE symbol"]), ([("GOOD", "Good Ltd")], 1))
+        kept, counts, series = scan.build_universe(rows)
+        self.assertEqual((kept, counts["not an NSE symbol"], series), ([("GOOD", "Good Ltd")], 1, {"GOOD": "EQ"}))
 
     def test_no_us_universe_logic_left(self):
         for name in ("NASDAQ_FILES", "parse_symdir", "classify", "eastern_offset", "NYSE_HOLIDAYS"):
@@ -573,7 +576,7 @@ class Cli(unittest.TestCase):
         self.assertIn("Kept 234 stocks in series EQ", text)
         lines = read_text(uni).splitlines()
         self.assertEqual(len(lines), 234)
-        self.assertIn("SYN-M&M|Synthetic Test Stock SYN-M&M Limited", lines)
+        self.assertIn("SYN-M&M|Synthetic Test Stock SYN-M&M Limited|EQ", lines)
 
         # daily over that universe with the 19 daily charts: partial, and said so
         code, text, _ = run(["daily", "--universe", uni, "--offline", DAILY, "--now", "2026-10-19 09:00",
@@ -585,7 +588,7 @@ class Cli(unittest.TestCase):
         self.assertEqual((doc["mode"], doc["universe"], doc["scanned"], doc["failed"], doc["exchange"]),
                          ("daily", 234, 12, 215, "NSE"))
         self.assertEqual(doc["filters"], {"min_price_inr": 20.0, "min_value_inr": 100000000.0, "min_volume": 0})
-        self.assertEqual(doc["hits"][0], {"symbol": "SYN-BAC", "setups": ["oversold"], "price": 51.23,
+        self.assertEqual(doc["hits"][0], {"symbol": "SYN-BAC", "series": "EQ", "setups": ["oversold"], "price": 51.23,
                                           "close_date": "2026-10-16", "rsi": 24.0, "volume": 8531643,
                                           "value_inr": 435497717})
         self.assertEqual(len(doc["hits"]), 8)
@@ -609,8 +612,11 @@ class Cli(unittest.TestCase):
         self.assertEqual(len(syms), 40)
         self.assertNotIn("SYN-MPC", syms)
         self.assertNotIn("SYN-ELV", syms)
-        self.assertIn({"symbol": "SYNTH", "setups": ["orb"], "price": 364.18, "at": "10:00", "bar_start": "09:55",
-                       "bar_index": 8, "or_high": 362.18, "or_low": 354.47, "pct_over": 0.55}, doc["hits"])
+        self.assertIn({"symbol": "SYNTH", "series": "EQ", "setups": ["orb"], "price": 364.18, "at": "10:00",
+                       "bar_start": "09:55", "bar_index": 8, "or_high": 362.18, "or_low": 354.47, "pct_over": 0.55},
+                      doc["hits"])
+        self.assertEqual({h["series"] for h in doc["hits"]}, {"EQ"})
+        self.assertEqual(list(doc["hits"][0])[:2], ["symbol", "series"])
 
         # the hits read back as a watchlist, with --at instead of --now
         code, text, _ = run(["orb", "--offline", WALL, "--at", "10:00", "--watchlist", self.wl, "--min-price", "0",
@@ -618,6 +624,7 @@ class Cli(unittest.TestCase):
         self.assertEqual(code, 0)
         out = json.loads(text)
         self.assertEqual((out["universe"], out["scanned"], len(out["hits"])), (40, 40, 40))
+        self.assertEqual({h["series"] for h in out["hits"]}, {"EQ"})   # carried over from the watchlist
 
     def test_partial_stage_two_is_said(self):
         """The networked path with a fake Yahoo that answers from the synthetic bundle."""
@@ -702,6 +709,21 @@ class Cli(unittest.TestCase):
         self.assertIn("trader-india/holidays.json", err)
         code, text, _ = run(["daily", "--offline", DAILY, "--now", "2027-01-04 09:00", "--no-write", "--json"])
         self.assertIn("2027 holiday list", json.loads(text)["warnings"][0])
+
+    def test_series_on_every_hit(self):
+        uni = os.path.join(self.d, "u.txt")
+        with open(uni, "w") as fh:
+            fh.write("SYN-KO|Synthetic Test Stock SYN-KO Limited|EQ\nSYN-XOM|an old line without a series\n")
+        self.assertEqual(scan.read_series(uni), {"SYN-KO": "EQ"})
+        code, text, _ = run(["daily", "--offline", DAILY, "--symbols", "SYN-KO,SYN-XOM,SYN-BAC", "--universe", uni,
+                             "--now", "2026-10-19 09:00", "--json", "--no-write", "--min-value", "0"])
+        self.assertEqual(code, 0)
+        got = {h["symbol"]: h["series"] for h in json.loads(text)["hits"]}
+        self.assertEqual(got, {"SYN-KO": "EQ", "SYN-XOM": None, "SYN-BAC": None})   # null: not in the universe
+        code, text, _ = run(["orb", "--offline", WALL, "--now", "2026-10-19 10:00", "--symbols", "SYNTH",
+                             "--universe", os.path.join(self.d, "missing.txt"), "--json", "--no-write",
+                             "--config", self.cfg])
+        self.assertEqual([(h["symbol"], h["series"]) for h in json.loads(text)["hits"]], [("SYNTH", None)])
 
     def test_offline_folder_of_v8_files(self):
         folder = os.path.join(self.d, "charts")
