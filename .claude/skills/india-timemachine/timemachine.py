@@ -683,10 +683,15 @@ def simulate(pool, entry, stop, target, k, last, replays=10000, seed=19, window=
 
 # ---------------------------------------------------------------- costs
 
+FLAT_ONLY_PCT = 1000000  # stands in for brokerage_pct None: min(flat, a huge percentage) is the flat fee
+
+
 def round_trip(qty, entry, exit_price, long, flat, pct_):
-    """intraday_costs for one round trip: a buy then a sell (a sell plan sells first)."""
+    """intraday_costs for one round trip: a buy then a sell (a sell plan sells first).
+    pct_ None means a flat fee per order; the core's intraday_costs cannot take None
+    yet, so a huge percentage stands in for it (the lower of the two is the flat fee)."""
     buy, sell = (entry, exit_price) if long else (exit_price, entry)
-    return intraday_costs(qty, buy, sell, flat, pct_)
+    return intraday_costs(qty, buy, sell, flat, FLAT_ONLY_PCT if pct_ is None else pct_)
 
 
 def cost_model(plan, qty, flat, pct_):
@@ -1308,12 +1313,25 @@ def read_config(path):
     return cfg if isinstance(cfg, dict) else {}
 
 
+def brokerage_of(cfg, path):
+    """(brokerage_flat_inr, brokerage_pct) from the config; brokerage_pct null = flat fee only."""
+    flat = cfg.get("brokerage_flat_inr", BROKERAGE_FLAT)
+    pct_ = cfg["brokerage_pct"] if "brokerage_pct" in cfg else BROKERAGE_PCT
+    try:
+        flat = float(flat)
+        pct_ = None if pct_ is None else float(pct_)
+    except (TypeError, ValueError):
+        raise TMError("%s: brokerage_flat_inr and brokerage_pct must be numbers (brokerage_pct may be null)" % path)
+    if flat < 0 or (pct_ is not None and pct_ < 0):
+        raise TMError("%s: brokerage_flat_inr and brokerage_pct cannot be negative" % path)
+    return flat, pct_
+
+
 def compute(a):
     now = parse_now_tm(a.now)
     plan = load_plan(a, now)
     cfg = read_config(a.config)
-    flat = cfg.get("brokerage_flat_inr", BROKERAGE_FLAT)
-    pct_ = cfg["brokerage_pct"] if "brokerage_pct" in cfg else BROKERAGE_PCT
+    flat, pct_ = brokerage_of(cfg, a.config)
     qty, qty_from = None, None
     if a.qty is not None:
         qty, qty_from = _qty(a.qty, "--qty"), "--qty"

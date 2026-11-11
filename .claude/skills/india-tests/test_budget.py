@@ -7,6 +7,7 @@ grid and India time, renamed SYNTH; not NSE data) and the example config.
 import io
 import json
 import os
+import re
 import tempfile
 import unittest
 from contextlib import redirect_stdout, redirect_stderr
@@ -446,8 +447,8 @@ class Style(unittest.TestCase):
         for path in MY_FILES + [__file__, PLAN]:
             with open(path, encoding="utf-8") as fh:
                 text = fh.read()
-            self.assertNotIn("—", text, path)
-            self.assertNotIn("zoneinfo", text.replace("no zoneinfo", ""), path)
+            self.assertFalse(chr(0x2014) in text, path)        # no em dashes
+            self.assertIsNone(re.search(r"^\s*(import|from)\s+zoneinfo", text, re.M), path)
 
     def test_the_skill_carries_the_safety_block(self):
         with open(os.path.join(ROOT, "india-budget", "SKILL.md"), encoding="utf-8") as fh:

@@ -1,0 +1,9 @@
+{
+  "created_by": "india-scanner",
+  "note": "SYNTHETIC symbols for the india-risk tests, not NSE data. india-risk reads each hit's series.",
+  "hits": [
+    {"symbol": "SYNTH", "series": "EQ"},
+    {"symbol": "SYN-BE", "series": "BE"},
+    {"symbol": "SYN-A", "series": "EQ"}
+  ]
+}

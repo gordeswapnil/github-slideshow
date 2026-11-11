@@ -1195,9 +1195,7 @@ def cmd_orb(a):
             return parse_chart(yahoo_get(chart_path(sym, rng, "%dm" % BAR_MIN)), sym)
     hits, counts, failed2 = scan_orb(data, symbols, day, cutoff, a.or_minutes, a.min_price, a.min_value, confirm,
                                      a.max_confirm, a.min_volume)
-    failed = dict(failed or {})
-    failed.update(failed2)
-    nfailed = len([s for s in symbols if s in failed])
+    nfailed = len(symbols) - counts["fetched"] + len(failed2)   # no chart at all, or stage 2 failed
     range_end = slot(day, a.or_minutes // BAR_MIN)
     as_of = "%s %s IST" % (day.isoformat(), hm(cutoff))
     doc = {"created_by": "india-scanner", "created_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "mode": "orb",

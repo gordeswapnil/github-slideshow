@@ -366,8 +366,7 @@ CATEGORIES = [
     ("auditor", r"\bauditors?\b|statutory audit|audit firm|qualified opinion|modified opinion|audit qualification"),
     ("management change", r"\bKMP\b|key managerial|change in (?:directorate|management)|\bCEO\b|\bCFO\b|\bMD\b|"
                           r"managing director|chief (?:executive|financial|operating) officer|whole[- ]?time director|"
-                          r"independent director|company secretary|compliance officer|\bresign|\bappoint|cessation|"
-                          r"steps? down|re-?designat"),
+                          r"independent director|company secretary|compliance officer"),
     ("pledge/encumbrance", r"\bpledge|encumbrance|invocation of|non-disposal undertaking"),
     ("insider/SAST", r"\bSAST\b|regulation 29\b|regulation 31\b|insider trading|\bPIT\b|regulation 7\s*\(2\)|"
                      r"open offer|promoter (?:group )?(?:buy|sell|acqui|purchas|sale)"),
@@ -397,6 +396,8 @@ CATEGORIES = [
 # (a trading-window notice names the coming results; a newspaper copy names the meeting).
 ROUTINE_SUBJECT = (r"trading window|newspaper|share certificates?|regulation 74\s*\(5\)|compliance certificate|"
                    r"investor complaints")
+# Words that mean a management change unless the item is about the auditor.
+MGMT_WEAK = r"\bresign|\bappoint|cessation|steps? down|re-?designat"
 # What the "!" mark means: a filing in one of these categories can move the price.
 IMPORTANT = {"results", "corporate action", "fund raising", "deal", "credit rating", "auditor",
              "management change", "pledge/encumbrance", "regulatory", "clarification",
@@ -721,6 +722,10 @@ def categorise(subject, text=""):
     if re.search(ROUTINE_SUBJECT, subject or "", re.I):
         return ["routine"]
     tags = [label for label, rx in CATEGORIES if re.search(rx, hay, re.I)]
+    if "management change" not in tags and "auditor" not in tags and re.search(MGMT_WEAK, hay, re.I):
+        tags.append("management change")
+        order = [label for label, _ in CATEGORIES]
+        tags.sort(key=order.index)
     if "credit rating" in tags and "analyst rating" in tags:
         tags.remove("analyst rating")
     if "routine" in tags and len(tags) > 1:
@@ -969,7 +974,7 @@ def _stamp(now):
     return now.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def remember(items, state, now, hours=48):
+def remember(items, state, now):
     """Mark what this check could show as seen (by NSE seq_id or headline link)."""
     seen = state.setdefault("seen", {})
     stamp = _stamp(now)
@@ -1132,7 +1137,7 @@ def main(argv=None):
     else:
         sys.stdout.write(render(shown, errors, now, moves, args.move_pct, risks, info))
     if not args.dry_run:
-        remember(items, state, now, args.hours)
+        remember(items, state, now)
         folder = os.path.dirname(args.state)
         if folder:
             os.makedirs(folder, exist_ok=True)
